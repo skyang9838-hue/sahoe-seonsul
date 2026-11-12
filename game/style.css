@@ -1,0 +1,42 @@
+:root{--ink:#3b2a1e;--sub:#7a6555;--accent:#e8662c;--accent-d:#c24d18;--cream:#fff8ec}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#1d2a1c;font-family:"Jua","Malgun Gothic",sans-serif;color:var(--ink)}
+.hide{display:none!important}
+#app{position:fixed;inset:0}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#labels{position:absolute;inset:0;pointer-events:none}
+.kbd{display:inline-block;padding:1px 7px;border:2px solid var(--ink);border-bottom-width:4px;border-radius:7px;background:#fff;font-size:13px;margin:0 2px}
+
+
+#zone-banner{position:absolute;left:50%;top:104px;transform:translate(-50%,-30px);opacity:0;background:rgba(59,42,30,.85);color:#fff;font-size:26px;padding:8px 26px 8px 12px;border-radius:999px;border:3px solid #fff3d6;box-shadow:0 5px 0 rgba(0,0,0,.25);white-space:nowrap;pointer-events:none}
+#zone-banner .zb-ch{display:inline-block;background:var(--accent);border-radius:999px;padding:0 12px;margin-right:10px;font-size:19px}
+#zone-banner.show{animation:banner 3s ease-out forwards}
+@keyframes banner{0%{opacity:0;transform:translate(-50%,-30px)}12%{opacity:1;transform:translate(-50%,0)}80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-14px)}}
+
+.prompt{position:absolute;transform:translate(-50%,-100%);background:#fff;border:3px solid var(--ink);border-radius:12px;padding:3px 10px;font-size:15px;white-space:nowrap;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.prompt::after{content:"";position:absolute;left:50%;bottom:-9px;margin-left:-6px;border:6px solid transparent;border-top-color:var(--ink)}
+.qmark{position:absolute;transform:translate(-50%,-100%);width:34px;height:34px;border-radius:50%;background:#ffcf3a;border:3px solid var(--ink);font-size:22px;line-height:27px;text-align:center;box-shadow:0 3px 0 rgba(0,0,0,.25),0 0 16px 5px rgba(255,214,74,.85);animation:qb 1s ease-in-out infinite}
+@keyframes qb{0%,100%{margin-top:0}50%{margin-top:-9px}}
+
+#dialogue{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);width:min(880px,92vw);min-height:130px;background:linear-gradient(#fffdf8,#fff1dc);border:4px solid var(--ink);border-radius:22px;display:flex;gap:16px;padding:14px 18px;box-shadow:0 7px 0 rgba(0,0,0,.25),inset 0 0 0 3px #f6dfb8;animation:dlgIn .22s ease-out}
+@keyframes dlgIn{from{transform:translate(-50%,16px);opacity:0}to{transform:translateX(-50%);opacity:1}}
+#dlg-face{flex:0 0 100px;height:100px;border-radius:16px;border:3px solid var(--ink);background:radial-gradient(circle at 50% 65%,#fff6e0,#f3d9ae);overflow:hidden}
+#dlg-face canvas{width:100%;height:100%}
+#dlg-body{flex:1;min-width:0}
+#dlg-name{display:inline-block;background:var(--accent);color:#fff;padding:1px 14px;border-radius:999px;border:3px solid var(--ink);margin-top:-32px;margin-bottom:6px;font-size:17px;box-shadow:0 3px 0 rgba(0,0,0,.2)}
+#dlg-text{font-size:21px;line-height:1.55;word-break:keep-all;white-space:pre-wrap}
+#dlg-next{position:absolute;right:18px;bottom:10px;font-size:13px;color:var(--sub);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.6}}
+.cine-bars::before,.cine-bars::after{content:"";position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s ease;z-index:5;pointer-events:none}
+#letterbox{position:absolute;inset:0;pointer-events:none}
+#letterbox::before,#letterbox::after{content:"";position:absolute;left:0;right:0;height:0;background:#0b0806;transition:height .35s ease}
+#letterbox::before{top:0}#letterbox::after{bottom:0}
+#letterbox.on::before,#letterbox.on::after{height:7vh}
+
+#loading{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#ffe9b8,#f2b46b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s}
+#loading.done{opacity:0;pointer-events:none}
+.ld-title{font-size:58px;color:#fff;text-shadow:0 5px 0 #c24d18,0 9px 0 rgba(59,42,30,.3);-webkit-text-stroke:2px #8a3510}
+.ld-bar{width:320px;height:18px;border:3px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden}
+#ld-fill{height:100%;width:0;background:linear-gradient(90deg,#ffb347,#e8662c);transition:width .2s}
+#ld-msg{color:var(--ink);font-size:16px}
+#fps{position:absolute;right:8px;bottom:6px;font:12px monospace;color:rgba(255,255,255,.7)}

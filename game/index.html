@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>꼬꼬의 첫 출근</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Do+Hyeon&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="exam.css?v=7">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="gl"></canvas>
+  <div id="letterbox"></div>
+  <div id="labels"></div>
+
+  <div id="hud" class="hide">
+    <div id="hud-who"></div>
+    <div id="hud-prog">
+      <div class="slot"><span>마트</span><span class="stamp"></span></div>
+      <div class="slot"><span>회사</span><span class="stamp"></span></div>
+      <div class="slot"><span>회의실</span><span class="stamp"></span></div>
+    </div>
+    <div id="hud-right"><span id="save-state">저장됨</span><span class="kbd-s">Esc 수첩</span></div>
+  </div>
+  <div id="quest-bar" style="display:none"><span class="qb-pin">📍</span><b></b></div>
+  <div id="zone-banner"></div>
+
+  <div id="dialogue" class="hide">
+    <div id="dlg-face"></div>
+    <div id="dlg-body"><div id="dlg-name"></div><div id="dlg-text"></div></div>
+    <div id="dlg-next">Space ▶</div>
+  </div>
+
+  <div id="comic" class="hide">
+    <img id="comic-img" alt="">
+    <div class="comic-box"><div id="comic-text"></div><div class="comic-foot"><span id="comic-page"></span><span>Space ▶</span></div></div>
+    <button id="comic-skip">건너뛰기</button>
+  </div>
+
+  <div id="fade"></div>
+
+  <!-- 평가 화면(960×540 무대를 창에 맞춰 키움) -->
+  <div id="ex-root" class="hide">
+    <div id="ex-stage">
+      <div id="ex-start" class="ex-screen hide">
+        <div class="start-card">
+          <h1 class="game-title">꼬꼬의 첫 출근</h1>
+          <div class="sub">6학년 사회 서·논술형 평가</div>
+          <div class="start-form">
+            <label>6학년 <input id="in-ban" inputmode="numeric" maxlength="2" autocomplete="off"> 반</label>
+            <label><input id="in-num" inputmode="numeric" maxlength="2" autocomplete="off"> 번</label>
+            <label>이름 <input id="in-name" maxlength="10" autocomplete="off"></label>
+          </div>
+          <div id="start-msg" class="msg"></div>
+          <button id="btn-start" class="btn primary big">출근하기</button>
+          <div class="keys-hint"><span class="kbd">←↑↓→</span> 걷기 <span class="kbd">Space</span> 점프 · 말 걸기 <span class="kbd">Esc</span> 수첩</div>
+        </div>
+      </div>
+
+      <div id="ex-panel" class="hide" role="dialog" aria-modal="true">
+        <div id="ex-left">
+          <div id="ex-inst" class="inst"></div>
+          <div id="ex-res" class="res-head"></div>
+          <div id="ex-scene" class="scene"></div>
+          <div id="ex-chapter" class="chapter-title"></div>
+          <div id="ex-text" class="res-text"></div>
+        </div>
+        <div id="ex-right">
+          <div id="ex-qs"></div>
+          <div class="panel-btns"><button id="ex-done" class="btn primary">다 썼어요</button></div>
+        </div>
+      </div>
+
+      <div id="ex-notebook" class="hide" role="dialog" aria-modal="true">
+        <div class="nb-head">
+          <div class="nb-title">꼬꼬의 수첩</div>
+          <div id="nb-tabs"></div>
+          <div id="nb-blank"></div>
+          <button id="nb-close" class="btn">닫기 (Esc)</button>
+        </div>
+        <div class="nb-body">
+          <div id="nb-left"><div id="nb-inst" class="inst"></div><div id="nb-res" class="res-head"></div><div id="nb-chapter" class="chapter-title"></div><div id="nb-text" class="res-text"></div></div>
+          <div id="nb-right"><div id="nb-qs"></div></div>
+        </div>
+        <div class="nb-foot"><span id="nb-note"></span><button id="nb-submit" class="btn primary">제출하기</button></div>
+      </div>
+
+      <div id="ex-end" class="ex-screen hide">
+        <div class="end-book">
+          <div class="end-stamps"><span class="stamp on"></span><span class="stamp on"></span><span class="stamp on"></span></div>
+          <div class="end-title">꼬꼬의 수첩 완성!</div>
+          <div class="end-sub">제출 완료! 선생님 화면을 기다려 주세요.</div>
+          <div id="end-time" class="end-time"></div>
+          <button id="end-view" class="btn">내 답 다시 보기</button>
+        </div>
+      </div>
+
+      <div id="ex-ask" class="hide" role="alertdialog" aria-modal="true">
+        <div class="ask-box"><div id="ex-ask-msg"></div>
+          <div class="ask-btns"><button id="ex-ask-no" class="btn">돌아가기</button><button id="ex-ask-yes" class="btn primary">네</button></div></div>
+      </div>
+      <div id="ex-banner" class="hide"><span id="ex-banner-msg"></span><button id="ex-banner-retry" class="btn">다시 저장</button></div>
+      <div id="ex-toast" class="hide"></div>
+    </div>
+  </div>
+
+  <div id="loading"><div class="ld-title">꼬꼬의 첫 출근</div><div class="ld-bar"><div id="ld-fill"></div></div><div id="ld-msg">마을을 짓는 중…</div></div>
+  <div id="fps"></div>
+</div>
+<script type="module" src="src/main.js?v=9"></script>
+</body>
+</html>

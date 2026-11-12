@@ -1,0 +1,990 @@
+<script>
+(function () {
+"use strict";
+
+/* ─────────────────────────────────────────────
+   1. 평가 원문 — 한글본(문항/시장경제 평가 문항.hwpx)과 글자 그대로.
+      tools/verify_text.py가 이 구역(다음 2번 구역 표시 전까지)을 대조한다. 게임 사정으로 고치지 않는다.
+   ───────────────────────────────────────────── */
+
+var INSTRUCTION = "※ 다음 <자료 1>을 읽고 물음에 답하시오.";
+var RESOURCE_TITLE = "<자료 1> 꼬꼬의 첫 출근";
+var CHAPTERS = [
+  { title: "1장. 꼬꼬의 첫 월급", paras: [
+    "꼬꼬는 라면을 만드는 '불꽃식품'에 취업했습니다.",
+    "꼬꼬는 공장에서 라면을 만들고 월급을 받았습니다. 월급날에는 가족과 함께 마트에 가서 가격과 품질을 비교하며 필요한 물건을 샀습니다.",
+    "한편, 불꽃식품은 근로자를 고용하여 라면을 만들고, 완성된 라면을 마트에 판매했습니다."
+  ]},
+  { title: "2장. 꼬꼬의 바쁜 공장", paras: [
+    "어느 날, 불꽃식품의 라면이 인기를 끌면서 공장이 무척 바빠졌습니다. 공장장은 근로자들에게 다음과 같이 말했습니다.",
+    "\"오늘부터 밤 10시까지 일하세요. 추가로 일해도 돈은 더 주지 않습니다.\"",
+    "\"주문이 밀렸으니 점심시간에도 쉬지 말고 일하세요.\"",
+    "\"일하다 다친 건 본인 잘못입니다. 회사는 책임지지 않겠습니다.\"",
+    "꼬꼬는 공장장의 말을 듣고 걱정이 되었습니다."
+  ]},
+  { title: "3장. 불꽃면 이야기", paras: [
+    "불꽃식품은 새로운 라면을 개발하기로 했습니다. 회의 끝에 아주 매운 라면인 '불꽃면'을 만들고, 한 개에 1,200원에 판매하기로 결정했습니다.",
+    "불꽃면 광고에는 '채소가 가득한 건강한 라면!'이라고 쓰여 있었지만, 실제로는 채소가 거의 들어 있지 않았습니다.",
+    "또 라면을 만드는 과정에서 생긴 더러운 물이 근처 강으로 흘러갔습니다."
+  ]}
+];
+var Q1 = { prompt: "1. <자료 1>의 1장에서 가계와 기업이 하는 경제활동을 각각 하나씩 찾아 쓰시오.",
+           rows: ["가계(꼬꼬네 가족):", "기업(불꽃식품):"] };
+var Q2 = { prompt: "2. 가계와 기업의 경제적 관계를 생각하며 빈칸에 알맞은 말을 쓰시오.",
+           lines: [ ["① 가계는 기업에 노동력을 제공하고, 그 대가로 (", ")을/를 받습니다."],
+                    ["② 기업은 가계에 (", ")을/를 판매하고, 그 대가로 돈을 받습니다."] ] };
+var Q3 = { prompt: "3. <자료 1>의 2장에서 근로자의 권리가 지켜지지 않은 장면을 하나 골라 글을 쓰시오.",
+           cond: ["<조건>", "가) 어떤 장면에서 근로자의 어떤 권리가 지켜지지 않았는지 쓸 것.", "나) 이 문제를 해결하기 위한 방법을 한 가지 제안할 것."] };
+var Q4 = { prompt: "4. <자료 1>의 3장을 읽고 불꽃식품의 경제활동에 대해 쓰시오.",
+           cond: ["<조건>", "가) 불꽃식품이 기업의 자유에 따라 스스로 결정한 일을 한 가지 찾아 쓸 것.", "나) 불꽃식품이 사회적 책임을 다하지 못한 일을 한 가지 찾고, 이를 개선할 방법을 제안할 것."] };
+
+/* ─────────────────────────────────────────────
+   2. 대사 — 원문 인용 줄은 src:"원문"(한글본에 글자 그대로 있어야 함).
+      나머지는 안내 문구. 답을 암시하는 낱말을 쓰지 않는다(tools/check_hints.py).
+   ───────────────────────────────────────────── */
+
+var WHO = {
+  kkokko: { name: "꼬꼬", ph: "kkokko" }, mom: { name: "엄마 닭", ph: "mom" }, baby: { name: "아기 병아리", ph: "baby" },
+  boss: { name: "공장장", ph: "boss" }, bear: { name: "동료 곰", ph: "bear" }, bunny: { name: "동료 토끼", ph: "bunny" },
+  fox: { name: "회의실 직원", ph: "fox" }, note: { name: "안내", ph: "kkokko" }
+};
+var DIALOGUE = {
+  mom:    [ { who: "mom", text: "꼬꼬야, 오늘 월급날이지? 마트에 같이 가자!" } ],
+  baby:   [ { who: "baby", text: "삐약! 마트 가요, 마트!" } ],
+  after1: [ { who: "kkokko", text: "공장 쪽으로 가 볼까?", face: "happy" } ],
+  bear:   [ { who: "bear", text: "어느 날, 불꽃식품의 라면이 인기를 끌면서 공장이 무척 바빠졌습니다.", src: "원문일부" } ],
+  bunny:  [ { who: "bunny", text: "공장장님이 할 말이 있대. 문 앞에 계셔." } ],
+  boss:   [ { who: "boss", text: "\"오늘부터 밤 10시까지 일하세요. 추가로 일해도 돈은 더 주지 않습니다.\"", src: "원문" },
+            { who: "boss", text: "\"주문이 밀렸으니 점심시간에도 쉬지 말고 일하세요.\"", src: "원문" },
+            { who: "boss", text: "\"일하다 다친 건 본인 잘못입니다. 회사는 책임지지 않겠습니다.\"", src: "원문" },
+            { who: "kkokko", text: "……", face: "worry" } ],
+  after2: [ { who: "kkokko", text: "공장 뒤편 회의실로 가 보자." } ],
+  fox:    [ { who: "fox", text: "불꽃식품은 새로운 라면을 개발하기로 했습니다. 회의 끝에 아주 매운 라면인 '불꽃면'을 만들고, 한 개에 1,200원에 판매하기로 결정했습니다.", src: "원문" } ],
+  ad:     [ { who: "note", text: "불꽃면 광고에는 '채소가 가득한 건강한 라면!'이라고 쓰여 있었지만, 실제로는 채소가 거의 들어 있지 않았습니다.", src: "원문" } ],
+  river:  [ { who: "note", text: "또 라면을 만드는 과정에서 생긴 더러운 물이 근처 강으로 흘러갔습니다.", src: "원문" } ],
+  after3: [ { who: "kkokko", text: "꼬꼬의 수첩을 열어 다시 읽어 보고 제출해요.", face: "happy" } ],
+  lockedFactoryDoor: [ { who: "note", text: "먼저 공장장에게 말을 걸어 봐요." } ],
+  lockedMeetDoor: [ { who: "note", text: "먼저 회의실 직원, 광고판, 강가를 차례로 살펴봐요." } ],
+  lockedMartDoor: [ { who: "note", text: "먼저 엄마 닭에게 말을 걸어 봐요." } ],
+  lockedEast1: [ { who: "note", text: "먼저 마트에 들러요." } ],
+  lockedEast2: [ { who: "note", text: "먼저 공장에 들러요." } ]
+};
+
+/* ─────────────────────────────────────────────
+   3. 구역 데이터 (960×540 논리 좌표, 위 40px은 상단 막대)
+      walls: 못 지나가는 사각형 [x,y,w,h]. things: 말 걸기·조사·문.
+   ───────────────────────────────────────────── */
+
+var ZONES = [
+  { name: "마을", title: "꼬꼬네 마을", bg: "#bfe39a", path: [0, 280, 960, 100],
+    boxes: [ { cls: "building", r: [40, 50, 240, 195], t: "꼬꼬네 집" }, { cls: "building", r: [610, 40, 330, 210], t: "동네 마트" } ],
+    walls: [ [0, 0, 960, 250], [0, 430, 110, 110], [840, 430, 120, 110] ],
+    bounds: [30, 262, 930, 516],
+    things: [
+      { id: "mom", kind: "npc", who: "mom", x: 330, y: 300, dlg: "mom", setFlag: "talkedMom" },
+      { id: "baby", kind: "npc", who: "baby", x: 450, y: 318, dlg: "baby", small: true },
+      { id: "martDoor", kind: "door", x: 778, y: 256, w: 80, h: 30, t: "마트 문", chapter: 0, needFlags: ["talkedMom"], lockedDlg: "lockedMartDoor" }
+    ],
+    quest: ["mom", "martDoor"],
+    start: [170, 330], exitRight: { y: [262, 516], need: 1, locked: "lockedEast1" } },
+  { name: "공장", title: "불꽃식품 공장", bg: "#cfe0b0", path: [0, 280, 960, 100],
+    boxes: [ { cls: "building", r: [255, 40, 670, 210], t: "불꽃식품 공장" } ],
+    walls: [ [0, 0, 960, 256], [0, 430, 110, 110], [840, 430, 120, 110] ],
+    bounds: [30, 268, 930, 516],
+    things: [
+      { id: "bear", kind: "npc", who: "bear", x: 190, y: 330, dlg: "bear" },
+      { id: "bunny", kind: "npc", who: "bunny", x: 250, y: 420, dlg: "bunny" },
+      { id: "boss", kind: "npc", who: "boss", x: 520, y: 310, dlg: "boss", setFlag: "talkedBoss" },
+      { id: "factoryDoor", kind: "door", x: 645, y: 262, w: 120, h: 30, t: "공장 문", chapter: 1, needFlags: ["talkedBoss"], lockedDlg: "lockedFactoryDoor" }
+    ],
+    quest: ["boss", "factoryDoor"],
+    start: [50, 330], exitRight: { y: [268, 516], need: 2, locked: "lockedEast2" } },
+  { name: "회의실·강가", title: "공장 뒤 회의실과 강가", bg: "#c8e3a8", path: [0, 280, 960, 100],
+    boxes: [ { cls: "building", r: [80, 40, 290, 205], t: "회의실" }, { cls: "sign", r: [590, 105, 155, 110], t: "광고판" },
+             { cls: "river", r: [0, 470, 960, 70], t: "강" } ],
+    walls: [ [0, 0, 960, 250], [0, 455, 960, 85] ],
+    bounds: [30, 262, 930, 452],
+    things: [
+      { id: "fox", kind: "npc", who: "fox", x: 470, y: 310, dlg: "fox", setFlag: "seeFox" },
+      { id: "ad", kind: "look", x: 668, y: 262, t: "광고판", dlg: "ad", setFlag: "seeAd" },
+      { id: "river", kind: "look", x: 845, y: 450, t: "강가", dlg: "river", setFlag: "seeRiver" },
+      { id: "meetDoor", kind: "door", x: 240, y: 256, w: 80, h: 30, t: "회의실 문", chapter: 2, needFlags: ["seeFox", "seeAd", "seeRiver"], lockedDlg: "lockedMeetDoor" }
+    ],
+    quest: ["fox", "ad", "river", "meetDoor"],
+    board: { r: [604, 118, 128, 62], text: "채소가 가득한 건강한 라면!" },
+    start: [50, 330], exitRight: null }
+];
+
+var SPEED = 170, NEAR = 56, TYPE_MS = 30, ZW = 960, WORLD_W = ZW * 3;
+(function toWorld() {
+  ZONES.forEach(function (Z, z) {
+    var o = z * ZW;
+    Z.ox = o;
+    Z.path = [Z.path[0] + o, Z.path[1], Z.path[2], Z.path[3]];
+    Z.boxes.forEach(function (b) { b.r = [b.r[0] + o, b.r[1], b.r[2], b.r[3]]; });
+    Z.walls = Z.walls.map(function (w) { return [w[0] + o, w[1], w[2], w[3]]; });
+    Z.things.forEach(function (t) { t.x += o; });
+    if (Z.board) Z.board.r = [Z.board.r[0] + o, Z.board.r[1], Z.board.r[2], Z.board.r[3]];
+    Z.start = [Z.start[0] + o, Z.start[1]];
+    Z.bounds = [o + (z === 0 ? 30 : 0), Z.bounds[1], o + (z === ZONES.length - 1 ? ZW - 30 : ZW), Z.bounds[3]];
+  });
+})();
+function zoneAt(x) { return Math.max(0, Math.min(ZONES.length - 1, Math.floor(x / ZW))); }
+
+/* ─────────────────────────────────────────────
+   4. 상태
+   ───────────────────────────────────────────── */
+
+var N_ANS = 6;
+var ANSWER_LABELS = ["1번 가계", "1번 기업", "2번 ①", "2번 ②", "3번", "4번"];
+var S = {
+  ban: "", num: "", name: "", row: 0,
+  answers: blank(), submitted: false, submittedAt: "",
+  progress: 0, flags: {}, zone: 0, x: 0, y: 0, face: 1,
+  mode: "start",      // start | guide | walk | talk | panel | notebook | ask | end
+  dirty: false, saving: false, failed: false, lastSavedAt: ""
+};
+function blank() { var a = []; for (var i = 0; i < N_ANS; i++) a.push(""); return a; }
+
+/* ─────────────────────────────────────────────
+   5. 도움 함수
+   ───────────────────────────────────────────── */
+
+function $(id) { return document.getElementById(id); }
+function show(id) { $(id).classList.remove("hide"); }
+function hide(id) { $(id).classList.add("hide"); }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+function digits(v) { v = String(v || "").replace(/^\s+|\s+$/g, ""); return /^\d{1,2}$/.test(v) ? String(parseInt(v, 10)) : ""; }
+function two(n) { return (n < 10 ? "0" : "") + n; }
+function hhmm(d) { return two(d.getHours()) + ":" + two(d.getMinutes()); }
+function stamp(d) { return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) + " " + hhmm(d); }
+var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function fit() {
+  var s = Math.min(window.innerWidth / 960, window.innerHeight / 540);
+  $("stage").style.transform = "scale(" + s + ")";
+}
+window.addEventListener("resize", fit);
+
+/* ─────────────────────────────────────────────
+   6. 서버 연결 (GAS 밖에서 열면 로컬 스텁으로 동작)
+   ───────────────────────────────────────────── */
+
+var SRV = (function () {
+  var live = (typeof google !== "undefined" && google.script && google.script.run);
+  if (live) {
+    return {
+      live: true,
+      register: function (ban, num, name, ok, fail) {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(fail).register(ban, num, name);
+      },
+      save: function (p, ok, fail) {
+        google.script.run.withSuccessHandler(ok).withFailureHandler(fail)
+          .saveAnswers(p.row, p.ban, p.num, p.name, p.answers, p.isFinal, p.progress);
+      }
+    };
+  }
+  // 로컬 미리보기 전용. 배포된 웹앱에서는 실행되지 않는다.
+  var stub = { failNext: 0, rows: {}, calls: [], delay: 120 };
+  try { stub.rows = JSON.parse(localStorage.getItem("kkokko-preview-server") || "{}"); } catch (e) {}
+  window.__stub = stub;
+  function later(fn) { setTimeout(fn, stub.delay); }
+  function keep() { try { localStorage.setItem("kkokko-preview-server", JSON.stringify(stub.rows)); } catch (e) {} }
+  return {
+    live: false,
+    register: function (ban, num, name, ok, fail) {
+      later(function () {
+        if (stub.failNext > 0) { stub.failNext--; fail(new Error("stub register fail")); return; }
+        var k = [ban, num, name].join("/");
+        if (!stub.rows[k]) stub.rows[k] = { row: Object.keys(stub.rows).length + 2, answers: blank(), submitted: false, submittedAt: "", progress: 0 };
+        keep();
+        var r = stub.rows[k];
+        ok({ ok: true, row: r.row, answers: r.answers.slice(), submitted: r.submitted, submittedAt: r.submittedAt, progress: r.progress });
+      });
+    },
+    save: function (p, ok, fail) {
+      stub.calls.push(JSON.parse(JSON.stringify(p)));
+      later(function () {
+        if (stub.failNext > 0) { stub.failNext--; fail(new Error("stub save fail")); return; }
+        if (stub.okFalse > 0) { stub.okFalse--; ok({ ok: false, msg: "저장하지 못했어요. (스텁)" }); return; }
+        var r = stub.rows[[p.ban, p.num, p.name].join("/")];
+        if (r && !r.submitted) {
+          r.answers = p.answers.slice(); r.progress = Math.max(r.progress, p.progress);
+          if (p.isFinal) { r.submitted = true; r.submittedAt = stamp(new Date()); }
+        }
+        keep();
+        ok({ ok: true, at: stamp(new Date()), submitted: r ? r.submitted : false });
+      });
+    }
+  };
+})();
+
+/* ─────────────────────────────────────────────
+   7. 저장 (기후 탐사대 방식: 로컬 즉시 + 서버 자동 저장·재시도)
+   ───────────────────────────────────────────── */
+
+function lsKey() { return "kkokko:" + [S.ban, S.num, S.name].join(":"); }
+function lsSave() {
+  try { localStorage.setItem(lsKey(), JSON.stringify({ answers: S.answers, pending: S.dirty, progress: S.progress, flags: S.flags, base: S.base })); } catch (e) {}
+}
+function lsLoad() { try { var v = localStorage.getItem(lsKey()); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+
+function setAnswer(i, v) {
+  if (S.submitted || S.finalizing) return;
+  if (S.answers[i] === v) return;
+  S.answers[i] = v; S.dirty = true; lsSave(); renderSaveState();
+}
+
+var saveQueue = [];
+function save(isFinal, done) {
+  if (S.saving) { saveQueue.push({ f: isFinal, d: done }); return; }
+  if (!S.row) { if (done) done(false); return; }
+  var snapshot = S.answers.slice();
+  S.saving = true; renderSaveState();
+  var tries = 0;
+  function attempt() {
+    tries++;
+    SRV.save({ row: S.row, ban: S.ban, num: S.num, name: S.name, answers: snapshot, isFinal: !!isFinal, progress: S.progress },
+      function (res) {
+        S.saving = false;
+        if (res && res.ok) {
+          S.dirty = JSON.stringify(S.answers) !== JSON.stringify(snapshot);
+          S.failed = false; S.lastSavedAt = hhmm(new Date()); S.base = JSON.stringify(snapshot);
+          if (res.submitted) { S.submitted = true; S.submittedAt = res.at || stamp(new Date()); }
+          lsSave(); hide("banner");
+        } else { S.failed = true; showBanner(res && res.msg); }
+        renderSaveState();
+        if (done) done(!!(res && res.ok));
+        drain();
+      },
+      function () {
+        if (tries < 3) { setTimeout(attempt, 700 * tries); return; }
+        S.saving = false; S.failed = true; renderSaveState(); showBanner(null);
+        if (done) done(false);
+        drain();
+      });
+  }
+  attempt();
+}
+function drain() { if (saveQueue.length) { var j = saveQueue.shift(); save(j.f, j.d); } }
+function showBanner(msg) {
+  $("banner-msg").textContent = msg || "답을 서버에 저장하지 못했어요. 답은 이 컴퓨터에 남아 있으니 선생님께 알려 주세요.";
+  show("banner");
+}
+function renderSaveState() {
+  var el = $("save-state");
+  el.className = S.saving ? "saving" : (S.failed ? "fail" : "");
+  el.textContent = S.saving ? "저장 중…" : S.failed ? "저장 실패" : S.dirty ? "저장 대기" : (S.lastSavedAt ? "저장됨 " + S.lastSavedAt : "저장됨");
+}
+setInterval(function () { if (S.row && S.dirty && !S.saving && !S.submitted) save(false); }, 60000);
+window.addEventListener("beforeunload", function (e) {
+  if (S.row && !S.submitted && (S.dirty || S.saving)) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ─────────────────────────────────────────────
+   8. 게임 화면 그리기
+   ───────────────────────────────────────────── */
+
+var actorEls = {}, heroEl = null;
+
+var ART = window.KK_ART || null;
+
+/* 효과음: 파일 없이 WebAudio로 만든다. 상단 막대에서 끌 수 있다. */
+var SND = { on: true, ctx: null };
+try { SND.on = localStorage.getItem("kkokko-sound") !== "off"; } catch (e) {}
+function tone(freq, dur, type, vol, slide) {
+  if (!SND.on) return;
+  try {
+    var C = SND.ctx || (SND.ctx = new (window.AudioContext || window.webkitAudioContext)());
+    var o = C.createOscillator(), g = C.createGain(), t = C.currentTime;
+    o.type = type || "sine"; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(vol || 0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(C.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) {}
+}
+var sfx = {
+  jump: function () { tone(420, 0.18, "square", 0.04, 820); },
+  blip: function () { tone(660 + Math.random() * 80, 0.03, "triangle", 0.025); },
+  open: function () { tone(660, 0.12, "sine", 0.06); setTimeout(function () { tone(990, 0.18, "sine", 0.06); }, 110); },
+  stamp: function () { tone(140, 0.22, "triangle", 0.12, 70); setTimeout(function () { tone(880, 0.25, "sine", 0.05); }, 160); },
+  door: function () { tone(520, 0.1, "triangle", 0.05, 700); },
+  nope: function () { tone(220, 0.15, "square", 0.03, 180); },
+  done: function () { [523, 659, 784, 1046].forEach(function (f, i) { setTimeout(function () { tone(f, 0.22, "triangle", 0.06); }, i * 120); }); }
+};   // theme.html이 넣는 그림(data URL). 없으면 회색 상자.
+function ph(kind, pose) {
+  var a = ART && ART.chars && ART.chars[kind];
+  if (a) { var src = a[pose || "front"] || a.front; return '<img class="spr" alt="" src="' + src + '">'; }
+  return '<div class="ph ' + kind + '"></div>';
+}
+
+var camX = 0, builtWorld = false;
+function ensureCam() {
+  if ($("cam")) return;
+  var cam = document.createElement("div"); cam.id = "cam";
+  var w = $("world");
+  w.insertBefore(cam, w.firstChild);
+  cam.appendChild($("zone-bg")); cam.appendChild($("actors")); cam.appendChild($("prompt"));
+}
+function buildZone(zz) {
+  if (builtWorld) { return; }
+  builtWorld = true; ensureCam();
+  var bg = $("zone-bg"), html = "";
+  bg.style.width = WORLD_W + "px"; $("actors").style.width = WORLD_W + "px";
+  var hasArt = !!(ART && ART.zones);
+  bg.style.background = "#bfe39a";
+  bg.classList.toggle("has-art", hasArt);
+  $("world").classList.toggle("art", !!(ART && ART.chars));
+  ZONES.forEach(function (Z, z) {
+    var art = ART && ART.zones && ART.zones[z];
+    html += '<div class="zone-tile" style="left:' + Z.ox + 'px;' + (art ? 'background-image:url(' + art + ')' : 'background:' + Z.bg) + '"></div>';
+    html += buildZoneHTML(Z, z);
+  });
+  bg.innerHTML = html;
+  var actors = $("actors"); actors.innerHTML = ""; actorEls = {};
+  ZONES.forEach(function (Z) { Z.things.forEach(function (t) {
+    if (t.kind !== "npc") return;
+    var el = document.createElement("div");
+    el.className = "actor npc" + (t.small ? " baby-size" : "");
+    el.style.left = t.x + "px"; el.style.top = t.y + "px";
+    el.innerHTML = '<div class="shadow"></div><div class="body">' + ph(WHO[t.who].ph) + '</div><div class="label">' + esc(WHO[t.who].name) + '</div>';
+    actors.appendChild(el); actorEls[t.id] = el;
+  }); });
+  var mk = document.createElement("div"); mk.id = "quest-mark"; mk.className = "quest-mark hide"; mk.textContent = "!";
+  actors.appendChild(mk);
+  heroEl = document.createElement("div");
+  heroEl.className = "actor hero";
+  heroEl.innerHTML = '<div class="shadow"></div><div class="body">' + ph("kkokko") + '</div><div class="label">꼬꼬</div>';
+  actors.appendChild(heroEl);
+  refreshDoors();
+}
+function buildZoneHTML(Z, z) {
+  var html = "";
+  html += '<div class="zone-ground"><div class="gb" style="left:' + Z.path[0] + 'px;top:' + Z.path[1] + 'px;width:' + Z.path[2] + 'px;height:' + Z.path[3] + 'px;background:#f1d9a6;border-radius:0"></div></div>';
+  Z.boxes.forEach(function (b) {
+    html += '<div class="gb ' + b.cls + '" style="left:' + b.r[0] + 'px;top:' + b.r[1] + 'px;width:' + b.r[2] + 'px;height:' + b.r[3] + 'px">' + esc(b.t || "") + '</div>';
+  });
+  if (Z.board) html += '<div class="board-text" style="left:' + Z.board.r[0] + 'px;top:' + Z.board.r[1] + 'px;width:' + Z.board.r[2] + 'px;height:' + Z.board.r[3] + 'px">' + esc(Z.board.text) + '</div>';
+  if (Z.exitRight) html += '<div class="gate" id="gate-' + z + '" style="left:' + (Z.ox + ZW - 26) + 'px;top:262px"><div class="gate-post l"></div><div class="gate-bar"></div><div class="gate-post r"></div><div class="gate-lock">🔒</div></div>';
+  Z.things.forEach(function (t) {
+    if (t.kind === "door") html += '<div class="gb door" id="th-' + t.id + '" style="left:' + (t.x - t.w / 2) + 'px;top:' + (t.y - t.h) + 'px;width:' + t.w + 'px;height:' + t.h + 'px">' + esc(t.t) + '</div>';
+  });
+  return html;
+}
+
+function thingDone(t) {
+  if (t.kind === "door") return S.progress > t.chapter;
+  return !!(t.setFlag && S.flags[t.setFlag]);
+}
+function questCur() {
+  var Z = ZONES[S.zone]; if (!Z.quest) return null;
+  for (var i = 0; i < Z.quest.length; i++) {
+    var t = thing(Z.quest[i]); if (t && !thingDone(t)) return t;
+  }
+  return null;
+}
+function thing(id) { for (var z = 0; z < ZONES.length; z++) { var T = ZONES[z].things; for (var i = 0; i < T.length; i++) if (T[i].id === id) return T[i]; } return null; }
+function questName(t) { return t.kind === "npc" ? WHO[t.who].name + "에게 말을 걸어" : t.t + "을 살펴"; }
+function placeMark() {
+  var m = $("quest-mark"); if (!m) return;
+  var t = (S.mode === "walk" || S.mode === "talk") ? questCur() : null;
+  if (!t) { m.classList.add("hide"); return; }
+  var top = t.kind === "npc" ? t.y - (t.small ? 62 : 104) : t.kind === "door" ? t.y - t.h - 34 : t.y - 52;
+  m.style.left = t.x + "px"; m.style.top = top + "px"; m.classList.remove("hide");
+}
+function doorOpen(t) {
+  return !t.needFlags || t.needFlags.every(function (f) { return S.flags[f]; }) || S.progress > t.chapter;
+}
+var EMOTES = ["♪", "!", "♥", "…"];
+function npcLife() {
+  if (S.mode !== "walk" || reduceMotion) return;
+  var ids = Object.keys(actorEls); if (!ids.length) return;
+  var id = ids[Math.floor(Math.random() * ids.length)], el = actorEls[id];
+  if (el.classList.contains("talking")) return;
+  el.classList.remove("hop"); void el.offsetWidth; el.classList.add("hop");
+  if (Math.random() < 0.5) {
+    var e = document.createElement("div"); e.className = "emote"; e.textContent = EMOTES[Math.floor(Math.random() * EMOTES.length)];
+    el.appendChild(e); setTimeout(function () { if (e.parentNode) e.parentNode.removeChild(e); }, 1400);
+  }
+}
+setInterval(npcLife, 2200);
+function refreshDoors() {
+  ZONES.forEach(function (Z, z) {
+    var g = $("gate-" + z); if (g && Z.exitRight) g.classList.toggle("open", S.progress >= Z.exitRight.need);
+  });
+  ZONES.forEach(function (Z) { Z.things.forEach(function (t) {
+    if (t.kind !== "door") return;
+    var el = $("th-" + t.id); if (!el) return;
+    var locked = !doorOpen(t);
+    el.classList.toggle("locked", !!locked);
+    el.setAttribute("data-lock", locked ? "🔒" : "");
+    el.classList.toggle("glow", !locked && S.progress === t.chapter);
+  }); });
+}
+
+var JUMP = { on: false, t: 0, z: 0, vz: 0, pre: 0, dbl: false, spin: 0 }, LANDT = 0;
+var GRAV = 2300, V0 = 600, V2 = 470, PRE = 0.06;
+function jump() {
+  if (reduceMotion) return;
+  if (!JUMP.on) { JUMP.on = true; JUMP.pre = PRE; JUMP.z = 0; JUMP.vz = 0; JUMP.dbl = false; JUMP.spin = 0; JUMP.t = 0; return; }
+  if (!JUMP.dbl && JUMP.pre <= 0) { JUMP.dbl = true; JUMP.vz = V2; JUMP.spin = 0.0001; tone(560, 0.16, "square", 0.04, 1100); puff(S.x, S.y - JUMP.z, 2); }
+}
+function stepJump(dt) {
+  if (!JUMP.on) return;
+  JUMP.t += dt;
+  if (JUMP.pre > 0) { JUMP.pre -= dt; if (JUMP.pre <= 0) { JUMP.vz = V0; sfx.jump(); } return; }
+  JUMP.vz -= GRAV * dt; JUMP.z += JUMP.vz * dt;
+  if (JUMP.spin) JUMP.spin = Math.min(1, JUMP.spin + dt / 0.42);
+  if (JUMP.z <= 0) { JUMP.z = 0; JUMP.on = false; JUMP.spin = 0; land(); }
+}
+function land() { LANDT = 0.14; puff(S.x - 18, S.y, 2); puff(S.x + 18, S.y, 2); puff(S.x, S.y + 4, 3); tone(160, 0.08, "triangle", 0.05); setTimeout(function () { LANDT = 0; }, 140); }
+function puff(x, y, big) {
+  if (reduceMotion || !$("actors")) return;
+  var d = document.createElement("div"); d.className = "dust" + (big === 2 ? " big" : big === 3 ? " ring" : "");
+  d.style.left = x + "px"; d.style.top = y + "px"; d.style.zIndex = Math.round(y) - 1;
+  $("actors").appendChild(d); setTimeout(function () { if (d.parentNode) d.parentNode.removeChild(d); }, 600);
+}
+function zoneBanner(z) {
+  var b = $("zone-banner"); if (!b) return;
+  b.innerHTML = '<span class="zb-ch">' + (z + 1) + '장</span>' + esc(ZONES[z].title || ZONES[z].name);
+  b.classList.remove("show"); void b.offsetWidth; b.classList.add("show");
+}
+var heroPose = "", heroMood = "";
+function setPose(p) {
+  if (p === heroPose) return; heroPose = p;
+  var b = heroEl && heroEl.querySelector(".body"); if (!b) return;
+  var sw = b.querySelector(".sweat");
+  b.innerHTML = ph("kkokko", p);
+  if (sw) b.appendChild(sw);
+}
+function drawHero(bobT, moving, dy) {
+  if (!heroEl) return;
+  heroEl.style.left = S.x + "px"; heroEl.style.top = S.y + "px";
+  heroEl.style.zIndex = Math.round(S.y);
+  var body = heroEl.querySelector(".body"), sh = heroEl.querySelector(".shadow");
+  var hop = (moving && !reduceMotion && !JUMP.on) ? Math.abs(Math.sin(bobT * 10)) : 0;
+  var rot = (moving && !reduceMotion && !JUMP.on) ? Math.sin(bobT * 10) * 4 : 0;
+  var jh = JUMP.on ? JUMP.z : 0;
+  var lift = hop * 6 + jh;
+  var sx = 1, sy = 1;
+  if (!reduceMotion) {
+    if (JUMP.on) {
+      if (JUMP.pre > 0) { sy = 0.8; sx = 1.16; }
+      else { var v = JUMP.vz / V0; sy = 1 + Math.max(-0.06, Math.min(0.14, v * 0.14)); sx = 1 - (sy - 1) * 0.7; }
+    }
+    else if (moving) { var st2 = Math.sin(bobT * 20); sy = 1 + st2 * 0.04; sx = 1 - st2 * 0.03; }
+    else { var br = Math.sin(breathT * 3); sy = 1 + br * 0.025; sx = 1 - br * 0.012; }
+    if (LANDT > 0) { sy *= 0.78; sx *= 1.2; }
+  }
+  if (JUMP.spin) rot = JUMP.spin * 360 * S.face;
+  var pose = heroMood || (JUMP.on && JUMP.pre <= 0 ? "jump" : moving ? (dy < 0 && !rotSide(dy) ? "back" : "side") : "front");
+  setPose(pose);
+  var flip = (pose === "side" || pose === "jump") ? S.face : 1;
+  body.style.transform = "translateY(" + (-lift) + "px) scaleX(" + (flip * sx) + ") scaleY(" + sy + ") rotate(" + rot + "deg)";
+  var k = Math.min(1, lift / 90);
+  sh.style.transform = "scale(" + (1 - k * 0.55) + ")"; sh.style.opacity = String(1 - k * 0.6);
+  for (var id in actorEls) actorEls[id].style.zIndex = Math.round(parseFloat(actorEls[id].style.top));
+}
+
+var lastDx = 0;
+function rotSide() { return lastDx !== 0; }
+function heroFace(face) {
+  heroMood = (face === "worry" || face === "happy") ? face : "";
+  var b = heroEl && heroEl.querySelector(".body"); if (!b) return;
+  var old = b.querySelector(".sweat"); if (old) old.parentNode.removeChild(old);
+  if (face === "worry") { var s = document.createElement("div"); s.className = "sweat"; b.appendChild(s); }
+  drawHero(0, false, 0);
+}
+
+function renderHUD() {
+  $("hud-who").textContent = "6학년 " + S.ban + "반 " + S.num + "번 " + S.name;
+  var slots = document.querySelectorAll("#hud-prog .slot");
+  for (var i = 0; i < slots.length; i++) {
+    slots[i].classList.toggle("done", S.progress > i);
+    slots[i].classList.toggle("now", S.progress === i);
+    slots[i].querySelector(".stamp").classList.toggle("on", S.progress > i);
+  }
+}
+function popStamp(i) {
+  var st = document.querySelectorAll("#hud-prog .stamp")[i];
+  st.classList.add("on"); st.classList.remove("pop"); void st.offsetWidth; st.classList.add("pop"); sfx.stamp();
+}
+
+var toastTimer = 0;
+function toast(msg) { $("toast").textContent = msg; show("toast"); clearTimeout(toastTimer); toastTimer = setTimeout(function () { hide("toast"); }, 2200); }
+
+/* ─────────────────────────────────────────────
+   9. 이동·충돌·상호작용
+   ───────────────────────────────────────────── */
+
+var keys = {};
+function hit(x, y) {
+  var Z = ZONES[zoneAt(x)], b = Z.bounds;
+  if (x < 30 || x > WORLD_W - 30 || y < b[1] || y > b[3]) return true;
+  for (var i = 0; i < Z.walls.length; i++) {
+    var w = Z.walls[i];
+    if (x > w[0] - 14 && x < w[0] + w[2] + 14 && y > w[1] && y < w[1] + w[3] + 4) return true;
+  }
+  var npcs = Z.things;
+  for (var j = 0; j < npcs.length; j++) {
+    var t = npcs[j]; if (t.kind !== "npc") continue;
+    if (Math.abs(x - t.x) < 22 && Math.abs(y - t.y) < 12) return true;
+  }
+  return false;
+}
+
+function nearest() {
+  var Z = ZONES[S.zone], best = null, bd = 1e9;
+  Z.things.forEach(function (t) {
+    var d = Math.sqrt((t.x - S.x) * (t.x - S.x) + (t.y - S.y) * (t.y - S.y));
+    if (d < NEAR && d < bd) { bd = d; best = t; }
+  });
+  return best;
+}
+
+function updatePrompt() {
+  var t = (S.mode === "walk") ? nearest() : null, p = $("prompt");
+  if (!t) { hide("prompt"); return; }
+  var label = t.kind === "npc" ? "Space 말 걸기" : t.kind === "door" ? "Space 들어가기" : "Space 살펴보기";
+  p.textContent = label;
+  var top = t.kind === "npc" ? t.y - 80 : t.kind === "door" ? t.y - t.h - 6 : t.y - 30;
+  p.style.left = t.x + "px"; p.style.top = top + "px";
+  show("prompt");
+}
+
+function interact() {
+  var t = nearest(); if (!t) return;
+  var Z = ZONES[S.zone], cur = questCur();
+  if (Z.quest && Z.quest.indexOf(t.id) >= 0 && cur && cur !== t && !thingDone(t)) {
+    talk([{ who: "note", text: "먼저 " + questName(cur) + " 봐요." }]); return;
+  }
+  if (t.kind === "npc") {
+    talk(DIALOGUE[t.dlg], function () {
+      markSeen(t);
+    });
+  } else if (t.kind === "look") {
+    talk(DIALOGUE[t.dlg], function () { markSeen(t); });
+  } else if (t.kind === "door") {
+    if (!doorOpen(t)) { sfx.nope(); talk(DIALOGUE[t.lockedDlg]); return; }
+    sfx.door(); openPanel(t.chapter);
+  }
+}
+function markSeen(t) {
+  if (!t.setFlag || S.flags[t.setFlag]) return;
+  S.flags[t.setFlag] = true; lsSave();
+  var door = null;
+  ZONES[S.zone].things.forEach(function (d) { if (d.kind === "door" && d.needFlags && d.needFlags.indexOf(t.setFlag) >= 0) door = d; });
+  refreshDoors(); placeMark();
+  if (door && doorOpen(door) && S.progress === door.chapter) { toast(door.t + "이 열렸어요."); sfx.open(); }
+}
+
+function changeZone(z, fromLeft) {
+  S.zone = z;
+  var Z = ZONES[z];
+  buildZone(z);
+  if (fromLeft) { S.x = Z.start[0]; S.y = Math.min(Math.max(S.y, Z.bounds[1] + 10), Z.bounds[3] - 10); }
+  else { S.x = Z.bounds[2] - 20; S.y = Math.min(Math.max(S.y, Z.bounds[1] + 10), Z.bounds[3] - 10); }
+  if (hit(S.x, S.y)) { S.x = fromLeft ? Z.start[0] : Z.bounds[2] - 20; S.y = Z.start[1]; }
+  zoneBanner(z);
+  var bg = $("zone-bg");
+  if (!reduceMotion) { bg.style.transition = "none"; bg.style.transform = "translateX(" + (fromLeft ? 60 : -60) + "px)"; void bg.offsetWidth; bg.style.transition = ""; bg.style.transform = "translateX(0)"; }
+  drawHero(0, false);
+}
+
+var lastT = 0, bobT = 0, edgeCooldown = 0, dustT = 0, breathT = 0;
+function loop(t) {
+  var dt = Math.min(0.05, (t - (lastT || t)) / 1000); lastT = t;
+  if (S.mode === "walk") {
+    var dx = (keys.ArrowRight || keys.KeyD ? 1 : 0) - (keys.ArrowLeft || keys.KeyA ? 1 : 0);
+    var dy = (keys.ArrowDown || keys.KeyS ? 1 : 0) - (keys.ArrowUp || keys.KeyW ? 1 : 0);
+    var moving = dx || dy;
+    if (moving) {
+      var len = Math.sqrt(dx * dx + dy * dy); dx /= len; dy /= len;
+      if (dx) S.face = dx > 0 ? 1 : -1;
+      lastDx = dx;
+      var nx = S.x + dx * SPEED * dt, ny = S.y + dy * SPEED * dt;
+      nx = Math.min(Math.max(nx, 30), WORLD_W - 30);
+      var nz = zoneAt(nx), cz = zoneAt(S.x);
+      if (nz > cz) {
+        var EX = ZONES[cz].exitRight;
+        if (!EX || S.progress < EX.need) {
+          nx = ZONES[cz].ox + ZW - 34;
+          if (edgeCooldown <= 0 && EX) { edgeCooldown = 1.2; sfx.nope(); talk(DIALOGUE[EX.locked]); }
+        }
+      }
+      if (!hit(nx, S.y)) S.x = nx;
+      if (!hit(S.x, ny)) S.y = ny;
+      bobT += dt; dustT += dt;
+      if (dustT > 0.22 && !JUMP.on) { dustT = 0; puff(S.x - S.face * 14, S.y, 1); }
+      var zNow = zoneAt(S.x);
+      if (zNow !== S.zone) { S.zone = zNow; zoneBanner(zNow); refreshDoors(); }
+    }
+    stepJump(dt);
+    breathT += dt;
+    drawHero(bobT, !!moving, dy);
+    updatePrompt(); placeMark();
+  }
+  if (heroEl) {
+    var target = Math.max(0, Math.min(WORLD_W - ZW, S.x - ZW / 2));
+    camX += (target - camX) * Math.min(1, dt * 6);
+    if (Math.abs(target - camX) < 0.3) camX = target;
+    var cam = $("cam"); if (cam) cam.style.transform = "translateX(" + (-Math.round(camX)) + "px)";
+  }
+  if (edgeCooldown > 0) edgeCooldown -= dt;
+  requestAnimationFrame(loop);
+}
+
+function edgeCheck(dx) {
+  if (edgeCooldown > 0) return;
+  var Z = ZONES[S.zone], b = Z.bounds;
+  if (dx > 0 && S.x >= b[2] - 1 && Z.exitRight) {
+    edgeCooldown = 0.6;
+    if (S.progress < Z.exitRight.need) { talk(DIALOGUE[Z.exitRight.locked]); S.x -= 12; return; }
+    changeZone(S.zone + 1, true);
+  } else if (dx < 0 && S.x <= b[0] + 1 && S.zone > 0) {
+    edgeCooldown = 0.6;
+    changeZone(S.zone - 1, false);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   10. 대화창
+   ───────────────────────────────────────────── */
+
+var D = { lines: null, i: 0, typed: 0, full: "", timer: 0, done: null, prev: "walk" };
+var talkQueue = [];
+function placeDialogue() {
+  var t = nearest(), low = S.y > 380 || (t && t.y > 380);
+  $("dialogue").classList.toggle("top", !!low);
+}
+function flushTalk() {
+  if (S.mode !== "walk" || !talkQueue.length) return;
+  var q = talkQueue.shift(); talk(q[0], q[1]);
+}
+function talk(lines, done) {
+  if (!lines || !lines.length) { if (done) done(); return; }
+  if (S.mode !== "walk" && S.mode !== "guide") { talkQueue.push([lines, done]); return; }
+  D.lines = lines; D.i = 0; D.done = done || null; D.prev = S.mode;
+  S.mode = "talk"; hide("prompt"); show("dialogue");
+  showLine();
+}
+function showLine() {
+  var L = D.lines[D.i], w = WHO[L.who];
+  for (var aid in actorEls) actorEls[aid].classList.remove("talking");
+  for (var aid2 in actorEls) { var th = thing(aid2); if (th && th.who === L.who) actorEls[aid2].classList.add("talking"); }
+  placeDialogue();
+  $("dlg-name").textContent = w.name;
+  $("dlg-portrait").innerHTML = ph(w.ph);
+  if (L.who === "kkokko") heroFace(L.face || "");
+  D.full = L.text; D.typed = 0; clearInterval(D.timer);
+  if (reduceMotion) { D.typed = D.full.length; $("dlg-text").textContent = D.full; return; }
+  $("dlg-text").textContent = "";
+  D.timer = setInterval(function () {
+    D.typed++; $("dlg-text").textContent = D.full.slice(0, D.typed);
+    if (D.typed % 3 === 1) sfx.blip();
+    if (D.typed >= D.full.length) clearInterval(D.timer);
+  }, TYPE_MS);
+}
+function advance() {
+  if (D.typed < D.full.length) { clearInterval(D.timer); D.typed = D.full.length; $("dlg-text").textContent = D.full; return; }
+  D.i++;
+  if (D.i < D.lines.length) { showLine(); return; }
+  hide("dialogue"); S.mode = D.prev === "talk" ? "walk" : D.prev;
+  for (var aid in actorEls) actorEls[aid].classList.remove("talking");
+  if (heroMood) { heroMood = ""; var bb = heroEl && heroEl.querySelector(".body .sweat"); if (bb) bb.parentNode.removeChild(bb); }
+  var cb = D.done; D.done = null;
+  if (cb) cb();
+  flushTalk();
+}
+
+/* ─────────────────────────────────────────────
+   11. 평가 패널 (장소 안)
+   ───────────────────────────────────────────── */
+
+var curChapter = 0, waitSpaceUp = false, focusAfterSpace = null, spaceDown = false;
+function chapterHTML(c) {
+  return CHAPTERS[c].paras.map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("");
+}
+function qHTML(c, prefix) {
+  var h = "", ro = S.submitted ? " readonly" : "";
+  if (c === 0) {
+    h += '<div class="q"><div class="q-prompt">' + esc(Q1.prompt) + '</div>';
+    Q1.rows.forEach(function (lab, i) {
+      h += '<div class="q-row"><span class="lab">' + esc(lab) + '</span><input id="' + prefix + 'a' + i + '" data-i="' + i + '" maxlength="120" autocomplete="off" spellcheck="false"' + ro + ' aria-label="' + esc(lab) + '"></div>';
+    });
+    h += '</div><div class="q"><div class="q-prompt">' + esc(Q2.prompt) + '</div>';
+    Q2.lines.forEach(function (ln, j) {
+      var idx = 2 + j;
+      var pre = ln[0].slice(0, -1), post = ln[1].slice(0, 5), rest = ln[1].slice(5);
+      h += '<div class="fill-line">' + esc(pre) + '<span class="nw">(<input id="' + prefix + 'a' + idx + '" data-i="' + idx + '" maxlength="20" autocomplete="off" spellcheck="false"' + ro + ' aria-label="2번 ' + (j === 0 ? "①" : "②") + ' 빈칸">' + esc(post) + '</span>' + esc(rest) + '</div>';
+    });
+    h += '</div>';
+  } else {
+    var Q = c === 1 ? Q3 : Q4, idx2 = c === 1 ? 4 : 5;
+    h += '<div class="q"><div class="q-prompt">' + esc(Q.prompt) + '</div>';
+    h += '<div class="cond">' + Q.cond.map(esc).join("<br>") + '</div>';
+    h += '<textarea id="' + prefix + 'a' + idx2 + '" data-i="' + idx2 + '" maxlength="1500" rows="5" autocomplete="off" spellcheck="false"' + ro + ' aria-label="' + (c === 1 ? "3번" : "4번") + ' 답"></textarea></div>';
+  }
+  return h;
+}
+function bindInputs(root, prefix) {
+  var els = root.querySelectorAll("input[data-i],textarea[data-i]");
+  for (var k = 0; k < els.length; k++) (function (el) {
+    var i = +el.getAttribute("data-i");
+    el.value = S.answers[i] || "";
+    function grow() { if (el.tagName === "TEXTAREA") { el.style.height = "auto"; el.style.height = Math.max(el.scrollHeight + 4, 118) + "px"; } }
+    setTimeout(grow, 0);
+    el.addEventListener("input", function () { setAnswer(i, el.value); grow(); });
+    el.addEventListener("paste", function (e) { e.preventDefault(); toast("붙여넣기는 할 수 없어요. 직접 써 주세요."); });
+    el.addEventListener("drop", function (e) { e.preventDefault(); });
+    el.addEventListener("blur", function () { if (S.dirty && !S.saving) save(false); });
+  })(els[k]);
+}
+function chapterBlank(c) {
+  var idx = c === 0 ? [0, 1, 2, 3] : c === 1 ? [4] : [5], n = 0;
+  idx.forEach(function (i) { if (!String(S.answers[i] || "").replace(/\s/g, "")) n++; });
+  return n;
+}
+
+function openPanel(c) {
+  curChapter = c;
+  var sc = ART && ART.scenes && ART.scenes[c];
+  if (sc) { $("panel-scene").innerHTML = '<img alt="' + esc(CHAPTERS[c].title) + ' 장면" src="' + sc + '">'; $("panel-scene").classList.add("has-art"); }
+  else $("panel-scene").textContent = "(장면 그림 " + (c + 1) + ")";
+  $("panel-inst").textContent = INSTRUCTION;
+  $("panel-res").textContent = RESOURCE_TITLE;
+  $("panel-chapter").textContent = CHAPTERS[c].title;
+  $("panel-text").innerHTML = chapterHTML(c);
+  $("panel-qs").innerHTML = qHTML(c, "p-");
+  bindInputs($("panel-qs"), "p-");
+  S.mode = "panel"; hide("prompt"); show("panel"); keys = {};
+  var first = $("panel-qs").querySelector("input,textarea");
+  focusAfterSpace = (first && !S.submitted) ? first : null;
+  waitSpaceUp = !!spaceDown;
+  if (!waitSpaceUp && focusAfterSpace) { var f0 = focusAfterSpace; focusAfterSpace = null; setTimeout(function () { f0.focus(); }, 50); }
+}
+function closePanel() {
+  var c = curChapter;
+  function leave() {
+    hide("panel"); S.mode = "walk";
+    if (document.activeElement) document.activeElement.blur();
+    var firstTime = S.progress === c;
+    if (firstTime) { S.progress = c + 1; lsSave(); }
+    save(false);
+    if (firstTime) {
+      renderHUD(); popStamp(c); refreshDoors();
+      var next = c === 0 ? "after1" : c === 1 ? "after2" : "after3";
+      talk(DIALOGUE[next], function () { if (c === 2) openNotebook(0); });
+    }
+    flushTalk();
+  }
+  if (!S.submitted && chapterBlank(c) > 0) ask("비어 있는 칸이 있어요.\n나중에 수첩에서 다시 쓸 수 있어요. 나갈까요?", leave);
+  else leave();
+}
+
+/* ─────────────────────────────────────────────
+   12. 꼬꼬의 수첩 (검토·제출)
+   ───────────────────────────────────────────── */
+
+var nbTab = 0, nbPrev = "walk";
+function openNotebook(tab) {
+  if (S.mode === "notebook") return;
+  nbPrev = (S.mode === "end") ? "end" : "walk";
+  S.mode = "notebook"; hide("prompt"); show("notebook");
+  renderNotebook(tab || 0);
+}
+function renderNotebook(tab) {
+  nbTab = tab;
+  var tabs = "";
+  for (var c = 0; c < 3; c++) {
+    var locked = S.progress < c + 1 && !S.submitted;
+    tabs += '<button data-t="' + c + '" class="' + (c === tab ? "on" : "") + '"' + (locked ? " disabled" : "") + '>' + (c + 1) + "장" + '</button>';
+  }
+  $("nb-tabs").innerHTML = tabs;
+  var btns = $("nb-tabs").querySelectorAll("button");
+  for (var i = 0; i < btns.length; i++) btns[i].addEventListener("click", function () { renderNotebook(+this.getAttribute("data-t")); });
+  var visited = S.progress > tab || S.submitted;
+  $("nb-inst").textContent = INSTRUCTION;
+  $("nb-res").textContent = RESOURCE_TITLE;
+  $("nb-chapter").textContent = CHAPTERS[tab].title;
+  $("nb-text").innerHTML = visited ? chapterHTML(tab) : "<p>아직 들르지 않은 곳이에요.</p>";
+  $("nb-qs").innerHTML = visited ? qHTML(tab, "n-") : "";
+  if (visited) bindInputs($("nb-qs"), "n-");
+  var blanks = 0; for (var k = 0; k < N_ANS; k++) if (!String(S.answers[k] || "").replace(/\s/g, "")) blanks++;
+  $("nb-blank").textContent = S.submitted ? "" : (blanks ? "빈칸 " + blanks + "개" : "빈칸 없음");
+  var canSubmit = S.progress >= 3 && !S.submitted;
+  $("nb-submit").disabled = !canSubmit;
+  $("nb-submit").classList.toggle("hide", S.submitted);
+  $("nb-note").textContent = S.submitted ? "제출한 답이에요. 고칠 수 없어요." : (S.progress < 3 ? "세 곳을 모두 들러야 제출할 수 있어요." : "");
+}
+function closeNotebook() {
+  if (S.finalizing) return;
+  hide("notebook"); S.mode = nbPrev;
+  if (nbPrev === "end") show("sc-end");
+  if (document.activeElement) document.activeElement.blur();
+  if (S.dirty && !S.saving) save(false);
+  flushTalk();
+}
+function lockInputs(on) {
+  var els = document.querySelectorAll("#panel input,#panel textarea,#notebook input,#notebook textarea");
+  for (var i = 0; i < els.length; i++) els[i].readOnly = on || S.submitted;
+}
+function submitFinal() {
+  var blanks = []; for (var k = 0; k < N_ANS; k++) if (!String(S.answers[k] || "").replace(/\s/g, "")) blanks.push(ANSWER_LABELS[k]);
+  var msg = (blanks.length ? "비어 있는 칸: " + blanks.join(", ") + "\n\n" : "") + "제출하면 고칠 수 없어요. 제출할까요?";
+  ask(msg, function () {
+    $("nb-submit").disabled = true; S.finalizing = true; lockInputs(true);
+    save(true, function (ok) {
+      S.finalizing = false;
+      if (ok && S.submitted) { hide("notebook"); showEnd(); sfx.done(); }
+      else { $("nb-submit").disabled = false; lockInputs(false); }
+    });
+  });
+}
+
+/* ─────────────────────────────────────────────
+   13. 확인 창
+   ───────────────────────────────────────────── */
+
+var askYes = null, askPrev = "", askFocus = null;
+function ask(msg, yes) {
+  askFocus = document.activeElement;
+  askYes = yes; askPrev = S.mode; S.mode = "ask";
+  $("ask-msg").textContent = msg; show("ask");
+  setTimeout(function () { $("ask-no").focus(); }, 30);
+}
+function closeAsk(ok) {
+  hide("ask"); S.mode = askPrev;
+  var f = askYes; askYes = null;
+  if (ok && f) f();
+  else if (askFocus && askFocus.focus && document.body.contains(askFocus)) askFocus.focus();
+  flushTalk();
+}
+
+/* ─────────────────────────────────────────────
+   14. 시작·이어쓰기·끝
+   ───────────────────────────────────────────── */
+
+function start() {
+  if ($("btn-start").disabled || S.mode !== "start") return;
+  var ban = digits($("in-ban").value), num = digits($("in-num").value), name = $("in-name").value.replace(/^\s+|\s+$/g, "");
+  if (!$("in-ban").value || !$("in-num").value || !name) { $("start-msg").textContent = "반, 번호, 이름을 모두 적어 주세요."; return; }
+  if (!ban || !num) { $("start-msg").textContent = "반과 번호는 숫자로만 적어 주세요."; return; }
+  $("btn-start").disabled = true; $("start-msg").textContent = "출근 준비 중…";
+  SRV.register(ban, num, name, function (res) {
+    $("btn-start").disabled = false;
+    if (S.mode !== "start") return;
+    if (!res || !res.ok) { $("start-msg").textContent = (res && res.msg) || "다시 눌러 주세요."; return; }
+    S.ban = ban; S.num = num; S.name = name; S.row = res.row;
+    S.submitted = !!res.submitted; S.submittedAt = res.submittedAt || "";
+    S.answers = (res.answers || blank()).slice(0, N_ANS); while (S.answers.length < N_ANS) S.answers.push("");
+    S.progress = res.progress || 0; S.base = JSON.stringify(S.answers);
+    var local = lsLoad();
+    if (local) {
+      var serverJSON = JSON.stringify(S.answers), serverBlank = !S.answers.join("").replace(/\s/g, "");
+      if (local.pending && !S.submitted && local.answers && (local.base === serverJSON || serverBlank)) { S.answers = local.answers.slice(0, N_ANS); S.dirty = true; }
+      S.progress = Math.max(S.progress, local.progress || 0);
+      S.flags = local.flags || {};
+    }
+    if (S.progress >= 2) S.flags.talkedBoss = true;
+    if (S.progress >= 1) S.flags.talkedMom = true;
+    if (S.progress >= 3) { S.flags.seeFox = S.flags.seeAd = S.flags.seeRiver = true; }
+    $("start-msg").textContent = "";
+    hide("sc-start");
+    if (S.submitted) { showEnd(); return; }
+    if (S.dirty) save(false);
+    var fresh = S.progress === 0 && !String(S.answers.join("")).replace(/\s/g, "");
+    if (fresh) { show("sc-guide"); S.mode = "guide"; }
+    else enterWorld();
+  }, function () {
+    $("btn-start").disabled = false; $("start-msg").textContent = "서버와 연결하지 못했어요. 다시 눌러 주세요.";
+  });
+}
+
+function enterWorld() {
+  hide("sc-guide"); show("hud"); show("world");
+  renderHUD(); renderSaveState();
+  var z = Math.min(S.progress, 2);
+  S.zone = z; buildZone(z);
+  S.x = ZONES[z].start[0]; S.y = ZONES[z].start[1];
+  camX = Math.max(0, Math.min(WORLD_W - ZW, S.x - ZW / 2));
+  S.mode = "walk"; drawHero(0, false); zoneBanner(z);
+  if (S.progress >= 3) openNotebook(0);
+}
+
+function showEnd() {
+  S.mode = "end";
+  hide("hud"); hide("world"); hide("dialogue"); hide("panel"); hide("notebook");
+  $("end-time").textContent = S.submittedAt ? "제출 시각 " + S.submittedAt : "";
+  show("sc-end");
+}
+
+/* ─────────────────────────────────────────────
+   15. 키보드
+   ───────────────────────────────────────────── */
+
+var GAME_KEYS = { ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1, KeyW: 1, KeyA: 1, KeyS: 1, KeyD: 1, Space: 1 };
+function typing() {
+  var a = document.activeElement;
+  return a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA");
+}
+document.addEventListener("keydown", function (e) {
+  if (e.isComposing || e.keyCode === 229) return;
+  if (e.code === "Space") spaceDown = true;
+  if (S.mode === "ask") {
+    if (e.code === "Escape") { e.preventDefault(); closeAsk(false); }
+    if (e.key === "Tab") { e.preventDefault(); (document.activeElement === $("ask-no") ? $("ask-yes") : $("ask-no")).focus(); }
+    return;
+  }
+  if (S.mode === "panel" && waitSpaceUp && e.code === "Space") { e.preventDefault(); return; }
+  if (e.code === "Escape") {
+    if (S.mode === "notebook") { e.preventDefault(); closeNotebook(); return; }
+    if (S.mode === "panel") { e.preventDefault(); return; }
+    if (S.mode === "walk") { e.preventDefault(); openNotebook(Math.max(0, Math.min(S.progress, 3) - 1)); return; }
+    return;
+  }
+  if (typing()) return;
+  if (S.mode === "start") return;
+  if (S.mode === "guide") { if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); enterWorld(); } return; }
+  if (S.mode === "talk") { if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); if (!e.repeat) advance(); } return; }
+  if (S.mode === "walk") {
+    if (GAME_KEYS[e.code]) e.preventDefault();
+    if (e.code === "Space" && !e.repeat) { if (nearest()) interact(); else jump(); return; }
+    keys[e.code] = true;
+  }
+});
+document.addEventListener("keyup", function (e) {
+  keys[e.code] = false;
+  if (e.code === "Space") {
+    spaceDown = false;
+    if (waitSpaceUp) { waitSpaceUp = false; if (focusAfterSpace) { focusAfterSpace.focus(); focusAfterSpace = null; } }
+  }
+});
+window.addEventListener("blur", function () { keys = {}; });
+
+$("btn-start").addEventListener("click", start);
+function renderSound() { $("btn-sound").textContent = SND.on ? "🔊" : "🔈"; $("btn-sound").setAttribute("aria-label", SND.on ? "소리 끄기" : "소리 켜기"); }
+$("btn-sound").addEventListener("click", function () { SND.on = !SND.on; try { localStorage.setItem("kkokko-sound", SND.on ? "on" : "off"); } catch (e) {} renderSound(); this.blur(); });
+renderSound();
+if (ART && ART.zones) { $("sc-start").style.backgroundImage = "linear-gradient(rgba(255,248,236,.25),rgba(255,248,236,.55)),url(" + ART.zones[0] + ")"; $("sc-start").classList.add("has-art"); }
+if (ART && ART.chars && ART.chars.kkokko) { var ta = document.querySelector("#sc-start .title-art"); ta.innerHTML = '<div class="title-hero bob">' + ph("kkokko", "happy") + '</div>'; }
+["in-ban", "in-num", "in-name"].forEach(function (id) {
+  $(id).addEventListener("keydown", function (e) { if (e.key === "Enter") start(); });
+});
+$("panel-done").addEventListener("click", closePanel);
+$("nb-close").addEventListener("click", closeNotebook);
+$("nb-submit").addEventListener("click", submitFinal);
+$("ask-yes").addEventListener("click", function () { closeAsk(true); });
+$("ask-no").addEventListener("click", function () { closeAsk(false); });
+$("banner-retry").addEventListener("click", function () { save(false); });
+$("end-view").addEventListener("click", function () { hide("sc-end"); openNotebook(0); });
+
+if (reduceMotion) document.body.classList.add("reduce");
+fit();
+requestAnimationFrame(loop);
+setTimeout(function () { $("in-ban").focus(); }, 50);
+
+// 검사용 (tools/test): 상태를 들여다본다. 게임 진행에는 쓰지 않는다.
+window.__kk = { S: S, ZONES: ZONES };
+})();
+</script>
