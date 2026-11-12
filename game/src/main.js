@@ -175,7 +175,8 @@ function fallbackProto(name) {
   return (protos[name] = { holder: g, size: new THREE.Vector3(1, 1, 1), fallback: true });
 }
 const colliders = [], occluders = [], clouds = [];
-function place(name, x, z, { s = 1, h = 0, w = 0, ry = 0, solid = true, shrink = 0.8, outline = 0.02, occl = true } = {}) {
+// top: 올라설 수 있는 낮은 소품(무릎~허리 높이). true면 모델 높이, 숫자면 그 높이. 없으면 높이와 상관없이 막는다(건물·울타리·나무 등)
+function place(name, x, z, { s = 1, h = 0, w = 0, ry = 0, solid = true, shrink = 0.8, outline = 0.02, occl = true, top = 0 } = {}) {
   const p = protos[name] || fallbackProto(name);
   if (p.fallback && /cloud/.test(name)) return null;   // 구름은 없으면 그냥 뺀다
   if (h) s = h / p.size.y; if (w) s = w / p.size.x;
@@ -189,7 +190,7 @@ function place(name, x, z, { s = 1, h = 0, w = 0, ry = 0, solid = true, shrink =
     g.traverse((o) => { if (o.isMesh) { if (o.userData.isOutline) outs.push(o); else mats.push(o.material); } });
     occluders.push({ x, z, r: Math.max(sx, sz) * 0.5, mats, outs, a: 1 });
   }
-  if (solid) colliders.push({ x, z, hw: info.w * shrink / 2, hd: info.d * shrink / 2 });
+  if (solid) { const c = { x, z, hw: info.w * shrink / 2, hd: info.d * shrink / 2 }; if (top) c.top = top === true ? info.h : top; colliders.push(c); }
   return info;
 }
 const front = (b, gap = 0.6) => ({ x: b.x, z: b.z + b.d / 2 + gap });   // 건물 정면(남쪽) 문 앞 (place는 null을 돌려주지 않는다 — 못 받은 모델은 대체 상자)
@@ -236,6 +237,8 @@ function setPollution(on) {
 // 바깥: 마을 x∈[-22,21] + 회사 x∈[21,70] (울타리 문 하나).
 // 실내(마트·공장·회의실)는 멀리 z≈-80에 따로 짓고, 문으로 들어가면 순간이동한다.
 const GATE_X = 21;
+// 올라서는 소품 윗면(모델을 재서 맞춤): 자동차 보닛 높이·지붕 가운데 위치·지붕 반폭 비율
+const CAR_HOOD = 0.6, CAR_ROOF_DX = -0.25, CAR_ROOF_W = 0.19;
 const TH = {};      // 상호작용 대상 id → {kind,x,z,room,...}
 const gates = [];   // {x, need, collider, mesh, locked}
 const ROOMS = {};
@@ -268,12 +271,12 @@ function buildWorld() {
     .forEach(([x, z], i) => place(['tree_single_A', 'tree_single_B', 'trees_B_small'][i % 3], x, z, { h: 3.6 + (i % 3) * 0.6, ry: i, shrink: 0.3 }));
   place('trees_A_medium', -21, -12, { h: 5, shrink: 0.5 }); place('trees_A_medium', 16.5, -12, { h: 5, shrink: 0.5 });
   [[-4.5, 0.5], [4.5, 0.5], [-13, 0.5], [13, 0.5], [-20, 0.5]].forEach(([x, z]) => place('streetlight', x, z, { h: 2.8, shrink: 0.25 }));
-  place('bench', -16, 4.4, { h: 0.95, ry: Math.PI / 2 }); place('bench', 16, 4.6, { h: 0.95, ry: -Math.PI / 2 });
-  [[2.3, -3.4], [9.4, -3.6]].forEach(([x, z]) => place('crate_carrots', x, z, { h: 0.85 }));
-  place('crate_tomatoes', 10.6, -3.3, { h: 0.85 }); place('crate_lettuce', 1.2, -3.6, { h: 0.85 });
+  place('bench', -16, 4.4, { h: 0.95, ry: Math.PI / 2, top: true }); place('bench', 16, 4.6, { h: 0.95, ry: -Math.PI / 2, top: true });
+  [[2.3, -3.4], [9.4, -3.6]].forEach(([x, z]) => place('crate_carrots', x, z, { h: 0.85, top: true }));
+  place('crate_tomatoes', 10.6, -3.3, { h: 0.85, top: true }); place('crate_lettuce', 1.2, -3.6, { h: 0.85, top: true });
   [[-13.1, -3.4], [-6.9, -3.6], [-14.3, -2.2]].forEach(([x, z]) => place('bush', x, z, { h: 1.1, shrink: 0.6 }));
-  place('barrel', -13.3, -1.3, { h: 0.95 }); place('crate_A_small', 11.6, -1.8, { h: 0.8 }); place('crate_A_big', 12.4, -2.8, { h: 1.0 });
-  place('rock_single_A', 1.6, 9.2, { h: 0.9 }); place('rock_single_C', -4.6, 8.0, { h: 0.7 });
+  place('barrel', -13.3, -1.3, { h: 0.95, top: true }); place('crate_A_small', 11.6, -1.8, { h: 0.8, top: true }); place('crate_A_big', 12.4, -2.8, { h: 1.0, top: true });
+  place('rock_single_A', 1.6, 9.2, { h: 0.9, top: true }); place('rock_single_C', -4.6, 8.0, { h: 0.7, top: true });
   for (let x = -22; x <= 19.6; x += 2.2) place('fence_wood_straight', x, -13.4, { h: 1.1, shrink: 1, occl: false });
   const mf = front(market, 0.2);
   TH.martDoor = { id: 'martDoor', kind: 'door', x: mf.x, z: mf.z, label: '동네 마트', toRoom: 'mart', needProg: 0, needFlags: ['talkedMom'], lockedDlg: 'lockedMartDoor' };
@@ -340,10 +343,12 @@ function buildWorld() {
   // 꾸밈
   [[24, 6], [50, 6.5], [68.5, -7], [68.5, 6], [60, -11]].forEach(([x, z], i) => place(['tree_single_A', 'tree_single_B', 'trees_B_small'][i % 3], x, z, { h: 3.8, ry: i, shrink: 0.3 }));
   [[25, 0.4], [35, 0.4], [47, 0.4], [59, 0.4], [68, 0.4]].forEach(([x, z]) => place('streetlight', x, z, { h: 3.0, shrink: 0.25 }));
-  place('car_sedan', 47.5, -2.6, { h: 1.15, ry: Math.PI / 2, shrink: 0.85 });
-  place('dumpster', 24.4, -3.6, { h: 1.3, ry: 0.2 }); place('firehydrant', 45.5, -1.6, { h: 0.7 });
-  [[27.5, -4.4], [29, -4.6], [28.2, -5.4]].forEach(([x, z], i) => place(i === 2 ? 'crate_A_big' : 'box', x, z, { h: 0.9 }));
-  place('bench', 56, 6.2, { h: 0.95, ry: Math.PI }); place('rock_single_A', 43, 7.2, { h: 0.8 });
+  // 자동차: 앞뒤(보닛·트렁크)는 낮고 가운데 지붕이 높다 → 충돌 상자 둘
+  { const car = place('car_sedan', 47.5, -2.6, { h: 1.15, ry: Math.PI / 2, solid: false });
+    colliders.push({ x: car.x, z: car.z, hw: car.w * 0.43, hd: car.d * 0.42, top: CAR_HOOD }, { x: car.x + CAR_ROOF_DX, z: car.z, hw: car.w * CAR_ROOF_W, hd: car.d * 0.4, top: car.h }); }
+  place('dumpster', 24.4, -3.6, { h: 1.3, ry: 0.2, top: 1.15 }); place('firehydrant', 45.5, -1.6, { h: 0.7, top: true });   // 쓰레기통 윗면은 뚜껑 가운데 높이(잰 값)
+  [[27.5, -4.4], [29, -4.6], [28.2, -5.4]].forEach(([x, z], i) => place(i === 2 ? 'crate_A_big' : 'box', x, z, { h: 0.9, top: true }));
+  place('bench', 56, 6.2, { h: 0.95, ry: Math.PI, top: true }); place('rock_single_A', 43, 7.2, { h: 0.8, top: true });
   for (let x = 22.2; x <= 69; x += 2.2) place('fence_wood_straight', x, -13.4, { h: 1.1, shrink: 1, occl: false });
   // 구름
   for (let i = 0; i < 10; i++) {
@@ -476,7 +481,7 @@ function buildFactoryRoom() {
     box(0.35, 1.4, 0.35, mx - 0.6, 2.9, bz - 0.4, tm(0xc9c4ba));
     colliders.push({ x: mx, z: bz, hw: 1.1, hd: 0.95 });
   });
-  [['crate_A_big', 32, -76.4, 1.1], ['box', 33.4, -76.1, 0.8], ['crate_A_big', 48, -76.4, 1.1], ['barrel', 46.7, -76.1, 0.9], ['box', 31.8, -78.2, 0.8]].forEach(([n, x, z, h]) => place(n, x, z, { h, occl: false }));
+  [['crate_A_big', 32, -76.4, 1.1], ['box', 33.4, -76.1, 0.8], ['crate_A_big', 48, -76.4, 1.1], ['barrel', 46.7, -76.1, 0.9], ['box', 31.8, -78.2, 0.8]].forEach(([n, x, z, h]) => place(n, x, z, { h, occl: false, top: true }));
   const line = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 0.12), new THREE.MeshBasicMaterial({ color: 0xffc93a })); line.rotation.x = -Math.PI / 2; line.position.set(40, 0.012, -78.4); scene.add(line);
   // 줄 선 동료 + 빈자리, 옆에 공장장
   const bear = addNPC('bear', buildCritter('bear', { outfit: 'cap' }), 38.2, -79, Math.PI, 1, 'factory');
@@ -615,14 +620,26 @@ function addGate(x, need, lockedDlg) {
 }
 
 /* ── 충돌 ──────────────────────────────────── */
-const HR = 0.36;
-function blocked(x, z) {
+const HR = 0.36, STEP_EPS = 0.05;
+// feet: 꼬꼬 발 높이. 올라설 수 있는 소품(top)은 발이 그 위에 있으면 막지 않는다. top이 없는 것은 높이와 상관없이 막는다.
+function blocked(x, z, feet = 0) {
   for (const c of colliders) {
     if (c.off) continue;
+    if (c.top !== undefined && feet >= c.top - STEP_EPS) continue;
     const dx = Math.max(Math.abs(x - c.x) - c.hw, 0), dz = Math.max(Math.abs(z - c.z) - c.hd, 0);
     if (dx * dx + dz * dz < HR * HR) return c;
   }
   return null;
+}
+// 발밑 높이: 발(feet)보다 낮거나 같은 소품 윗면 가운데 가장 높은 것(막는 판정과 같은 반지름으로 겹침을 본다)
+function groundAt(x, z, feet) {
+  let g = 0;
+  for (const c of colliders) {
+    if (c.off || c.top === undefined || c.top > feet + STEP_EPS || c.top <= g) continue;
+    const dx = Math.max(Math.abs(x - c.x) - c.hw, 0), dz = Math.max(Math.abs(z - c.z) - c.hd, 0);
+    if (dx * dx + dz * dz < HR * HR) g = c.top;
+  }
+  return g;
 }
 
 /* ── 상태·퀘스트 (2D 판 규칙 그대로) ───────── */
@@ -697,8 +714,9 @@ function camTarget(x, z, close = 1) {
   const inRoom = !!S.room, k = close * (inRoom ? ROOM_CAM.close : 1), lz = inRoom ? z - ROOM_CAM.look : z;
   tl.set(x, 0.7, lz); tv.set(x + CAM_OFF.x, CAM_OFF.y * k * (inRoom ? ROOM_CAM.up : 1), lz + CAM_OFF.z * k);
 }
+function landNow() { Object.assign(J, { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, base: 0 }); camGy = 0; }
 function teleport(x, z, face) {
-  S.x = x; S.z = z; S.face = face; hero.root.rotation.y = face;
+  S.x = x; S.z = z; S.face = face; hero.root.rotation.y = face; landNow();
   camTarget(x, z); camPos.copy(tv); camLook.copy(tl);
 }
 function enterRoom(id) {
@@ -714,7 +732,7 @@ function exitRoom() {
 function runScene(t) {
   if (S.roam) return;
   if (S.progress > t.chapter) { openChapter(t.chapter); return; }    // 이미 본 장면: 바로 평가 패널(답 고치기)
-  S.mode = 'scene'; for (const k in keys) keys[k] = false;
+  S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
   if (t.id === 'ramen') { S.face = Math.PI; talk(DIALOGUE.ramen, () => openChapter(0), null, true); }
   else if (t.id === 'rollcall') {
     S.x = t.x; S.z = t.z; S.face = Math.PI; setCam('rollWide');
@@ -909,11 +927,11 @@ function faceSrc(who, face) {
 /* ── 효과·소리 ─────────────────────────────── */
 const dusts = [];
 const dustMap = canvasTex(64, 64, (g) => { const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,250,235,1)'); gr.addColorStop(1, 'rgba(255,250,235,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); });
-function puff(x, z, n = 1) {
+function puff(x, z, n = 1, y = 0) {
   for (let i = 0; i < n; i++) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustMap, transparent: true, depthWrite: false }));
     const a = Math.random() * Math.PI * 2, r = n > 1 ? 0.25 : 0;
-    s.position.set(x + Math.cos(a) * r, 0.12, z + Math.sin(a) * r); s.scale.setScalar(0.35);
+    s.position.set(x + Math.cos(a) * r, y + 0.12, z + Math.sin(a) * r); s.scale.setScalar(0.35);
     s.userData = { life: 0.55, vx: Math.cos(a) * (n > 1 ? 1.2 : 0.2), vz: Math.sin(a) * (n > 1 ? 1.2 : 0.2) };
     scene.add(s); dusts.push(s);
   }
@@ -1138,10 +1156,10 @@ function updateOccluders(dt) {
 
 /* ── 입력 ──────────────────────────────────── */
 const keys = {};
-const J = { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, land: 0 };
+const J = { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, land: 0, base: 0 };   // z: 발 높이(땅 0, 소품 위면 그 윗면), base: 마지막으로 딛은 높이
 const GRAV = 26, V0 = 8.2, V2 = 6.4;
 function jump() {
-  if (!J.on) { Object.assign(J, { on: true, pre: 0.06, z: 0, vz: 0, dbl: false, spin: 0 }); return; }
+  if (!J.on) { Object.assign(J, { on: true, pre: 0.06, vz: 0, dbl: false, spin: 0, base: J.z }); return; }
   if (!J.dbl && J.pre <= 0) { J.dbl = true; J.vz = V2; J.spin = 0.0001; sfx.jump2(); puff(S.x, S.z, 6); }
 }
 addEventListener('keydown', (e) => {
@@ -1161,7 +1179,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 /* ── 루프 ──────────────────────────────────── */
 const clock = new THREE.Clock();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tv = new THREE.Vector3(), tl = new THREE.Vector3();
-let stepT = 0, fpsT0 = performance.now(), fpsN = 0, lowT = 0, highT = 0, gateCool = 0, wasInside = false;
+let camGy = 0, stepT = 0, fpsT0 = performance.now(), fpsN = 0, lowT = 0, highT = 0, gateCool = 0, wasInside = false;
 const SKY = scene.background, INSIDE_BG = new THREE.Color(0x2b211a);
 function loop() {
   const dt = Math.min(0.05, clock.getDelta());
@@ -1173,10 +1191,10 @@ function loop() {
     if (dx || dz) {
       const l = Math.hypot(dx, dz); dx /= l; dz /= l; moving = true;
       const sp = 4.6 * dt, nx = S.x + dx * sp, nz = S.z + dz * sp;
-      const bx = blocked(nx, S.z); if (!bx) S.x = nx; else hitGate(bx);
-      const bz = blocked(S.x, nz); if (!bz) S.z = nz;
+      const bx = blocked(nx, S.z, J.z); if (!bx) S.x = nx; else hitGate(bx);
+      const bz = blocked(S.x, nz, J.z); if (!bz) S.z = nz;
       S.face = Math.atan2(dx, dz);
-      stepT += dt; if (stepT > 0.18 && !J.on) { stepT = 0; puff(S.x - dx * 0.3, S.z - dz * 0.3, 1); sfx.step(); }
+      stepT += dt; if (stepT > 0.18 && !J.on) { stepT = 0; puff(S.x - dx * 0.3, S.z - dz * 0.3, 1, J.z); sfx.step(); }
     }
   }
   // 문 열림
@@ -1188,13 +1206,17 @@ function loop() {
   }
   // 점프
   let sx = 1, sy = 1;
+  // 소품 끝에서 걸어 나가면 떨어진다
+  if (!J.on && J.z > 0 && groundAt(S.x, S.z, J.z) < J.z - 0.01) Object.assign(J, { on: true, pre: 0, vz: 0, dbl: true, spin: 0, base: J.z });
   if (J.on) {
     if (J.pre > 0) { J.pre -= dt; sy = 0.8; sx = 1.15; if (J.pre <= 0) { J.vz = V0; sfx.jump(); } }
     else {
-      J.vz -= GRAV * dt; J.z += J.vz * dt;
+      const prevZ = J.z;
+      J.z += J.vz * dt - GRAV * dt * dt / 2; J.vz -= GRAV * dt;   // 정확한 적분: 프레임 수와 상관없이 정점이 같다(V0²/2g ≈ 1.29)
       const v = J.vz / V0; sy = 1 + Math.max(-0.06, Math.min(0.15, v * 0.15)); sx = 1 - (sy - 1) * 0.6;
       if (J.spin) J.spin = Math.min(1, J.spin + dt / 0.45);
-      if (J.z <= 0) { J.z = 0; J.on = false; J.spin = 0; J.land = 0.14; puff(S.x, S.z, 8); sfx.land(); }
+      const g = J.vz <= 0 ? groundAt(S.x, S.z, prevZ) : -1;
+      if (J.z <= g) { J.z = g; J.base = g; J.on = false; J.spin = 0; J.land = 0.14; puff(S.x, S.z, 8, g); sfx.land(); }
     }
   }
   if (J.land > 0) { J.land -= dt; sy *= 0.78; sx *= 1.2; }
@@ -1214,7 +1236,7 @@ function loop() {
   }
   // 반짝이는 자리에 서면 저절로 시작
   const qc = questCur(), autoIds = qc === 'rollcall' ? ['rollcall'] : qc === 'ch3' ? spotsLeft() : [];
-  if (S.mode === 'walk') for (const id of autoIds) { const t = TH[id]; if (t && sameRoom(t) && Math.hypot(t.x - S.x, t.z - S.z) < 0.6 && !J.on) { interact(t); break; } }
+  if (S.mode === 'walk') for (const id of autoIds) { const t = TH[id]; if (t && sameRoom(t) && Math.hypot(t.x - S.x, t.z - S.z) < 0.6 && !J.on && J.z === 0) { interact(t); break; } }
   for (const m of markers) { const on = autoIds.includes(m.id) && sameRoom(TH[m.id]) && S.mode === 'walk'; m.g.visible = on; if (on) { const k = 1 + Math.sin(navT * 5) * 0.08; m.ring.scale.set(k, k, 1); m.beam.material.opacity = 0.14 + Math.sin(navT * 3) * 0.06; } }
   if (beltTex) { beltTex.offset.x -= dt * 0.55; for (const p of beltPacks) { p.position.x += dt * 0.72; if (p.position.x > 46.6) p.position.x -= 13.2; } }
   for (const l of lamps) l.material.emissiveIntensity = Math.sin(navT * 6) > 0 ? 1.4 : 0.2;
@@ -1225,7 +1247,9 @@ function loop() {
   sun.position.set(camLook.x + 9, 16, camLook.z + 7); sun.target.position.set(camLook.x, 0, camLook.z);
   if (S.cam) { camLook.lerp(S.cam.l, Math.min(1, dt * 4)); camPos.lerp(S.cam.p, Math.min(1, dt * 3)); }
   else {
-    camTarget(S.x, S.z, S.mode === 'talk' ? 0.72 : 1); tl.y += J.z * 0.25;
+    camTarget(S.x, S.z, S.mode === 'talk' ? 0.72 : 1);
+    camGy += (J.base - camGy) * Math.min(1, dt * 5);      // 소품 위에 서면 카메라도 천천히 그만큼 올라간다
+    tl.y += camGy + (J.z - J.base) * 0.25; tv.y += camGy;
     camLook.lerp(tl, Math.min(1, dt * 6));
     camPos.lerp(tv, Math.min(1, dt * 4));
   }
@@ -1272,7 +1296,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { S, J, arrow, markers, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
+window.__kk = { S, J, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {

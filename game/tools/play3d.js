@@ -19,6 +19,21 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   const finishTalk = async () => { for (let i = 0; i < 30 && (await st()).mode === 'talk'; i++) await space(); };
   const tp = (x, z) => p.evaluate(([x, z]) => { __kk.S.x = x; __kk.S.z = z; }, [x, z]);
   const near = async (id, dx = 0, dz = 1.0) => { const t = await p.evaluate((id) => { const t = __kk.TH[id]; return { x: t.x, z: t.z }; }, id); await tp(t.x + dx, t.z + dz); await p.waitForTimeout(250); };
+  // 소품 올라서기: Space(필요하면 2단) + 방향키를 holdMs 동안 → 땅이나 소품에 내려앉을 때까지 기다린다
+  const jz = () => p.evaluate(() => ({ z: +__kk.J.z.toFixed(2), on: __kk.J.on, x: +__kk.S.x.toFixed(2), sz: +__kk.S.z.toFixed(2), mode: __kk.S.mode, camY: +__kk.camera.position.y.toFixed(2) }));
+  //   hold: 누르는 시간(ms), 또는 손을 뗄 조건식 문자열(S·J 기준). 조건식은 페이지 안에서 매 프레임 보고 바로 keyup을 보낸다
+  //   (소프트웨어 렌더링은 프레임이 느려 바깥에서 재면 늦게 뗀다)
+  async function jumpMove(key, hold, dbl = false) {
+    if (typeof hold === 'string') await p.evaluate(([key, expr]) => { const f = new Function('S', 'J', 'return ' + expr); const t0 = performance.now();
+      const tick = () => { if (f(__kk.S, __kk.J) || performance.now() - t0 > 5000) dispatchEvent(new KeyboardEvent('keyup', { code: key })); else requestAnimationFrame(tick); }; requestAnimationFrame(tick); }, [key, hold]);
+    await p.keyboard.press('Space'); if (key) await p.keyboard.down(key);
+    if (dbl) { await p.waitForTimeout(260); await p.keyboard.press('Space'); }
+    if (typeof hold === 'string') { const t = Date.now(); while (Date.now() - t < 5000) { const q = await jz(); if (!q.on && Date.now() - t > 300) break; await p.waitForTimeout(60); } }
+    else await p.waitForTimeout(Math.max(0, hold - (dbl ? 260 : 0)));
+    if (key) await p.keyboard.up(key);
+    for (let i = 0; i < 60; i++) { const j = await jz(); if (!j.on) break; await p.waitForTimeout(60); }
+    await p.waitForTimeout(150); return jz();
+  }
   async function holdUntil(key, cond, ms = 9000) { await p.keyboard.down(key); const t = Date.now(); while (Date.now() - t < ms) { if (await cond()) break; await p.waitForTimeout(80); } await p.keyboard.up(key); }
 
   let s0, s1;
@@ -43,12 +58,41 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   let jmax = 0; for (let i = 0; i < 40; i++) { jmax = Math.max(jmax, await p.evaluate(() => __kk.J.z)); if (jmax > 0.5) break; await p.waitForTimeout(60); }
   check(jmax > 0.5, '빈 곳 Space → 점프 (최고 ' + jmax.toFixed(2) + ')');
   await p.waitForTimeout(1500);
+  // 소품 올라서기 (벤치 윗면 0.95, 점프 정점 약 1.29)
+  check(await p.evaluate(() => __kk.colliders.filter((c) => c.top !== undefined).every((c) => c.top <= 1.2)), '올라서는 소품은 모두 허리 높이 이하(1.2 이하)');
+  check(await p.evaluate(() => __kk.colliders.filter((c) => c.top !== undefined && !c.off).every((c) => Math.abs(c.x - 21) - c.hw > 1.5 && Math.abs(c.z) + c.hd < 12.6 && c.x - c.hw > -22 && c.x + c.hw < 70 || c.z < -50)), '울타리 문·세계 가장자리 가까이에는 올라서는 소품 없음');
+  await tp(-17.3, 4.4); await p.waitForTimeout(500);
+  let j0 = await jz();
+  await p.keyboard.down('ArrowRight'); await p.waitForTimeout(500); await p.keyboard.up('ArrowRight'); await p.waitForTimeout(200);
+  let j = await jz(); check(j.z === 0 && j.x < -16.5, '점프 없이 걸으면 벤치에 막힘 (x ' + j.x + ', 발 ' + j.z + ')');
+  j = await jumpMove('ArrowRight', 'S.x > -16.5'); check(j.z === 0.95 && !j.on && j.x > -16.6 && j.x < -15.4, '점프 → 벤치 위에 올라섬 (발 ' + j.z + ', x ' + j.x + ')');
+  await p.waitForTimeout(700); j = await jz(); await snap('on-bench');
+  check(j.z === 0.95 && j.camY > j0.camY + 0.6, '벤치 위에 서 있으면 그대로 있고 카메라도 따라 올라감 (카메라 y ' + j0.camY + ' → ' + j.camY + ')');
+  await holdUntil('ArrowRight', async () => { const q = await jz(); return q.z === 0 && !q.on; }, 2500);
+  j = await jz(); check(j.z === 0 && j.x > -15.5, '벤치 끝에서 걸어 나가면 떨어짐 (발 ' + j.z + ', x ' + j.x + ')');
+  for (let i = 0; i < 40; i++) { j = await jz(); if (Math.abs(j.camY - j0.camY) < 0.1) break; await p.waitForTimeout(100); }
+  check(Math.abs(j.camY - j0.camY) < 0.1, '내려오면 카메라 높이 제자리로 돌아옴 (' + j.camY + ')');
+  // 상자(0.8) → 2단 점프로 다른 상자(1.0)
+  await tp(11.6, -0.9); await p.waitForTimeout(300);
+  j = await jumpMove('ArrowUp', 'S.z < -1.4'); check(j.z === 0.8, '작은 상자 위로 (발 ' + j.z + ')');
+  // 높은 것(나무)은 2단 점프로도 못 지나감
+  await tp(13.4, -1.5); await p.waitForTimeout(300);
+  j = await jumpMove('ArrowRight', 1500, true); check(j.x < 15 && j.z === 0, '나무는 2단 점프로도 막힘 (x ' + j.x + ')');
   // 마트 문 먼저 → 잠김
   await near('martDoor', 0, 0.6); await space(); s = await st();
   check(s.mode === 'talk', '엄마 닭 전에는 마트 문 잠김'); await finishTalk();
   // 문 잠긴 채 오른쪽 문으로 → 막힘
   await tp(19.2, 2.2); await holdUntil('ArrowRight', async () => (await st()).mode === 'talk', 3000);
   s = await st(); check(s.mode === 'talk' && s.x < 21, '마트 전에는 회사 가는 문이 막힘'); await finishTalk();
+  // 점프·2단 점프로도 문·울타리·덤불·세계 끝을 못 넘는다(퀘스트 순서 고정)
+  for (const [x, z, key, tag] of [[19.6, 2.2, 'ArrowRight', '울타리 문'], [19.6, -6, 'ArrowRight', '문 옆 울타리'], [19.6, 9, 'ArrowRight', '문 옆 덤불'], [0, -12.4, 'ArrowUp', '북쪽 울타리'], [0, 12, 'ArrowDown', '남쪽 끝'], [-21.4, 2.2, 'ArrowLeft', '서쪽 끝']]) {
+    await tp(x, z); await p.waitForTimeout(250);
+    let mx = -1e9, mz = 1e9, Mz = -1e9, mnx = 1e9;
+    for (let k = 0; k < 3; k++) { const q = await jumpMove(key, 1500, true); mx = Math.max(mx, q.x); mnx = Math.min(mnx, q.x); mz = Math.min(mz, q.sz); Mz = Math.max(Mz, q.sz); await finishTalk(); }
+    const ok = key === 'ArrowRight' ? mx < 20.7 : key === 'ArrowUp' ? mz > -13.5 : key === 'ArrowDown' ? Mz < 12.7 : mnx > -22.1;
+    check(ok, tag + ' 2단 점프로도 못 넘음 (x ' + mnx + '~' + mx + ', z ' + mz + '~' + Mz + ')');
+  }
+  check((await st()).quest === 'mom', '넘으려 해 봐도 퀘스트는 그대로 (' + (await st()).quest + ')');
   // 패널 스크롤 없는지 + 대사창 잘림 없는지
   // 넘침(scroll)과 왼쪽 자료 칸의 남는 높이(무대 px)를 같이 본다
   const fitCheck = async (tag, sel = '#ex-left,#ex-right') => {
@@ -117,6 +161,17 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await tp(19, 2.2); await holdUntil('ArrowRight', async () => (await st()).x > 23, 15000);
   s = await st(); check(s.x > 23, '문 열림 → 회사로 걸어 들어감 (x=' + s.x.toFixed(1) + ')');
   await p.waitForTimeout(900); await snap('company');
+  // 자동차: 보닛(0.6) → 지붕(1.15) → 걸어 내려오면 보닛 → 땅
+  await tp(45.2, -2.6); await p.waitForTimeout(400);
+  j = await jumpMove('ArrowRight', 'S.x > 46.0'); check(j.z === 0.6, '자동차 보닛 위로 (발 ' + j.z + ', x ' + j.x + ')');
+  j = await jumpMove('ArrowRight', 'S.x > 46.6'); check(j.z === 1.15, '보닛에서 지붕 위로 (발 ' + j.z + ', x ' + j.x + ')');
+  await p.waitForTimeout(600); await snap('on-car');
+  await holdUntil('ArrowRight', async () => { const q = await jz(); return q.z === 0 && !q.on; }, 3000);
+  j = await jz(); check(j.z === 0 && j.x > 48.8, '자동차에서 걸어 내려옴 (발 ' + j.z + ', x ' + j.x + ')');
+  // 땅에서 한 번 점프로 1.15(쓰레기통 뚜껑)까지: 프레임이 느려도 정점이 같아야 한다
+  await tp(24.4, -2.3); await p.waitForTimeout(400);
+  j = await jumpMove('ArrowUp', 'S.z < -3.0'); check(j.z === 1.15, '한 번 점프로 쓰레기통 위 (발 ' + j.z + ', 느린 렌더링 fps ' + Math.round(await p.evaluate(() => __kk.fps)) + ')');
+  await tp(24.4, -1.6); await p.waitForTimeout(400);
   check(await p.evaluate(() => !__kk.POLL.on && !__kk.POLL.pipe.visible), '3장 전에는 강이 맑고 배수관 없음');
   await near('meetDoor', 0, 0.6); await p.waitForTimeout(300); await labelsBelowTop('회의실 문 앞');
   await space(); check((await st()).mode === 'talk', '공장 전에는 회의실 잠김'); await finishTalk();
