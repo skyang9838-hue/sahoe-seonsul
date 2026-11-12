@@ -82,12 +82,38 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     check(ok, tag + ' 초상화가 이름표·대사를 안 덮음 (초상 ' + r.f.map(Math.round) + ' / 이름 ' + r.n.map(Math.round) + ' / 첫 글자 ' + r.c.map(Math.round) + ')');
   };
   const dlgFit = async (tag) => { const r = await p.evaluate(() => { const d = document.getElementById('dialogue').getBoundingClientRect(); return [d.top, d.bottom, innerHeight]; }); check(r[0] > 0 && r[1] <= r[2], tag + ' 대사창 화면 안 (' + r.map(Math.round).join(',') + ')'); };
+  // 바깥 구도: 꼬꼬는 화면 아래 1/3쯤, 문 앞 간판은 HUD·퀘스트 띠에 안 가림 (카메라가 자리 잡을 때까지 기다린 뒤 px로 잰다)
+  const outdoorFrame = async (tag, door) => {
+    await p.waitForTimeout(1400);
+    const r = await p.evaluate((door) => {
+      const c = __kk.camera, V = c.position.constructor, d = __kk.TH[door], scene = __kk.hero.root.parent;
+      const hero = (-new V(__kk.S.x, 0.7, __kk.S.z).project(c).y * 0.5 + 0.5);
+      let sign = null;
+      scene.traverse((m) => {
+        if (!m.isMesh || m.geometry.type !== 'PlaneGeometry' || !m.material.map || !m.material.map.isCanvasTexture) return;
+        const wp = new V(); m.getWorldPosition(wp); if (Math.abs(wp.x - d.x) > 4 || Math.abs(wp.z - d.z) > 1.5 || wp.y < 2.5) return;
+        m.geometry.computeBoundingBox(); const bb = m.geometry.boundingBox; const xs = [], ys = [];
+        for (const X of [bb.min.x, bb.max.x]) for (const Y of [bb.min.y, bb.max.y]) { const v = new V(X, Y, 0).applyMatrix4(m.matrixWorld).project(c); xs.push((v.x * 0.5 + 0.5) * innerWidth); ys.push((-v.y * 0.5 + 0.5) * innerHeight); }
+        sign = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)].map(Math.round);
+      });
+      const q = document.getElementById('quest-bar'), qb = q.style.display === 'none' ? null : q.getBoundingClientRect();
+      return { hero: +hero.toFixed(2), sign, qb: qb && [qb.left, qb.right, qb.top, qb.bottom].map(Math.round), hud: Math.round(document.getElementById('hud').getBoundingClientRect().bottom) };
+    }, door);
+    check(r.hero >= 0.6 && r.hero <= 0.76, tag + ' 꼬꼬가 화면 아래쪽 1/3쯤 (높이 비율 ' + r.hero + ')');
+    if (r.sign) {
+      const s = r.sign, hitQ = r.qb && s[0] < r.qb[1] && r.qb[0] < s[1] && s[2] < r.qb[3] && r.qb[2] < s[3];
+      check(s[2] > r.hud + 4 && !hitQ && s[3] < H, tag + ' 간판이 HUD·퀘스트 띠에 안 가림 (간판 ' + s.join(',') + ' / HUD 아래 ' + r.hud + ' / 띠 ' + (r.qb || []).join(',') + ')');
+    }
+  };
   const fill = async (id, v) => { await p.fill(id, v); await p.dispatchEvent(id, 'input'); };
   // 엄마 닭
-  await near('mom', -1.0, 0.2); await p.waitForTimeout(300); await labelsBelowTop('엄마 닭 옆'); await space(); check((await st()).mode === 'talk', '엄마 닭 말 걸기'); await p.waitForTimeout(700); await snap('talk-mom'); await finishTalk();
+  await near('mom', -1.0, 0.2); await p.waitForTimeout(300); await labelsBelowTop('엄마 닭 옆'); await space(); check((await st()).mode === 'talk', '엄마 닭 말 걸기'); await p.waitForTimeout(700); await snap('talk-mom'); await p.waitForTimeout(600);
+  s0 = await p.evaluate(() => { const c = __kk.camera, V = c.position.constructor, m = __kk.NPCS.find((n) => n.id === 'mom'), y = (x, h, z) => Math.round((-new V(x, h, z).project(c).y * 0.5 + 0.5) * innerHeight);
+    return [y(__kk.S.x, 0, __kk.S.z), y(m.x, 0, m.z), y(m.x, 2, m.z), Math.round(document.getElementById('dialogue').getBoundingClientRect().top)]; });
+  check(Math.max(s0[0], s0[1]) < s0[3] && s0[2] > 60, '대화 중 꼬꼬·엄마 닭이 대사창 위에 보임 (꼬꼬 발 ' + s0[0] + ', 엄마 발 ' + s0[1] + ', 엄마 머리 ' + s0[2] + ', 대사창 ' + s0[3] + ')'); await finishTalk();
   check((await st()).flags.talkedMom === true, '엄마 닭 표시');
   // 마트 안으로
-  await near('martDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  await near('martDoor', 0, 0.6); await outdoorFrame('마트 문 앞', 'martDoor'); await snap('mart-door'); await space(); await p.waitForTimeout(900);
   s = await p.evaluate(() => __kk.S.room); check(s === 'mart', '마트 문 → 마트 안 (' + s + ')');
   await p.waitForTimeout(500); await snap('mart-in'); await labelsBelowTop('마트 안');
   check(await p.evaluate(() => { const e = document.querySelector('#labels .prompt'); return e.style.display === 'none' || !e.textContent.includes('나가기'); }), '들어온 직후 가장 가까운 것이 나가기가 아님');
@@ -118,9 +144,9 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   s = await st(); check(s.x > 23, '문 열림 → 회사로 걸어 들어감 (x=' + s.x.toFixed(1) + ')');
   await p.waitForTimeout(900); await snap('company');
   check(await p.evaluate(() => !__kk.POLL.on && !__kk.POLL.pipe.visible), '3장 전에는 강이 맑고 배수관 없음');
-  await near('meetDoor', 0, 0.6); await p.waitForTimeout(300); await labelsBelowTop('회의실 문 앞');
+  await near('meetDoor', 0, 0.6); await outdoorFrame('회의실 문 앞', 'meetDoor'); await snap('meet-door'); await labelsBelowTop('회의실 문 앞');
   await space(); check((await st()).mode === 'talk', '공장 전에는 회의실 잠김'); await finishTalk();
-  await near('factoryDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  await near('factoryDoor', 0, 0.6); await outdoorFrame('공장 문 앞', 'factoryDoor'); await snap('factory-door'); await labelsBelowTop('공장 문 앞'); await space(); await p.waitForTimeout(900);
   check(await p.evaluate(() => __kk.S.room === 'factory'), '공장 안'); await p.waitForTimeout(500); await snap('factory-in'); await labelsBelowTop('공장 안');
   await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
   for (let i = 0; i < 60 && (await st()).mode !== 'talk'; i++) await p.waitForTimeout(200); s = await st();

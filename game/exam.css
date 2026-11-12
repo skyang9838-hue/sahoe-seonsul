@@ -12,10 +12,10 @@
 #hud-right{display:flex;gap:10px;align-items:center}
 #save-state{font-size:13px;color:#3d8a5f}#save-state.saving{color:#7a6555}#save-state.fail{color:#d64a3a}
 .kbd-s{font-size:12px;color:#7a6555;border:1px solid #e6d6c0;border-radius:6px;padding:1px 6px;background:#fff}
-#quest-bar{position:absolute;left:50%;top:56px;transform:translateX(-50%);background:rgba(59,42,30,.86);color:#fff;font-size:19px;padding:7px 20px 7px 12px;border-radius:999px;border:3px solid #ffe2a8;box-shadow:0 5px 0 rgba(0,0,0,.25);white-space:nowrap;z-index:19}
+#quest-bar{position:absolute;left:12px;top:60px;transform-origin:left center;background:rgba(59,42,30,.86);color:#fff;font-size:19px;padding:7px 20px 7px 12px;border-radius:999px;border:3px solid #ffe2a8;box-shadow:0 5px 0 rgba(0,0,0,.25);white-space:nowrap;z-index:19}
 #quest-bar .qb-pin{margin-right:8px}
 #quest-bar.pop{animation:qpop .5s ease-out}
-@keyframes qpop{0%{transform:translateX(-50%) scale(.6);opacity:0}70%{transform:translateX(-50%) scale(1.06);opacity:1}100%{transform:translateX(-50%) scale(1)}}
+@keyframes qpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.06);opacity:1}100%{transform:scale(1)}}
 #zone-banner{top:122px!important}
 .nametag{z-index:1}.tlabel{z-index:2}.prompt{z-index:3}
 .tlabel{position:absolute;transform:translate(-50%,-100%);background:#ffcf3a;color:#3b2a1e;border:3px solid #3b2a1e;border-radius:12px;padding:2px 12px;font-size:16px;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.25)}
