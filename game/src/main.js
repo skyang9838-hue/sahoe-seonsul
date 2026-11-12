@@ -626,7 +626,8 @@ function blocked(x, z) {
 }
 
 /* ── 상태·퀘스트 (2D 판 규칙 그대로) ───────── */
-const S = { x: -12, z: 2.4, face: 0, mode: 'loading', flags: {}, progress: 0, room: null, cam: null, sit: false, shake: 0 };
+const S = { x: -12, z: 2.4, face: 0, mode: 'loading', flags: {}, progress: 0, room: null, cam: null, sit: false, shake: 0, roam: false, placed: false };
+// roam: 제출 뒤 자유롭게 돌아다니기(문 모두 열림, 퀘스트 안내 숨김, 평가 장면·패널 안 열림)
 const QUEST = ['mom', 'martDoor', 'ramen', 'gate1', 'factoryDoor', 'rollcall', 'ch3', 'notebook'];
 // 3장 세 곳: 조사 자리 id(TH) → 대사 묶음 이름(TH[id].spot = story.js SPOTS3). 순서는 자유, 세 곳을 다 보면 3장 패널
 const SPOT_IDS = ['seat', 'adboard', 'riverside'];
@@ -645,7 +646,7 @@ function stepDone(id) {
     default: return false;
   }
 }
-function questCur() { for (const id of QUEST) if (!stepDone(id)) return id; return null; }
+function questCur() { if (S.roam) return null; for (const id of QUEST) if (!stepDone(id)) return id; return null; }
 const sameRoom = (t) => (t.room || null) === (S.room || null);
 const roomDoor = (room) => Object.values(TH).find((d) => d.toRoom === room);
 // 3장: 아직 안 본 곳 가운데 가장 가까운 곳(실내 자리는 그 건물 문·나가기 문까지 거리로 잰다)
@@ -666,12 +667,12 @@ function questTarget(id) {
   if (!S.room && t.room) t = roomDoor(t.room);   // 실내 자리는 먼저 그 건물 문으로
   return { x: t.x, z: t.z, label: t.label || WHO[t.who || t.id]?.name, y: t.labelY || 2.6, npc: t.kind === 'npc' };
 }
-function doorOpen(t) { return S.progress >= (t.needProg || 0) && (S.progress > 0 || (t.needFlags || []).every((f) => S.flags[f])); }
+function doorOpen(t) { return S.roam || S.progress >= (t.needProg || 0) && (S.progress > 0 || (t.needFlags || []).every((f) => S.flags[f])); }
 let enteredAt = 0;
 function nearestThing() {
   let best = null, bd = 1.7;
   const justIn = performance.now() - enteredAt < 600;
-  for (const k in TH) { const t = TH[k]; if (!sameRoom(t) || (justIn && t.kind === 'exit') || (t.spot && S.progress < 2)) continue; const d = Math.hypot(t.x - S.x, t.z - S.z); if (d < bd) { bd = d; best = t; } }
+  for (const k in TH) { const t = TH[k]; if (!sameRoom(t) || (justIn && t.kind === 'exit') || (t.spot && S.progress < 2) || (S.roam && t.kind === 'scene')) continue; const d = Math.hypot(t.x - S.x, t.z - S.z); if (d < bd) { bd = d; best = t; } }
   return best;
 }
 function interact(t) {
@@ -685,7 +686,7 @@ function interact(t) {
     sfx.door(); enterRoom(t.toRoom); return;
   }
   if (t.kind === 'exit') { sfx.door(); exitRoom(); return; }
-  if (t.kind === 'scene') { runScene(t); return; }
+  if (t.kind === 'scene') { if (!S.roam) runScene(t); return; }   // 제출 뒤에는 평가 장면·패널을 다시 열지 않는다
   talk(DIALOGUE[t.dlg], () => {
     if (t.setFlag && !S.flags[t.setFlag]) { S.flags[t.setFlag] = true; EXAM.saveLocal(S); sfx.open(); }
   }, t);
@@ -711,6 +712,7 @@ function exitRoom() {
 }
 // 실내 장면: 라면 칸 살펴보기 / 점호 / 회의
 function runScene(t) {
+  if (S.roam) return;
   if (S.progress > t.chapter) { openChapter(t.chapter); return; }    // 이미 본 장면: 바로 평가 패널(답 고치기)
   S.mode = 'scene'; for (const k in keys) keys[k] = false;
   if (t.id === 'ramen') { S.face = Math.PI; talk(DIALOGUE.ramen, () => openChapter(0), null, true); }
@@ -728,6 +730,7 @@ function runScene(t) {
   }
 }
 function openChapter(c) {
+  if (S.roam) return;
   S.mode = 'panel';
   fadeOut(() => {
     S.cam = null; if (S.sit) { S.sit = false; S.z = -77.4; S.face = 0; }
@@ -1269,7 +1272,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { S, J, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
+window.__kk = { S, J, arrow, markers, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {
@@ -1283,6 +1286,17 @@ function showLoadError(e) {
   $('ld-msg').innerHTML = '불러오지 못했어요. 새로고침(F5) 해 주세요.<br><small style="opacity:.7">' + String(e && e.message || e).replace(/[<>&]/g, '') + '</small>';
   $('ld-msg').style.color = '#8a2318';
 }
+// 진행에 맞춰 세계를 놓는다(도장·강·공장장 자리·꼬꼬 위치·HUD). at: 꼬꼬 자리를 따로 줄 때
+function placeWorld(st, at) {
+  S.progress = st.progress; Object.assign(S.flags, st.flags || {});
+  setPollution(S.progress >= 2);
+  if (S.progress >= 1) S.flags.talkedMom = true;
+  if (S.progress >= 2) { const b = TH.boss; b.walk = null; b.x = b.front.x; b.z = b.front.z; b.col.x = b.x; b.col.z = b.z; b.actor.root.position.set(b.x, 0, b.z); b.actor.root.rotation.y = 0; }
+  const md = TH.meetDoor, st0 = at || [[-12, 2.4], [GATE_X + 2.5, 2.4], [md.x, md.z + 1.4], [md.x, md.z + 1.4]][Math.min(S.progress, 3)];
+  S.room = null; teleport(st0[0], st0[1], 0);
+  $('hud').classList.remove('hide'); $('hud-who').textContent = st.who; renderHUD();
+  S.placed = true;
+}
 window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading') showLoadError(ev.reason); });
 (async function init() {
   try {
@@ -1294,15 +1308,17 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
   $('loading').classList.add('done');
   EXAM.init({
     onStart: (st) => {                       // 반·번호·이름 등록 뒤
-      S.progress = st.progress; Object.assign(S.flags, st.flags || {});
-      setPollution(S.progress >= 2);
-      if (S.progress >= 1) S.flags.talkedMom = true;
-      if (S.progress >= 2) { const b = TH.boss; b.x = b.front.x; b.z = b.front.z; b.col.x = b.x; b.col.z = b.z; b.actor.root.position.set(b.x, 0, b.z); b.actor.root.rotation.y = 0; }
-      const md = TH.meetDoor, st0 = [[-12, 2.4], [GATE_X + 2.5, 2.4], [md.x, md.z + 1.4], [md.x, md.z + 1.4]][Math.min(S.progress, 3)];
-      S.room = null; teleport(st0[0], st0[1], 0);
-      $('hud').classList.remove('hide'); $('hud-who').textContent = st.who; renderHUD();
+      placeWorld(st);
       const go = () => { S.mode = 'walk'; zoneShown = ''; if (S.progress >= 3) openNotebook(); };
       if (st.fresh) playOpening(go); else go();
+    },
+    onRoam: (st) => {                        // 끝 화면에서 '마을 돌아다니기'
+      S.roam = true;
+      if (!S.placed) placeWorld(st, [-12, 2.4]);   // 새로고침 뒤 바로 끝 화면이었으면 마을 입구에서
+      else { S.progress = Math.max(S.progress, st.progress || 3); setPollution(true); renderHUD(); }
+      for (const k in keys) keys[k] = false;
+      $('kbd-nb').textContent = 'Esc 내 답 보기';
+      S.cam = null; S.sit = false; zoneShown = ''; S.mode = 'walk';
     },
     getFlags: () => S.flags,
     onEnd: () => { S.mode = 'end'; },
