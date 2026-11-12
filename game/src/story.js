@@ -44,9 +44,9 @@ export const DIALOGUE = {
 
 // 오프닝 컷: 그림(assets/comic/open1~3.jpg) + 대사
 export const OPENING = [
-  { img: 'assets/comic/open1.jpg?v=3d', who: 'note', text: '꼬꼬는 일할 곳을 찾고 있었어요.' },
-  { img: 'assets/comic/open2.jpg?v=3d', who: 'note', text: "꼬꼬는 라면을 만드는 '불꽃식품'에 취업했습니다.", src: '원문' },
-  { img: 'assets/comic/open3.jpg?v=3d', who: 'note', text: '그리고 오늘은 꼬꼬의 첫 월급날이에요!' },
+  { img: 'assets/comic/open1.jpg?v=2d', who: 'note', text: '꼬꼬는 일할 곳을 찾고 있었어요.' },
+  { img: 'assets/comic/open2.jpg?v=2d', who: 'note', text: "꼬꼬는 라면을 만드는 '불꽃식품'에 취업했습니다.", src: '원문' },
+  { img: 'assets/comic/open3.jpg?v=2d', who: 'note', text: '그리고 오늘은 꼬꼬의 첫 월급날이에요!' },
 ];
 
 // 퀘스트 문구(화면 위)
