@@ -3,7 +3,7 @@ const path = require('path');
 const { chromium } = require(path.join(process.argv[2], 'node_modules', 'playwright'));
 const out = process.argv[3], url = process.argv[4] || 'http://127.0.0.1:8765/';
 (async () => {
-  const b = await chromium.launch({ channel: 'chrome', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const b = await chromium.launch({ channel: 'chrome', args: ['--mute-audio', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1366, height: 768 } });
   const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text()); });
   await p.goto(url);

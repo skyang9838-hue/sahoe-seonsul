@@ -16,7 +16,8 @@
 #quest-bar .qb-pin{margin-right:8px}
 #quest-bar.pop{animation:qpop .5s ease-out}
 @keyframes qpop{0%{transform:translateX(-50%) scale(.6);opacity:0}70%{transform:translateX(-50%) scale(1.06);opacity:1}100%{transform:translateX(-50%) scale(1)}}
-#zone-banner{top:104px!important}
+#zone-banner{top:122px!important}
+.nametag{z-index:1}.tlabel{z-index:2}.prompt{z-index:3}
 .tlabel{position:absolute;transform:translate(-50%,-100%);background:#ffcf3a;color:#3b2a1e;border:3px solid #3b2a1e;border-radius:12px;padding:2px 12px;font-size:16px;white-space:nowrap;box-shadow:0 4px 0 rgba(0,0,0,.25)}
 .edge-arrow{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none}
 .edge-arrow span{display:block;width:46px;height:46px;border-radius:50%;background:#ffcf3a;border:3px solid #3b2a1e;font-size:26px;line-height:38px;text-align:center;box-shadow:0 4px 0 rgba(0,0,0,.25);animation:edgeP 1s ease-in-out infinite}
@@ -31,6 +32,9 @@
 .comic-box{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);width:min(860px,92vw);background:linear-gradient(#fffdf8,#fff1dc);border:4px solid #3b2a1e;border-radius:20px;padding:14px 22px;box-shadow:0 7px 0 rgba(0,0,0,.3)}
 #comic-text{font-size:24px;line-height:1.5;min-height:36px;word-break:keep-all}
 .comic-foot{display:flex;justify-content:space-between;color:#7a6555;font-size:14px;margin-top:4px}
+.comic-box.emph{background:linear-gradient(#fffef4,#fff4c9);border-color:#b5651d;box-shadow:0 7px 0 rgba(0,0,0,.3),inset 0 0 0 3px #ffd75e}
+.comic-box.emph #comic-text span{background:linear-gradient(transparent 60%,rgba(255,214,64,.75) 60%);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.comic-box.shake{animation:dlgShake .42s ease}
 #comic-skip{position:absolute;right:16px;top:14px;border:2px solid #fff3d6;background:rgba(0,0,0,.4);color:#fff;border-radius:999px;padding:4px 14px;font:inherit;cursor:pointer}
 
 /* 평가 무대 */
@@ -61,8 +65,9 @@
 .inst{font-size:14.5px;color:#7a6555;margin-bottom:2px;font-family:"Gowun Dodum",sans-serif;font-weight:700}
 .res-head{font-size:17px;margin-bottom:6px}
 .scene img{width:100%;max-height:104px;object-fit:cover;border-radius:10px;border:2px solid #e6d6c0;display:block;margin-bottom:8px}
+.scene[data-c="1"] img{max-height:80px}
 .chapter-title{font-size:20px;color:#c24d18;margin:2px 0 6px}
-.res-text p{margin:0 0 7px;font-size:17px;line-height:1.7;font-family:"Gowun Dodum",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
+.res-text p{margin:0 0 5px;font-size:17px;line-height:1.62;font-family:"Gowun Dodum",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
 .q{margin-bottom:14px}
 .q-prompt{font-size:17px;line-height:1.55;margin-bottom:6px;font-family:"Gowun Dodum",sans-serif;font-weight:700;word-break:keep-all}
 .q-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:16px;font-family:"Gowun Dodum",sans-serif}
@@ -143,3 +148,7 @@
 @keyframes ciBand{0%{transform:skewY(-5deg) translateX(-110%)}18%{transform:skewY(-5deg) translateX(0)}78%{opacity:1}100%{transform:skewY(-5deg) translateX(0);opacity:0}}
 @keyframes ciImg{0%{transform:translateX(120%) scale(.8)}22%{transform:none}78%{opacity:1}100%{opacity:0;transform:scale(1.04)}}
 #dlg-big.wait{visibility:hidden}
+/* 수첩은 머리·발 줄이 있어 본문 칸이 낮다: 여백을 줄여 대체 글꼴에서도 자료 전문이 스크롤 없이 보이게 */
+.nb-head,.nb-foot{padding-top:5px!important;padding-bottom:5px!important}
+#nb-left,#nb-right{padding-top:9px;padding-bottom:9px}
+#nb-right .q{margin-bottom:8px}

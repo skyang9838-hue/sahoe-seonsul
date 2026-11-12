@@ -39,7 +39,7 @@ const Q4 = { prompt: "4. <자료 1>의 3장을 읽고 불꽃식품의 경제활�
 /* ─────────────────────────────────────────────
    2. 화면·상태
    ───────────────────────────────────────────── */
-import { API_URL, SCENES } from './config.js?v=7';
+import { API_URL, SCENES } from './config.js?v=8';
 const N_ANS = 6;
 const ANSWER_LABELS = ["1번 가계", "1번 기업", "2번 ①", "2번 ②", "3번", "4번"];
 const S = { ban: "", num: "", name: "", row: 0, answers: blank(), submitted: false, submittedAt: "", progress: 0, flags: {},
@@ -181,12 +181,17 @@ let panelDone = null, curC = 0, waitSpaceUp = false, focusAfter = null;
 export function openPanel(c, onClose) {
   curC = c; panelDone = onClose; mode = "panel";
   $("ex-inst").textContent = INSTRUCTION; $("ex-res").textContent = RESOURCE_TITLE;
+  $("ex-scene").dataset.c = c;   // 2장은 글이 길어 그림을 낮게(exam.css)
   $("ex-scene").innerHTML = SCENES[c] ? '<img alt="' + esc(CHAPTERS[c].title) + ' 장면" src="' + SCENES[c] + '">' : "";
   $("ex-chapter").textContent = CHAPTERS[c].title; $("ex-text").innerHTML = chapterHTML(c);
   $("ex-qs").innerHTML = qHTML(c, "p-"); bindInputs($("ex-qs"));
   show("ex-root"); show("ex-panel");
   const first = $("ex-qs").querySelector("input,textarea");
-  focusAfter = first && !S.submitted ? first : null; waitSpaceUp = true;
+  // 대사를 넘긴 Space를 아직 누르고 있을 때만 뗄 때까지 기다린다(안 그러면 그 Space가 첫 칸에 들어감).
+  // 이미 뗐으면 바로 첫 칸에 커서를 둔다.
+  const target = first && !S.submitted ? first : null;
+  if (spaceDown) { focusAfter = target; waitSpaceUp = true; }
+  else { focusAfter = null; waitSpaceUp = false; if (target) target.focus(); }
 }
 function closePanel() {
   const leave = () => {
@@ -294,13 +299,28 @@ addEventListener("keydown", (e) => {
     if (e.key === "Tab") { e.preventDefault(); (document.activeElement === $("ex-ask-no") ? $("ex-ask-yes") : $("ex-ask-no")).focus(); }
     return;
   }
-  if (mode === "panel" && waitSpaceUp && e.code === "Space") { e.preventDefault(); return; }
-  if (mode === "notebook" && e.code === "Escape") { e.preventDefault(); closeNotebook(); return; }
-  if (mode === "panel" && e.code === "Escape") { e.preventDefault(); return; }
+  // 여기서 처리한 키는 main.js(게임 쪽)에 넘기지 않는다 — 수첩을 Esc로 닫자마자 같은 Esc로 다시 열리던 문제
+  if (mode === "panel" && waitSpaceUp && e.code === "Space") { e.preventDefault(); e.stopImmediatePropagation(); return; }
+  if (mode === "notebook" && e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); closeNotebook(); return; }
+  if (mode === "panel" && e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); return; }
 });
 addEventListener("keyup", (e) => {
-  if (e.code === "Space" && waitSpaceUp) { waitSpaceUp = false; if (focusAfter) { focusAfter.focus(); focusAfter = null; } }
+  if (e.code === "Space" && waitSpaceUp) {
+    waitSpaceUp = false;
+    // 이미 입력 칸에 커서가 있으면(학생이 클릭한 칸) 옮기지 않는다
+    if (focusAfter && !typing()) focusAfter.focus();
+    focusAfter = null;
+  }
 });
+// Space를 지금 누르고 있는지(패널이 열릴 때 판단용). 다른 처리보다 먼저 듣는다.
+let spaceDown = false;
+addEventListener("keydown", (e) => { if (e.code === "Space") spaceDown = true; }, true);
+addEventListener("keyup", (e) => { if (e.code === "Space") spaceDown = false; }, true);
+addEventListener("blur", () => { spaceDown = false; });
+// 패널 안을 클릭하거나 칸에 커서가 들어가면 기다리던 포커스 옮기기를 지운다
+["mousedown", "focusin"].forEach((ev) => addEventListener(ev, (e) => {
+  if (mode === "panel" && e.target && e.target.closest && e.target.closest("#ex-panel")) { waitSpaceUp = false; focusAfter = null; }
+}, true));
 
 // 시험용 초기화: 주소에 ?reset=번호:이름 (반은 상관없이) 또는 ?reset=all — 이 브라우저에 저장된 기록만 지운다
 function resetFromURL() {

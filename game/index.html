@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>꼬꼬의 첫 출근</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Do+Hyeon&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=8">
-<link rel="stylesheet" href="exam.css?v=15">
+<!-- 글꼴은 직접 둔다(assets/fonts, 필요한 글자만 뽑은 woff2) — 늦게 받아지거나 막혀서 패널 글자가 넘치지 않게 -->
+<link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="exam.css?v=16">
 <script type="importmap">
-{ "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
 </head>
 <body>
@@ -115,6 +115,18 @@
   <div id="loading"><div class="ld-title">꼬꼬의 첫 출근</div><div class="ld-bar"><div id="ld-fill"></div></div><div id="ld-msg">마을을 짓는 중…</div></div>
   <div id="fps"></div>
 </div>
-<script type="module" src="src/main.js?v=14"></script>
+<script>
+// 게임 코드가 아예 못 뜨거나(스크립트 받기 실패·오류) 너무 오래 걸리면 로딩 화면에 안내를 띄운다
+(function () {
+  function fail() {
+    var el = document.getElementById('ld-msg'), ld = document.getElementById('loading');
+    if (!el || !ld || ld.classList.contains('done')) return;
+    el.innerHTML = '불러오지 못했어요. 새로고침(F5) 해 주세요.'; el.style.color = '#8a2318';
+  }
+  addEventListener('error', function (e) { if (e instanceof ErrorEvent || (e.target && e.target.tagName === 'SCRIPT')) fail(); }, true);
+  setTimeout(fail, 150000);
+})();
+</script>
+<script type="module" src="src/main.js?v=16"></script>
 </body>
 </html>
