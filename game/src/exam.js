@@ -39,7 +39,7 @@ const Q4 = { prompt: "4. <자료 1>의 3장을 읽고 불꽃식품의 경제활�
 /* ─────────────────────────────────────────────
    2. 화면·상태
    ───────────────────────────────────────────── */
-import { API_URL, SCENES } from './config.js?v=8';
+import { API_URL, SCENES } from './config.js?v=9';
 const N_ANS = 6;
 const ANSWER_LABELS = ["1번 가계", "1번 기업", "2번 ①", "2번 ②", "3번", "4번"];
 const S = { ban: "", num: "", name: "", row: 0, answers: blank(), submitted: false, submittedAt: "", progress: 0, flags: {},

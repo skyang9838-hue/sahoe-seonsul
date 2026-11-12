@@ -7,8 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=12';
-import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=10';
-import * as EXAM from './exam.js?v=12';
+import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=11';
+import * as EXAM from './exam.js?v=13';
 
 const $ = (id) => document.getElementById(id);
 
@@ -103,11 +103,16 @@ function waterMat(round, dirtyAt = -1) {
     fragmentShader: `uniform float t; uniform float dirty; varying vec2 vUv;
       void main(){ vec2 p=vUv-.5; ${round ? 'float d=length(p); if(d>.5) discard;' : 'float d=abs(p.y)*1.;'}
         float w=sin((vUv.x*${round ? '18.' : '90.'}+t*1.6))*.5+sin((vUv.y*22.-t*1.3))*.5;
-        vec3 c=mix(vec3(.36,.72,.95),vec3(.55,.86,1.),smoothstep(.3,.5,w*.5+.5));
+        vec3 c=mix(vec3(.20,.52,.88),vec3(.42,.76,1.),smoothstep(.3,.5,w*.5+.5));
         c=mix(c,vec3(.95,1.,1.),smoothstep(.43,.5,d));
         float s=step(.985,sin(vUv.x*${round ? '40.' : '200.'}+t*2.)*sin(vUv.y*36.-t*1.7)); c+=s*.35;
         float k=0.;
-        if(dirty>=0.){ float sp=2.6+vUv.y*6.; k=exp(-pow((vUv.x-dirty)*sp*(1.+.15*sin(vUv.y*20.-t*2.)),2.))*smoothstep(0.,.7,vUv.y); c=mix(c,vec3(.075,.045,.015),k); }   /* 출력 단계에서 sRGB로 밝아지므로 어둡게(흙탕물이 보이게) */
+        if(dirty>=0.){   /* 강: 길이 49m·폭 4.2m. 관 물줄기가 떨어지는 자리(dirty, 둑에서 1.7m)에서 하류(+x)로 퍼진다 */
+          float u=(vUv.x-dirty)*49., v=(vUv.y-.595)*4.2+.12*sin(u*.9-t*2.)*smoothstep(0.,3.,u);
+          float w=.45+max(u,0.)*.16;
+          k=exp(-v*v/(w*w))*exp(-max(u,0.)/16.)*smoothstep(-1.2,0.,u);
+          k=clamp(k*1.25,0.,1.);
+          c=mix(c,vec3(.20,.10,.025),k); }   /* 출력 단계에서 sRGB로 밝아짐 → 흙탕물 갈색 */
         gl_FragColor=vec4(c,mix(.93,1.,k)); }`,
   });
 }
@@ -219,8 +224,8 @@ function addNPC(id, actor, x, z, ry, r = 1, room = null, who = null) {
   const n = { id, actor, x, z, ry, r, kind: 'npc', room, who: who || id, col: c }; NPCS.push(n); return n;
 }
 
-/* ── 강의 더러운 물(3장 내용): 회의 장면의 강가 컷 전에는 맑은 강, 배수관도 없음 ── */
-const POLL = { uni: null, pipe: null, dirtyAt: -1, on: false };
+/* ── 강의 더러운 물(3장 내용): 2장을 마치기 전에는 맑은 강, 배수관도 없음 ── */
+const POLL = { uni: null, pipe: null, flow: null, splash: null, dirtyAt: -1, on: false };
 function setPollution(on) {
   POLL.on = !!on;
   if (POLL.uni) POLL.uni.value = on ? POLL.dirtyAt : -1;
@@ -302,6 +307,8 @@ function buildWorld() {
   const adFace = signPlane("채소가 가득한\n건강한 라면!", 5.9, 2.8, { size: 92, fg: '#2f7d32', bg: '#fffdf2', border: '#c9a24a' });
   adFace.position.set(bx, 3.75, bz + 0.12); scene.add(adFace);
   colliders.push({ x: bx, z: bz, hw: 2.6, hd: 0.4 });
+  TH.adboard = { id: 'adboard', kind: 'scene', x: bx, z: bz + 1.7, label: '광고판', room: null, chapter: 2, spot: 'adboard', auto: true, labelY: 1.6, face: Math.PI };
+  addMarker('adboard', bx, bz + 1.7);
   // 강 + 배수관(공장 쪽)
   const pipeX = 36.5;
   const river = new THREE.Mesh(new THREE.PlaneGeometry(49, 4.2, 1, 1), waterMat(false, (pipeX - 21) / 49));
@@ -309,9 +316,27 @@ function buildWorld() {
   river.rotation.x = -Math.PI / 2; river.position.set(45.5, 0.025, 10.4); scene.add(river);
   plane(49, 0.6, dirt([12, 0.3]), 45.5, 8.1, 0.02);
   colliders.push({ x: 45.5, z: 11, hw: 24.5, hd: 2.4 });
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 2.2, 16), toon(0x8d939a, { env: true }));
-  pipe.rotation.x = Math.PI / 2; pipe.position.set(pipeX, 0.35, 7.6); pipe.castShadow = true; addOutline(pipe, 0.02); scene.add(pipe);
-  POLL.pipe = pipe; setPollution(SHOT);
+  // 배수관: 둑의 콘크리트 받침에서 강 위로 나와 더러운 물을 쏟는다(2장을 마친 뒤에만 보임)
+  const pipe = new THREE.Group(); scene.add(pipe);
+  const PY = 0.78;   // 관 높이(수면 위)
+  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2.6, 18), toon(0x8d939a, { env: true }));
+  tube.rotation.x = Math.PI / 2; tube.position.set(pipeX, PY, 7.9); tube.castShadow = true; addOutline(tube, 0.02); pipe.add(tube);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.07, 8, 20), toon(0x6f757c, { env: true }));
+  lip.position.set(pipeX, PY, 9.2); addOutline(lip, 0.012); pipe.add(lip);
+  box(1.3, 1.25, 0.6, pipeX, 0.62, 6.75, toon(0xb9b2a4, { env: true }), 0.02, pipe);
+  const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.25, 18), new THREE.MeshBasicMaterial({ color: 0x2a1f16 }));
+  mouth.position.set(pipeX, PY, 9.21); pipe.add(mouth);
+  // 쏟아지는 물줄기(관 입구 → 수면): 아래로 흐르는 줄무늬
+  const flowTex = canvasTex(32, 64, (g, w, h) => { g.fillStyle = '#5e3c18'; g.fillRect(0, 0, w, h); for (let y = 0; y < h; y += 16) { g.fillStyle = '#80572a'; g.fillRect(0, y, w, 6); } }, [2, 3]);
+  const fall = new THREE.QuadraticBezierCurve3(new THREE.Vector3(pipeX, PY - 0.06, 9.22), new THREE.Vector3(pipeX, PY - 0.06, 9.85), new THREE.Vector3(pipeX, 0.02, 10.0));
+  const stream = new THREE.Mesh(new THREE.TubeGeometry(fall, 20, 0.17, 10, false), new THREE.MeshBasicMaterial({ map: flowTex, color: 0xdddddd }));
+  pipe.add(stream);
+  const splash = new THREE.Mesh(new THREE.RingGeometry(0.22, 0.6, 24), new THREE.MeshBasicMaterial({ color: 0x8a6438, transparent: true, opacity: 0.85, depthWrite: false }));
+  splash.rotation.x = -Math.PI / 2; splash.position.set(pipeX, 0.04, 10.0); pipe.add(splash);
+  colliders.push({ x: pipeX, z: 6.75, hw: 0.7, hd: 0.35 });
+  POLL.pipe = pipe; POLL.flow = flowTex; POLL.splash = splash; setPollution(SHOT);
+  TH.riverside = { id: 'riverside', kind: 'scene', x: pipeX - 1.7, z: 7.8, label: '강가', room: null, chapter: 2, spot: 'riverside', auto: true, labelY: 1.6, face: Math.PI / 2 };
+  addMarker('riverside', pipeX - 1.7, 7.8);
   // 꾸밈
   [[24, 6], [50, 6.5], [68.5, -7], [68.5, 6], [60, -11]].forEach(([x, z], i) => place(['tree_single_A', 'tree_single_B', 'trees_B_small'][i % 3], x, z, { h: 3.8, ry: i, shrink: 0.3 }));
   [[25, 0.4], [35, 0.4], [47, 0.4], [59, 0.4], [68, 0.4]].forEach(([x, z]) => place('streetlight', x, z, { h: 3.0, shrink: 0.25 }));
@@ -498,7 +523,7 @@ function buildMeetRoom() {
   const fox = addNPC('fox', buildCritter('fox', { outfit: 'office' }), 80, -84.0, 0, 1, 'meet');
   Object.assign(fox, { dlg: 'foxIdle', labelY: 2.2 });
   place('bush', 74.3, -84.2, { h: 1.1, occl: false }); place('bush', 85.7, -84.2, { h: 1.1, occl: false });
-  TH.seat = { id: 'seat', kind: 'scene', x: 80, z: -78.3, label: '빈 의자', room: 'meet', chapter: 2, auto: true, labelY: 1.6 };
+  TH.seat = { id: 'seat', kind: 'scene', x: 80, z: -78.3, label: '빈 의자', room: 'meet', chapter: 2, spot: 'meeting', auto: true, labelY: 1.6, face: Math.PI };
   addMarker('seat', 80, -78.3);
 }
 
@@ -602,7 +627,11 @@ function blocked(x, z) {
 
 /* ── 상태·퀘스트 (2D 판 규칙 그대로) ───────── */
 const S = { x: -12, z: 2.4, face: 0, mode: 'loading', flags: {}, progress: 0, room: null, cam: null, sit: false, shake: 0 };
-const QUEST = ['mom', 'martDoor', 'ramen', 'gate1', 'factoryDoor', 'rollcall', 'meetDoor', 'seat', 'notebook'];
+const QUEST = ['mom', 'martDoor', 'ramen', 'gate1', 'factoryDoor', 'rollcall', 'ch3', 'notebook'];
+// 3장 세 곳: 조사 자리 id(TH) → 대사 묶음 이름(TH[id].spot = story.js SPOTS3). 순서는 자유, 세 곳을 다 보면 3장 패널
+const SPOT_IDS = ['seat', 'adboard', 'riverside'];
+const spotSeen = (id) => !!S.flags['seen_' + TH[id].spot];
+const spotsLeft = () => SPOT_IDS.filter((id) => !spotSeen(id));
 function stepDone(id) {
   const f = S.flags, p = S.progress, r = S.room;
   switch (id) {
@@ -612,18 +641,29 @@ function stepDone(id) {
     case 'gate1': return (!r && S.x > GATE_X) || r === 'factory' || r === 'meet' || p > 1;
     case 'factoryDoor': return r === 'factory' || p > 1;
     case 'rollcall': return p > 1;
-    case 'meetDoor': return r === 'meet' || p > 2;
-    case 'seat': return p > 2;
+    case 'ch3': return p > 2;
     default: return false;
   }
 }
 function questCur() { for (const id of QUEST) if (!stepDone(id)) return id; return null; }
 const sameRoom = (t) => (t.room || null) === (S.room || null);
+const roomDoor = (room) => Object.values(TH).find((d) => d.toRoom === room);
+// 3장: 아직 안 본 곳 가운데 가장 가까운 곳(실내 자리는 그 건물 문·나가기 문까지 거리로 잰다)
+function nearestSpot() {
+  let best = null, bd = 1e9;
+  for (const id of spotsLeft()) {
+    const t = TH[id], p = sameRoom(t) ? t : S.room ? TH['exit_' + S.room] : roomDoor(t.room);
+    const d = Math.hypot(p.x - S.x, p.z - S.z) + (sameRoom(t) ? 0 : 3);
+    if (d < bd) { bd = d; best = t; }
+  }
+  return best;
+}
 function questTarget(id) {
   if (!id || id === 'notebook') return null;
-  const t = id === 'gate1' ? { x: GATE_X + 1.4, z: 2.2, label: '회사 가는 길', labelY: 2.4 } : TH[id];
+  let t = id === 'gate1' ? { x: GATE_X + 1.4, z: 2.2, label: '회사 가는 길', labelY: 2.4 } : id === 'ch3' ? nearestSpot() : TH[id];
   if (!t) return null;
   if (S.room && !sameRoom(t)) { const ex = TH['exit_' + S.room]; return { x: ex.x, z: ex.z, label: '나가기', y: 1.6, exit: true }; }
+  if (!S.room && t.room) t = roomDoor(t.room);   // 실내 자리는 먼저 그 건물 문으로
   return { x: t.x, z: t.z, label: t.label || WHO[t.who || t.id]?.name, y: t.labelY || 2.6, npc: t.kind === 'npc' };
 }
 function doorOpen(t) { return S.progress >= (t.needProg || 0) && (S.progress > 0 || (t.needFlags || []).every((f) => S.flags[f])); }
@@ -631,7 +671,7 @@ let enteredAt = 0;
 function nearestThing() {
   let best = null, bd = 1.7;
   const justIn = performance.now() - enteredAt < 600;
-  for (const k in TH) { const t = TH[k]; if (!sameRoom(t) || (justIn && t.kind === 'exit')) continue; const d = Math.hypot(t.x - S.x, t.z - S.z); if (d < bd) { bd = d; best = t; } }
+  for (const k in TH) { const t = TH[k]; if (!sameRoom(t) || (justIn && t.kind === 'exit') || (t.spot && S.progress < 2)) continue; const d = Math.hypot(t.x - S.x, t.z - S.z); if (d < bd) { bd = d; best = t; } }
   return best;
 }
 function interact(t) {
@@ -677,9 +717,14 @@ function runScene(t) {
   else if (t.id === 'rollcall') {
     S.x = t.x; S.z = t.z; S.face = Math.PI; setCam('rollWide');
     const b = TH.boss; walkNPC(b, b.front.x, b.front.z, 0, () => talk(DIALOGUE.rollcall, () => openChapter(1), null, true));
-  } else if (t.id === 'seat') {
-    S.x = 80; S.z = -78.45; S.face = Math.PI; S.sit = true;
-    setTimeout(() => talk(DIALOGUE.meeting, () => openChapter(2), null, true), 450);
+  } else if (t.spot) {   // 3장 세 곳은 똑같은 방식: 자리에 서기 → 원문 한 줄 → 세 곳을 다 봤으면 3장 패널
+    if (t.id === 'seat') { S.x = 80; S.z = -78.45; S.sit = true; } else { S.x = t.x; S.z = t.z; }
+    S.face = t.face;
+    setTimeout(() => talk(DIALOGUE[t.spot], () => {
+      if (!S.flags['seen_' + t.spot]) { S.flags['seen_' + t.spot] = true; EXAM.saveLocal(S); }
+      if (!spotsLeft().length) { openChapter(2); return; }
+      if (S.sit) { S.sit = false; S.z = -77.4; S.face = 0; }
+    }), 450);
   }
 }
 function openChapter(c) {
@@ -691,6 +736,7 @@ function openChapter(c) {
       fadeIn(); S.mode = 'walk';
       if (S.progress === c) {
         S.progress = c + 1; EXAM.setProgress(S.progress); EXAM.saveLocal(S);
+        if (S.progress >= 2) setPollution(true);   // 3장 강가는 2장을 마친 뒤부터 보인다
         stampPop(c);
         talk(DIALOGUE[['after1', 'after2', 'after3'][c]], () => { if (c === 2) openNotebook(); });
       }
@@ -707,8 +753,8 @@ const CAMS = {
   boss:     { p: [41.0, 2.0, -77.4], l: [40, 1.15, -82.2] },
   heroFace: { p: [40.4, 1.7, -81.2], l: [40, 0.95, -79] },
   fox:      { p: [80.7, 2.5, -75.4], l: [80, 1.3, -83.4] },
-  ad:       { p: [63.5, 3.9, 3.0], l: [63.5, 3.3, -3.8] },
-  river:    { p: [36.2, 6.2, 3.2], l: [37.6, 0, 10] },
+  ad:       { p: [64.2, 3.3, 6.0], l: [63.5, 2.7, -3.8] },      // 3장 세 곳은 비슷한 거리(꼬꼬와 대상이 함께 보이게)
+  river:    { p: [38.6, 3.8, 15.4], l: [36.9, 0.4, 8.6] },   // 강 건너편에서: 공장 쪽 둑 → 배수관 → 강
 };
 function setCam(name, snap) {
   const c = CAMS[name]; if (!c) return;
@@ -1013,8 +1059,8 @@ function tidyLabels() {
 }
 function updateNav(dt) {
   navT += dt;
-  const cur = questCur(), tq = questTarget(cur), qkey = cur + (tq && tq.exit ? ':exit' : '');
-  if (qkey !== lastQuest) { lastQuest = qkey; qbar.querySelector('b').textContent = tq && tq.exit ? '출입문으로 나가세요' : (QUEST_TEXT[cur] || ''); qbar.classList.remove('pop'); void qbar.offsetWidth; qbar.classList.add('pop'); }
+  const cur = questCur(), tq = questTarget(cur), n3 = cur === 'ch3' ? ' (' + (3 - spotsLeft().length) + '/3)' : '', qkey = cur + (tq && tq.exit ? ':exit' : '') + n3;
+  if (qkey !== lastQuest) { lastQuest = qkey; qbar.querySelector('b').textContent = tq && tq.exit ? '출입문으로 나가세요' : (QUEST_TEXT[cur] || '') + n3; qbar.classList.remove('pop'); void qbar.offsetWidth; qbar.classList.add('pop'); }
   qbar.style.display = (S.mode === 'walk' || S.mode === 'talk') && cur && !S.cam ? '' : 'none';
   const tg = (S.mode === 'walk') ? tq : null;
   // 3D 화살표
@@ -1164,8 +1210,9 @@ function loop() {
     if (Math.hypot(n.x - S.x, n.z - S.z) < 30) n.actor.update(dt, { moving: mv });
   }
   // 반짝이는 자리에 서면 저절로 시작
-  if (S.mode === 'walk') for (const id of ['rollcall', 'seat']) { const t = TH[id]; if (t && sameRoom(t) && questCur() === id && Math.hypot(t.x - S.x, t.z - S.z) < 0.6 && !J.on) { interact(t); break; } }
-  for (const m of markers) { const on = questCur() === m.id && sameRoom(TH[m.id]) && S.mode === 'walk'; m.g.visible = on; if (on) { const k = 1 + Math.sin(navT * 5) * 0.08; m.ring.scale.set(k, k, 1); m.beam.material.opacity = 0.14 + Math.sin(navT * 3) * 0.06; } }
+  const qc = questCur(), autoIds = qc === 'rollcall' ? ['rollcall'] : qc === 'ch3' ? spotsLeft() : [];
+  if (S.mode === 'walk') for (const id of autoIds) { const t = TH[id]; if (t && sameRoom(t) && Math.hypot(t.x - S.x, t.z - S.z) < 0.6 && !J.on) { interact(t); break; } }
+  for (const m of markers) { const on = autoIds.includes(m.id) && sameRoom(TH[m.id]) && S.mode === 'walk'; m.g.visible = on; if (on) { const k = 1 + Math.sin(navT * 5) * 0.08; m.ring.scale.set(k, k, 1); m.beam.material.opacity = 0.14 + Math.sin(navT * 3) * 0.06; } }
   if (beltTex) { beltTex.offset.x -= dt * 0.55; for (const p of beltPacks) { p.position.x += dt * 0.72; if (p.position.x > 46.6) p.position.x -= 13.2; } }
   for (const l of lamps) l.material.emissiveIntensity = Math.sin(navT * 6) > 0 ? 1.4 : 0.2;
   // 구역 배너
@@ -1185,6 +1232,7 @@ function loop() {
   const inside = camLook.z < -50;
   if (inside !== wasInside) { wasInside = inside; scene.background = inside ? INSIDE_BG : SKY; scene.fog.color.set(inside ? 0x2b211a : 0xcfe9ff); }
   waterUniform.value += dt;
+  if (POLL.on && POLL.flow) { const f = navT * 1.3 % 1; POLL.flow.offset.y += dt * 1.6; POLL.splash.scale.set(1 + f * 0.35, 1 + f * 0.35, 1); POLL.splash.material.opacity = 0.9 - f * 0.5; }
   for (const c of clouds) { c.position.x += c.userData.drift * dt; if (c.position.x > 150) c.position.x = -40; }
   for (let i = dusts.length - 1; i >= 0; i--) {
     const s = dusts[i]; s.userData.life -= dt;
@@ -1221,7 +1269,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { S, J, NPCS, TH, gates, occluders, questCur, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
+window.__kk = { S, J, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {
@@ -1247,7 +1295,7 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
   EXAM.init({
     onStart: (st) => {                       // 반·번호·이름 등록 뒤
       S.progress = st.progress; Object.assign(S.flags, st.flags || {});
-      setPollution(S.progress >= 3);
+      setPollution(S.progress >= 2);
       if (S.progress >= 1) S.flags.talkedMom = true;
       if (S.progress >= 2) { const b = TH.boss; b.x = b.front.x; b.z = b.front.z; b.col.x = b.x; b.col.z = b.z; b.actor.root.position.set(b.x, 0, b.z); b.actor.root.rotation.y = 0; }
       const md = TH.meetDoor, st0 = [[-12, 2.4], [GATE_X + 2.5, 2.4], [md.x, md.z + 1.4], [md.x, md.z + 1.4]][Math.min(S.progress, 3)];

@@ -134,16 +134,48 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check((await st()).ex === 'panel', '점호 → 평가 패널 2장'); await p.waitForTimeout(300); await snap('panel2'); await fitCheck('2장'); await sceneImg('2장');
   await fill('#p-a4', '밤 10시까지 일했는데 돈을 더 주지 않았다.');
   await p.click('#ex-done'); await p.waitForTimeout(900); check((await st()).prog === 2, '2장 도장'); await finishTalk();
+  check(await p.evaluate(() => __kk.POLL.on && __kk.POLL.pipe.visible), '2장을 마치면 강가에 배수관·더러운 물');
   await near('exit_factory', 0, -0.4); await space(); await p.waitForTimeout(900);
+  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('(0/3)')), '3장 퀘스트: 세 곳 (0/3)');
+  // 3장 세 곳(순서 자유): 광고판 → 회의실 빈 의자 → 강가 순서로 가 본다. 곳마다 연출(검은 전환·카메라·강조·초상화)을 재서 셋이 같은지 본다
+  const fx3 = {};
+  const spotRun = async (id, tag) => {
+    // 원문 줄이 뜰 때까지: 검은 전환이 있었는지, 카메라 연출이 켜졌는지
+    let faded = false; const t0 = Date.now();
+    while (Date.now() - t0 < 6000) {
+      const r = await p.evaluate(() => [document.getElementById('fade').classList.contains('on'), __kk.S.mode, !document.getElementById('dialogue').classList.contains('hide')]);
+      if (r[0]) faded = true;
+      if (r[1] === 'talk' && r[2] && !r[0]) break;
+      await p.waitForTimeout(40);
+    }
+    await p.waitForTimeout(500);
+    const r = await p.evaluate(() => ({ talk: __kk.S.mode === 'talk', emph: document.getElementById('dialogue').classList.contains('emph'), cam: !!__kk.S.cam,
+      face: !document.getElementById('dlg-big').classList.contains('hide'), cut: !document.getElementById('cutin').classList.contains('hide'), name: document.getElementById('dlg-name').textContent }));
+    fx3[id] = JSON.stringify({ faded, emph: r.emph, cam: r.cam, face: r.face, cut: r.cut, name: r.name });
+    check(r.talk && r.emph && faded && r.cam, tag + ' → 원문 대사 (' + fx3[id] + ')');
+    await dlgFit(tag);
+  };
+  // 광고판: 앞까지 걸어가서 반짝이는 자리에 서기
+  await near('adboard', 0, 2.2); await p.waitForTimeout(300); await labelsBelowTop('광고판 앞');
+  await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
+  await spotRun('adboard', '광고판'); await snap('spot-ad'); await finishTalk(); await p.waitForTimeout(600);
+  s = await st(); check(s.mode === 'walk' && s.ex !== 'panel' && s.flags.seen_adboard, '광고판만 보면 패널 안 열림 (' + s.mode + '/' + s.ex + ')');
+  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('(1/3)')), '퀘스트 (1/3)');
+  // 회의실: 문 → 빈 의자
   await near('meetDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
   check(await p.evaluate(() => __kk.S.room === 'meet'), '회의실 안'); await p.waitForTimeout(500); await snap('meet-in'); await labelsBelowTop('회의실 안');
   await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
-  await p.waitForTimeout(1600); s = await st(); check(s.mode === 'talk', '빈 의자 → 회의 시작'); await snap('meeting-fox');
-  await space(2); await p.waitForTimeout(1200); await snap('meeting-ad');
-  await space(2); await p.waitForTimeout(1200); await snap('meeting-river');
-  check(await p.evaluate(() => __kk.POLL.on && __kk.POLL.pipe.visible), '강가 컷부터 더러운 물');
-  await finishTalk(); await p.waitForTimeout(700);
-  check((await st()).ex === 'panel', '회의 → 평가 패널 3장'); await p.waitForTimeout(300); await snap('panel3'); await fitCheck('3장'); await sceneImg('3장');
+  await spotRun('seat', '회의실 빈 의자'); await snap('spot-meeting'); await finishTalk(); await p.waitForTimeout(600);
+  s = await st(); check(s.mode === 'walk' && s.ex !== 'panel' && !(await p.evaluate(() => __kk.S.sit)), '두 곳 뒤에도 패널 안 열림, 의자에서 일어남 (' + s.mode + ')');
+  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('나가')), '안 본 곳이 바깥이면 나가기 안내');
+  await near('exit_meet', 0, -0.4); await space(); await p.waitForTimeout(900);
+  // 강가: 배수관 옆 자리로 걸어가기
+  await near('riverside', -2.2, 0); await p.waitForTimeout(300); await labelsBelowTop('강가');
+  await holdUntil('ArrowRight', async () => (await st()).mode !== 'walk', 6000);
+  await spotRun('riverside', '강가'); await snap('spot-river');
+  check(fx3.adboard === fx3.seat && fx3.seat === fx3.riverside, '세 곳 연출이 같음');
+  await finishTalk(); await p.waitForTimeout(900);
+  check((await st()).ex === 'panel', '세 곳을 다 보면 → 평가 패널 3장'); await p.waitForTimeout(300); await snap('panel3'); await fitCheck('3장'); await sceneImg('3장');
   await fill('#p-a5', '1,200원에 팔기로 스스로 결정했다.');
   await p.click('#ex-done'); await p.waitForTimeout(900); check((await st()).prog === 3, '3장 도장');
   await finishTalk(); await p.waitForTimeout(500);

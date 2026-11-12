@@ -3,11 +3,12 @@
 //   → <저장 폴더>/*.png (원본 크기) + 인물 테두리 px 검사. 다 찍은 뒤 tools/compose_art.py로 줄이고 붙여 assets에 넣는다.
 // 장면을 꾸며(인물 위치·표정·카메라) 3D 화면만 찍는다. 글자·화면 장식은 숨긴다.
 // 패널 그림 칸은 무대 기준 376×100(2장 376×76, exam.css .scene img)이라 그 비율로 찍는다(cover로 잘리지 않게).
+// 1장은 공장|마트 두 칸, 3장은 회의실|광고판|강가 세 칸으로 compose_art.py가 붙인다.
 const path = require('path');
 const { chromium } = require(path.join(process.argv[2], 'node_modules', 'playwright'));
 const out = process.argv[3];
 const only = process.argv[4] ? process.argv[4].split(',') : null;
-const OPEN = { w: 1600, h: 900 }, P1 = { w: 2256, h: 600 }, P2 = { w: 2256, h: 456 }, P3 = { w: 744, h: 600 };
+const OPEN = { w: 1600, h: 900 }, P1 = { w: 1122, h: 600 }, P2 = { w: 2256, h: 456 }, P3 = { w: 744, h: 600 };   // P1: 1장 두 칸(공장|마트) 한 칸
 const SHOTS = [
   // 오프닝 1: 일자리 알림판 앞의 꼬꼬(뒷모습, 알림판을 본다)
   { name: 'open1', ...OPEN, who: ['hero'], set: { room: null, hero: [-16.6, -1.5, -2.3], heroMood: '', cam: [[-15.0, 2.6, 2.6], [-17.0, 1.1, -2.6]] } },
@@ -15,14 +16,17 @@ const SHOTS = [
   { name: 'open2', ...OPEN, who: ['hero', 'boss'], set: { room: null, hero: [31.6, -3.2, 0.9], heroMood: 'happy', npcs: { boss: [33.4, -3.3, -0.6, 'happy'] }, cam: [[32.8, 2.6, 3.2], [32.6, 1.9, -5.0]] } },
   // 오프닝 3: 첫 월급날, 집 앞 가족
   { name: 'open3', ...OPEN, who: ['hero', 'mom', 'baby'], set: { room: null, hero: [-9.2, -2.0, 0.2], heroMood: 'happy', npcs: { mom: [-10.8, -2.4, 0.4, 'happy'], baby: [-7.9, -1.6, -0.3, 'happy'] }, cam: [[-9.4, 2.4, 3.6], [-9.6, 1.4, -4.0]] } },
-  // 1장: 마트 라면 칸, 가족과 함께
-  { name: 'scene1', ...P1, who: ['hero', 'mom2', 'baby2'], set: { room: 'mart', fov: 46, hero: [-3.3, -83.3, 0.3], heroMood: 'happy', npcs: { mom2: [-4.6, -83.5, 0.5, 'happy'], baby2: [-2.1, -82.9, -0.4, 'happy'] }, cam: [[-3.3, 1.7, -79.4], [-3.3, 1.08, -84.0]] } },
-  // 2장: 공장 점호(공장장이 말하고 근로자들이 걱정)
-  { name: 'scene2', ...P2, who: ['hero', 'boss', 'bear', 'bunny'], set: { room: 'factory', hero: [40, -79, Math.PI], heroMood: 'worry', npcs: { boss: [41.6, -81.4, -0.59, ''], bear: [38.2, -79, Math.PI, 'worry'], bunny: [41.8, -79, Math.PI, 'worry'] }, cam: [[38.6, 2.7, -84.6], [40.3, 0.65, -79.6]] } },
+  // 1장 왼쪽 칸: 공장에서 라면 만들기(컨베이어 뒤에서 동료들과 일함)
+  { name: 'scene1a', ...P1, who: ['hero', 'bear', 'bunny'], set: { room: 'factory', fov: 44, sit: true, hero: [40, -85.15, 0], heroMood: '', npcs: { bear: [38.3, -85.15, 0, '', 0.42], bunny: [41.7, -85.15, 0, '', 0.42] }, cam: [[40, 2.0, -81.0], [40, 1.0, -85.2]] } },   // sit·y 0.42: 컨베이어 뒤 발판에 올라선 높이(몸이 벨트 위로 보이게)
+  // 1장 오른쪽 칸: 마트 라면 칸, 가족과 함께 장보기
+  { name: 'scene1b', ...P1, who: ['hero', 'mom2', 'baby2'], set: { room: 'mart', fov: 46, hero: [-3.3, -83.3, 0.3], heroMood: 'happy', npcs: { mom2: [-4.6, -83.5, 0.5, 'happy'], baby2: [-2.1, -82.9, -0.4, 'happy'] }, cam: [[-3.3, 1.7, -79.4], [-3.3, 1.08, -84.0]] } },
+  // 2장: 공장 점호 — 공장장(얼굴이 보이게 옆으로 서서 근로자들 쪽을 봄)과 걱정하는 근로자들
+  { name: 'scene2', ...P2, who: ['hero', 'boss', 'bear', 'bunny'], set: { room: 'factory', fov: 34, hero: [41.4, -80.0, -0.5], heroMood: 'worry', npcs: { boss: [37.6, -80.8, 0.9, ''], bear: [40.0, -79.7, -0.6, 'worry'], bunny: [42.8, -80.3, -0.7, 'worry'] }, cam: [[40.2, 1.55, -75.6], [40.2, 0.95, -80.4]] } },
   // 3장: 회의실 / 광고판 / 강가 (세 칸으로 붙인다)
   { name: 'scene3a', ...P3, who: ['fox', 'staff1', 'staff2'], set: { room: 'meet', fov: 46, cam: [[80, 3.0, -76.2], [80, 0.9, -83.2]] } },
   { name: 'scene3b', ...P3, who: [], set: { room: 'meet', cam: [[63.5, 3.6, 4.4], [63.5, 3.2, -3.8]] } },
-  { name: 'scene3c', ...P3, who: [], poll: true, set: { room: 'meet', fov: 40, cam: [[36.0, 8.0, 4.4], [37.0, 0, 10.0]] } },
+  // 강가: 강 건너편에서 — 공장 쪽 둑의 배수관에서 더러운 물이 강으로 쏟아져 하류로 퍼짐
+  { name: 'scene3c', ...P3, who: [], poll: true, set: { room: 'meet', fov: 40, cam: [[38.8, 4.4, 16.2], [37.0, 0.3, 8.4]] } },
 ];
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', args: ['--mute-audio', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -47,6 +51,7 @@ const SHOTS = [
       K.hero.setMood(st.heroMood || '');
       for (const [id, v] of Object.entries(st.npcs || {})) {
         const n = K.TH[id]; n.x = v[0]; n.z = v[1]; n.actor.root.position.x = v[0]; n.actor.root.position.z = v[1]; n.actor.root.rotation.y = v[2]; n.actor.setMood(v[3]);
+        if (v.length > 4) n.actor.root.position.y = v[4];   // 발판 높이(다섯째 값)
       }
       // 3장 강가: 원문("더러운 물이 근처 강으로")대로 배수관·폐수를 켠다
       const P = K.POLL; P.on = poll; if (P.uni) P.uni.value = poll ? P.dirtyAt : -1; if (P.pipe) P.pipe.visible = poll;
