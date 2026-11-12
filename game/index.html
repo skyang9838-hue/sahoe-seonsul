@@ -8,7 +8,7 @@
 <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=9">
-<link rel="stylesheet" href="exam.css?v=16">
+<link rel="stylesheet" href="exam.css?v=17">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -26,7 +26,7 @@
       <div class="slot"><span>공장</span><span class="stamp"></span></div>
       <div class="slot"><span>회의실</span><span class="stamp"></span></div>
     </div>
-    <div id="hud-right"><span id="save-state">저장됨</span><span class="kbd-s">Esc 수첩</span></div>
+    <div id="hud-right"><span id="save-state">저장됨</span><span id="kbd-nb" class="kbd-s">Esc 수첩</span></div>
   </div>
   <div id="quest-bar" style="display:none"><span class="qb-pin">📍</span><b></b></div>
   <div id="zone-banner"></div>
@@ -99,7 +99,7 @@
           <div class="end-title">꼬꼬의 수첩 완성!</div>
           <div class="end-sub">제출 완료! 선생님 화면을 기다려 주세요.</div>
           <div id="end-time" class="end-time"></div>
-          <button id="end-view" class="btn">내 답 다시 보기</button>
+          <div class="end-btns"><button id="end-roam" class="btn primary">마을 돌아다니기</button><button id="end-view" class="btn">내 답 다시 보기</button></div>
         </div>
       </div>
 
@@ -127,6 +127,6 @@
   setTimeout(fail, 150000);
 })();
 </script>
-<script type="module" src="src/main.js?v=16"></script>
+<script type="module" src="src/main.js?v=17"></script>
 </body>
 </html>

@@ -155,6 +155,61 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s.ex === 'notebook', 'Esc로 수첩 다시 열림 (' + s.ex + ')');
   await p.click('#nb-submit'); await p.waitForTimeout(300); await p.click('#ex-ask-yes'); await p.waitForTimeout(800);
   s = await st(); check(s.sub && s.ex === 'end', '제출 → 끝 화면'); await snap('end');
+  // ── 제출 뒤 자유롭게 돌아다니기 ──
+  const ansAtSubmit = JSON.stringify((await st()).ans);
+  await p.waitForTimeout(200);
+  check(await p.evaluate(() => document.activeElement && document.activeElement.id) === 'end-roam', '끝 화면: "마을 돌아다니기"에 커서');
+  const roamChecks = async (tag) => {
+    s = await st();
+    check(s.mode === 'walk' && s.ex === 'game' && (await p.evaluate(() => __kk.S.roam && __ex.roaming)), tag + ' 돌아다니기 모드 (' + s.mode + '/' + s.ex + ')');
+    check(await p.evaluate(() => document.getElementById('ex-root').classList.contains('hide')), tag + ' 평가 화면 닫힘');
+    check(s.quest === null && await p.evaluate(() => document.getElementById('quest-bar').style.display === 'none' && !__kk.arrow.visible && __kk.markers.every((m) => !m.g.visible)), tag + ' 퀘스트 안내·화살표·반짝이 숨김');
+    check(await p.evaluate(() => __kk.gates.every((g) => g.open)), tag + ' 울타리 문 모두 열림');
+    check(await p.evaluate(() => [...document.querySelectorAll('#labels .edge-arrow,#labels .tlabel')].every((e) => e.style.display === 'none')), tag + ' 목적지 이름표·가장자리 화살표 숨김');
+  };
+  await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  await roamChecks('Enter →'); await snap('roam');
+  check(await p.evaluate(() => document.getElementById('kbd-nb').textContent.includes('내 답')), 'HUD 안내: Esc 내 답 보기');
+  // 문마다 잠김 없이 들어갔다 나오기
+  for (const [door, room] of [['martDoor', 'mart'], ['factoryDoor', 'factory'], ['meetDoor', 'meet']]) {
+    await p.evaluate(() => { __kk.S.room = null; }); await near(door, 0, 0.6);
+    const pr = await p.evaluate(() => document.querySelector('#labels .prompt').textContent);
+    await space(); await p.waitForTimeout(900);
+    check(await p.evaluate((r) => __kk.S.room === r, room), door + ' 바로 들어감 (말풍선 ' + pr + ')');
+    await p.waitForTimeout(300); await snap('roam-' + room);
+    // 평가 장면 자리: 말풍선 없음, Space는 점프, 반짝이 자리에 서도 장면이 시작되지 않음
+    const sid = { mart: 'ramen', factory: 'rollcall', meet: 'seat' }[room];
+    await near(sid, 0, room === 'mart' ? 0.1 : 0); await p.waitForTimeout(700);
+    s = await st();
+    const pr2 = await p.evaluate(() => { const e = document.querySelector('#labels .prompt'); return e.style.display === 'none' ? '' : e.textContent; });
+    check(s.mode === 'walk' && s.ex === 'game', room + ' 평가 장면 자리에 서도 장면·패널 안 열림 (' + s.mode + '/' + s.ex + ')');
+    await space(); await p.waitForTimeout(700); s = await st();
+    check(s.ex === 'game' && (s.mode === 'walk' || s.mode === 'talk') && !pr2.includes('살펴') , room + ' 장면 자리 Space → 패널 안 열림 (말풍선 "' + pr2 + '")');
+    await finishTalk(); await p.waitForTimeout(800);
+    await near('exit_' + room, 0, -0.4); await space(); await p.waitForTimeout(900);
+    check(await p.evaluate(() => __kk.S.room === null), room + ' 나가기');
+  }
+  // 회사 쪽에서 마을까지 문을 지나 걸어가기(막힘 없음)
+  await tp(26, 2.2); await holdUntil('ArrowLeft', async () => (await st()).x < 18, 15000);
+  s = await st(); check(s.x < 18 && s.mode === 'walk', '회사 → 마을 걸어서 돌아옴 (x=' + s.x.toFixed(1) + ')');
+  // 내 답 다시 보기: Esc → 읽기 전용 수첩, 제출 버튼 없음, 글자 안 들어감
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400); s = await st();
+  check(s.ex === 'notebook', '돌아다니다 Esc → 내 답 수첩 (' + s.ex + ')'); await snap('roam-notebook');
+  check(await p.evaluate(() => [...document.querySelectorAll('#nb-qs input,#nb-qs textarea')].every((e) => e.readOnly) && document.getElementById('nb-submit').classList.contains('hide')), '수첩 읽기 전용·제출 버튼 없음');
+  await p.focus('#nb-qs textarea, #nb-qs input'); await p.keyboard.type('고침'); await p.waitForTimeout(200);
+  check(JSON.stringify((await st()).ans) === ansAtSubmit, '읽기 전용 칸에 글자를 쳐도 답 그대로');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400); s = await st();
+  check(s.ex === 'game' && s.mode === 'walk', 'Esc → 끝 화면 말고 다시 마을 (' + s.ex + '/' + s.mode + ')');
+  // 새로고침: 제출 상태 유지 → 끝 화면 → 다시 돌아다니기
+  await p.reload(); await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 90000 });
+  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.fill('#in-name', '테스트'); await p.click('#btn-start'); await p.waitForTimeout(800);
+  s = await st(); check(s.sub && s.ex === 'end' && JSON.stringify(s.ans) === ansAtSubmit, '새로고침 → 제출 상태·답 그대로, 끝 화면');
+  check(await p.evaluate(() => { const r = JSON.parse(localStorage.getItem('kkokko3d-preview-server')); const v = Object.values(r)[0]; return v.submitted; }), '서버(스텁) 제출 상태 유지');
+  await p.waitForTimeout(200); await p.keyboard.press('Enter'); await p.waitForTimeout(700);
+  await roamChecks('새로고침 뒤'); await snap('roam-reload');
+  s = await st(); check(s.x < -8 && !(await p.evaluate(() => __kk.S.room)) && await p.evaluate(() => !document.getElementById('hud').classList.contains('hide')), '새로고침 뒤 마을 입구에서 시작·HUD 보임 (x=' + s.x.toFixed(1) + ')');
+  await near('meetDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  check(await p.evaluate(() => __kk.S.room === 'meet'), '새로고침 뒤에도 문 열림(회의실)');
   check(errs.length === 0, '콘솔 오류 없음 ' + errs.slice(0, 3).join(' | '));
   console.log(fails.length ? '실패 ' + fails.length : '모두 통과');
   await b.close(); process.exit(fails.length ? 1 : 0);

@@ -44,7 +44,7 @@ const N_ANS = 6;
 const ANSWER_LABELS = ["1번 가계", "1번 기업", "2번 ①", "2번 ②", "3번", "4번"];
 const S = { ban: "", num: "", name: "", row: 0, answers: blank(), submitted: false, submittedAt: "", progress: 0, flags: {},
   dirty: false, saving: false, failed: false, lastSavedAt: "", finalizing: false, base: "" };
-let H = {}, sfx = {}, mode = "start";
+let H = {}, sfx = {}, mode = "start", roaming = false;   // roaming: 제출 뒤 마을 돌아다니기
 function blank() { const a = []; for (let i = 0; i < N_ANS; i++) a.push(""); return a; }
 const $ = (id) => document.getElementById(id);
 const show = (id) => $(id).classList.remove("hide"), hide = (id) => $(id).classList.add("hide");
@@ -225,7 +225,7 @@ function closeNotebook() {
   if (S.finalizing) return;
   hide("ex-notebook"); document.activeElement && document.activeElement.blur();
   if (S.dirty && !S.saving) save(false);
-  if (S.submitted) { showEnd(); return; }
+  if (S.submitted && !roaming) { showEnd(); return; }   // 돌아다니는 중이면 끝 화면 말고 마을로
   hide("ex-root"); mode = "game"; const cb = nbClose; nbClose = null; cb && cb();
 }
 function lockInputs(on) { document.querySelectorAll("#ex-root input,#ex-root textarea").forEach((el) => { el.readOnly = on || S.submitted; }); }
@@ -285,7 +285,16 @@ function start() {
 function showEnd() {
   mode = "end"; show("ex-root"); hide("ex-panel"); hide("ex-notebook"); show("ex-end");
   $("end-time").textContent = S.submittedAt ? "제출 시각 " + S.submittedAt : "";
+  roaming = false;
   H.onEnd && H.onEnd();
+  setTimeout(() => { if (mode === "end") $("end-roam").focus(); }, 60);
+}
+// 제출 뒤 자유롭게 돌아다니기: 답은 그대로 읽기 전용, 평가 패널은 다시 안 열린다(main.js가 막음). Esc 수첩 = 내 답 다시 보기
+function roam() {
+  if (mode !== "end" || !S.submitted) return;
+  roaming = true; mode = "game"; hide("ex-end"); hide("ex-root");
+  document.activeElement && document.activeElement.blur();
+  H.onRoam && H.onRoam({ progress: Math.max(S.progress, 3), flags: S.flags, who: "6학년 " + S.ban + "반 " + S.num + "번 " + S.name });
 }
 
 /* ─────────────────────────────────────────────
@@ -351,7 +360,8 @@ export function init(hooks) {
   $("ex-ask-no").addEventListener("click", () => closeAsk(false));
   $("ex-banner-retry").addEventListener("click", () => save(false));
   $("end-view").addEventListener("click", () => { hide("ex-end"); mode = "notebook"; show("ex-notebook"); renderNotebook(0); });
+  $("end-roam").addEventListener("click", roam);
   show("ex-root"); show("ex-start"); setTimeout(() => $("in-ban").focus(), 60);
   setTimeout(() => { if (waitSpaceUp === true && focusAfter && mode === "panel") { /* Space 없이 연 경우 */ } }, 0);
-  window.__ex = { S, SRV, get mode() { return mode; } };
+  window.__ex = { S, SRV, get mode() { return mode; }, get roaming() { return roaming; } };
 }
