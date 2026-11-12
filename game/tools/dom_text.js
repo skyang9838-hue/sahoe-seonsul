@@ -6,7 +6,7 @@
 const path = require('path'), fs = require('fs');
 const { chromium } = require(path.join(process.argv[2], 'node_modules', 'playwright'));
 const outJson = process.argv[3];
-const URL = 'http://127.0.0.1:8765/';
+const URL = process.env.KK_URL || 'http://127.0.0.1:8765/';
 const game = path.resolve(__dirname, '..');
 const mainSrc = fs.readFileSync(path.join(game, 'src', 'main.js'), 'utf8');
 const vExam = (mainSrc.match(/exam\.js\?v=(\d+)/) || [])[1], vStory = (mainSrc.match(/story\.js\?v=(\d+)/) || [])[1];

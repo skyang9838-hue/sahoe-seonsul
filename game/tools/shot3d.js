@@ -1,7 +1,7 @@
 // 3D 시험판 캡처: node tools/shot3d.js <playwright 폴더> <캡처 폴더> [url]
 const path = require('path');
 const { chromium } = require(path.join(process.argv[2], 'node_modules', 'playwright'));
-const out = process.argv[3], url = process.argv[4] || 'http://127.0.0.1:8765/';
+const out = process.argv[3], url = process.argv[4] || process.env.KK_URL || 'http://127.0.0.1:8765/';
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', args: ['--mute-audio', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1366, height: 768 } });

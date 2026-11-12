@@ -28,7 +28,7 @@ const SHOTS = [
   const b = await chromium.launch({ channel: 'chrome', args: ['--mute-audio', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
   p.on('pageerror', (e) => console.log('ERR', String(e)));
-  await p.goto('http://127.0.0.1:8765/?shot=1&reset=all');
+  await p.goto((process.env.KK_URL || 'http://127.0.0.1:8765/') + '?shot=1&reset=all');
   await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 120000 });
   await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.fill('#in-name', '그림'); await p.click('#btn-start');
   await p.waitForTimeout(800);

@@ -3,7 +3,7 @@
 const path = require('path');
 const { chromium } = require(path.join(process.argv[2], 'node_modules', 'playwright'));
 const out = process.argv[3], W = +(process.argv[4] || 1366), H = +(process.argv[5] || 768), NOFONT = process.argv[6] === 'nofont';
-const URL = 'http://127.0.0.1:8765/';
+const URL = process.env.KK_URL || 'http://127.0.0.1:8765/';
 const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) fails.push(m); };
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', args: ['--mute-audio', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
