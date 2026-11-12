@@ -11,6 +11,13 @@ export const WHO = {
 export const SPOTS3 = ['meeting', 'adboard', 'riverside'];
 
 export const DIALOGUE = {
+  // 꼬꼬네 집(꼬꼬 방): 출근 날 아침 이야기 단서 — 평가와 상관없는 살펴보기
+  lookClock:  [{ who: 'note', text: '알람시계가 아침 7시를 가리키고 있어요.' },
+               { who: 'kkokko', text: '좋아, 늦지 않게 일어났어!', face: 'happy' }],
+  lookPhoto:  [{ who: 'note', text: '엄마 닭, 아기 병아리와 함께 찍은 가족사진이에요.' },
+               { who: 'kkokko', text: '다들 밖에서 기다리고 있겠지?' }],
+  lookMirror: [{ who: 'note', text: '옷장 거울에 초록 작업모가 비쳐요. 노란 별이 반짝반짝!' },
+               { who: 'kkokko', text: '모자를 반듯하게 고쳐 쓰고, 출발!', face: 'happy' }],
   // 마을
   mom:    [{ who: 'mom', text: '꼬꼬야, 오늘 월급날이지? 마트에 같이 가자!' }],
   baby:   [{ who: 'baby', text: '삐약! 마트 가요, 마트!' }],
@@ -56,6 +63,7 @@ export const OPENING = [
 
 // 퀘스트 문구(화면 위)
 export const QUEST_TEXT = {
+  homeDoor: '방을 둘러보고, 문으로 나가 보세요',
   mom: '엄마 닭에게 말을 걸어 보세요',
   martDoor: '동네 마트에 들어가세요',
   ramen: '라면 칸을 살펴보세요',

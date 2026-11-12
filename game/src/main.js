@@ -7,8 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=12';
-import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=11';
-import * as EXAM from './exam.js?v=13';
+import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=12';
+import * as EXAM from './exam.js?v=14';
 
 const $ = (id) => document.getElementById(id);
 
@@ -263,7 +263,9 @@ function buildWorld() {
   flowers(-22, 20, 1);
 
   /* 1) 마을 */
-  place('home', -10, -6.2, { h: 4.8 });
+  const home = place('home', -10, -6.2, { h: 4.8 });
+  const hf = front(home, 0.2);
+  TH.homeDoor = { id: 'homeDoor', kind: 'door', x: hf.x, z: hf.z, label: '꼬꼬네 집', toRoom: 'home', needProg: 0 };
   const market = place('market', 6, -6.4, { h: 5.0 });
   place('well', -2, -4.4, { h: 2.1 });
   place('windmill', -17.5, -9.5, { h: 8.5 });
@@ -359,9 +361,9 @@ function buildWorld() {
   colliders.push({ x: 24, z: -14.6, hw: 50, hd: 1 }, { x: 24, z: 13.6, hw: 50, hd: 1 }, { x: -23, z: 0, hw: 1, hd: 20 }, { x: 71, z: 0, hw: 1, hd: 20 });
 
   /* 3) 실내 */
-  const voidPlane = new THREE.Mesh(new THREE.PlaneGeometry(150, 46), new THREE.MeshBasicMaterial({ color: 0x2b211a }));
-  voidPlane.rotation.x = -Math.PI / 2; voidPlane.position.set(40, -0.02, -80); scene.add(voidPlane);
-  buildMart(); buildFactoryRoom(); buildMeetRoom();
+  const voidPlane = new THREE.Mesh(new THREE.PlaneGeometry(170, 46), new THREE.MeshBasicMaterial({ color: 0x2b211a }));
+  voidPlane.rotation.x = -Math.PI / 2; voidPlane.position.set(30, -0.02, -80); scene.add(voidPlane);
+  buildHomeRoom(); buildMart(); buildFactoryRoom(); buildMeetRoom();
   NPCS.forEach((n) => { TH[n.id] = n; });
 }
 
@@ -422,6 +424,94 @@ function getPackMats() {
     for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(34, 90 - i * 9); g.bezierCurveTo(50, 80 - i * 9, 78, 100 - i * 9, 94, 88 - i * 9); g.stroke(); }
     g.fillStyle = '#fff'; g.font = '36px "Jua"'; g.textAlign = 'center'; g.fillText('라면', 64, 44);
   }) })));
+}
+
+/* ── 꼬꼬네 집(꼬꼬 방): 오프닝 뒤 여기서 시작, 문으로 나가면 마을 ── */
+// 살펴보기 단서는 출근 날 아침 이야기용(알람시계·가족사진·옷장 거울)뿐 — 평가 답과 닿는 낱말·장면은 넣지 않는다
+function buildHomeRoom() {
+  const cx = -40, cz = -80, w = 10, d = 8;
+  const R = buildRoom('home', cx, cz, w, d, { floor: texWood([5, 4]), wall: 0xfde3d0, trim: 0x6fae5a });
+  R.start = { x: cx - 2.2, z: cz - 0.6 };   // 침대 옆에서 시작
+  const bz = cz - d / 2;                     // 뒷벽 안쪽 면
+  // 창문(뒷벽): 아침 하늘
+  const winTex = canvasTex(192, 128, (g, W, Hh) => {
+    const gr = g.createLinearGradient(0, 0, 0, Hh); gr.addColorStop(0, '#ffd7a0'); gr.addColorStop(1, '#bfe6ff'); g.fillStyle = gr; g.fillRect(0, 0, W, Hh);
+    g.fillStyle = '#fff3b0'; g.beginPath(); g.arc(140, 46, 18, 0, 7); g.fill();
+    g.fillStyle = '#8ccf5a'; g.beginPath(); g.moveTo(0, Hh); g.quadraticCurveTo(60, 80, 120, 100); g.quadraticCurveTo(160, 88, W, 96); g.lineTo(W, Hh); g.fill();
+  });
+  winTex.wrapS = winTex.wrapT = THREE.ClampToEdgeWrapping;
+  const wx = cx - 1.2;
+  const win = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.2), new THREE.MeshBasicMaterial({ map: winTex, toneMapped: false })); win.position.set(wx, 1.9, bz + 0.02); scene.add(win);
+  const fm = tm(0xffffff);
+  box(2.0, 0.12, 0.1, wx, 2.56, bz + 0.05, fm, 0.012); box(2.0, 0.12, 0.1, wx, 1.24, bz + 0.05, fm, 0.012);
+  [-0.95, 0, 0.95].forEach((dx) => box(0.1, 1.3, 0.1, wx + dx, 1.9, bz + 0.05, fm, 0.012));
+  [-1.25, 1.25].forEach((dx) => box(0.35, 1.6, 0.06, wx + dx, 1.85, bz + 0.1, tm(0xffb3a7), 0.012));   // 커튼
+  // 침대(왼쪽 뒤 구석): 나무 틀 + 매트리스 + 이불 + 베개
+  const bx = cx - 3.9, bzz = bz + 1.25;
+  box(1.5, 0.35, 2.4, bx, 0.18, bzz, tm(0xb27a4a));
+  box(1.6, 1.0, 0.14, bx, 0.5, bz + 0.07, tm(0x9a6a43));
+  box(1.38, 0.2, 2.25, bx, 0.45, bzz + 0.02, tm(0xffffff), 0.012);
+  box(1.44, 0.14, 1.45, bx, 0.6, bzz + 0.42, tm(0x6fb3e0), 0.012);
+  box(0.9, 0.16, 0.42, bx, 0.64, bz + 0.45, tm(0xfff6d8), 0.012);
+  colliders.push({ x: bx, z: bzz, hw: 0.78, hd: 1.2 });
+  // 침대 옆 협탁 + 알람시계(단서 1)
+  const nx = cx - 2.65, nz = bz + 0.42;
+  box(0.7, 0.6, 0.6, nx, 0.3, nz, tm(0xd9a96e));
+  const clock = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 20), toon(0xf05a4a, { env: true })); clock.rotation.x = Math.PI / 2; clock.position.set(nx, 0.8, nz); addOutline(clock, 0.012); scene.add(clock);
+  const dial = new THREE.Mesh(new THREE.CircleGeometry(0.13, 20), new THREE.MeshBasicMaterial({ map: canvasTex(64, 64, (g) => {
+    g.fillStyle = '#fffdf2'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#3b2a1e'; g.lineWidth = 5; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(32, 32); g.lineTo(32, 12); g.stroke(); g.beginPath(); g.moveTo(32, 32); g.lineTo(20, 40); g.stroke();
+  }), toneMapped: false })); dial.position.set(nx, 0.8, nz + 0.052); scene.add(dial);
+  [-0.11, 0.11].forEach((o) => { const bell = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), toon(0xffd23a, { env: true })); bell.position.set(nx + o, 0.97, nz); scene.add(bell); });
+  colliders.push({ x: nx, z: nz, hw: 0.35, hd: 0.3 });
+  // 책상 + 의자 + 스탠드 + 가족사진(단서 2)
+  const dx0 = cx + 2.3, dz0 = bz + 0.42;
+  box(1.9, 0.08, 0.75, dx0, 0.76, dz0, tm(0xc98d55));
+  [[-0.85, -0.3], [0.85, -0.3], [-0.85, 0.3], [0.85, 0.3]].forEach(([ox, oz]) => box(0.08, 0.72, 0.08, dx0 + ox, 0.36, dz0 + oz, tm(0x9a6a43), 0));
+  colliders.push({ x: dx0, z: dz0, hw: 0.95, hd: 0.38 });
+  chair(dx0 + 0.45, dz0 + 0.75, Math.PI, true);
+  box(0.12, 0.3, 0.12, dx0 + 0.65, 0.95, dz0 - 0.1, tm(0x6fae5a), 0.01);
+  box(0.34, 0.16, 0.34, dx0 + 0.65, 1.12, dz0 - 0.1, tm(0xfff3b0), 0.01);
+  const photoX = dx0 - 0.35;
+  box(0.5, 0.42, 0.05, photoX, 1.0, dz0 - 0.16, tm(0x8a5a36), 0.01);
+  const photo = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.32), new THREE.MeshBasicMaterial({ map: canvasTex(100, 80, (g, W, Hh) => {
+    g.fillStyle = '#cfeeff'; g.fillRect(0, 0, W, Hh); g.fillStyle = '#9ad66b'; g.fillRect(0, 56, W, 24);
+    [[30, 44, 15, '#ffffff', '#e84a3a'], [60, 40, 18, '#ffffff', '#e84a3a'], [82, 54, 9, '#ffdf4a', null]].forEach(([x, y, r, c, comb]) => {
+      g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+      if (comb) { g.fillStyle = comb; g.beginPath(); g.arc(x, y - r - 2, r * 0.35, 0, 7); g.fill(); }
+      g.fillStyle = '#3b2a1e'; g.beginPath(); g.arc(x - r * 0.3, y - r * 0.15, 1.8, 0, 7); g.arc(x + r * 0.3, y - r * 0.15, 1.8, 0, 7); g.fill();
+    });
+  }), toneMapped: false })); photo.position.set(photoX, 1.0, dz0 - 0.13); scene.add(photo);
+  // 옷장(오른쪽 벽) + 문에 거울(단서 3)
+  const ox = cx + w / 2 - 0.4, oz = cz - 0.2;
+  box(0.8, 2.3, 1.7, ox, 1.15, oz, tm(0xe0b483));
+  box(0.04, 2.1, 0.04, ox - 0.42, 1.15, oz, tm(0x9a6a43), 0);
+  const mirror = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 1.2), new THREE.MeshBasicMaterial({ map: canvasTex(64, 128, (g, W, Hh) => {
+    const gr = g.createLinearGradient(0, 0, W, Hh); gr.addColorStop(0, '#e9f6ff'); gr.addColorStop(0.5, '#bcdcf0'); gr.addColorStop(1, '#e9f6ff'); g.fillStyle = gr; g.fillRect(0, 0, W, Hh);
+    g.fillStyle = '#5fae4a'; g.beginPath(); g.arc(32, 74, 20, Math.PI, 0); g.fill(); g.fillRect(8, 72, 48, 6);   // 거울에 비친 초록 작업모
+    g.fillStyle = '#ffd23a'; g.beginPath(); for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? 3 : 7; g.lineTo(32 + Math.cos(a) * rr, 64 + Math.sin(a) * rr); } g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 6; g.beginPath(); g.moveTo(12, 40); g.lineTo(40, 12); g.stroke();
+  }), toneMapped: false })); mirror.rotation.y = -Math.PI / 2; mirror.position.set(ox - 0.415, 1.35, oz + 0.4); scene.add(mirror);
+  colliders.push({ x: ox, z: oz, hw: 0.42, hd: 0.86 });
+  // 러그 + 화분 + 작은 책장(왼쪽 벽)
+  const rug = new THREE.Mesh(new THREE.CircleGeometry(1.4, 40), new THREE.MeshToonMaterial({ color: 0xf6c35a, gradientMap: GRAD_ENV })); rug.rotation.x = -Math.PI / 2; rug.position.set(cx + 0.2, 0.014, cz + 0.6); rug.scale.set(1.3, 1, 1); scene.add(rug);
+  const rug2 = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.15, 40), new THREE.MeshBasicMaterial({ color: 0xe8843a })); rug2.rotation.x = -Math.PI / 2; rug2.position.set(cx + 0.2, 0.016, cz + 0.6); rug2.scale.set(1.3, 1, 1); scene.add(rug2);
+  const px = cx + w / 2 - 0.4, pz = cz + 1.6;
+  box(0.45, 0.45, 0.45, px, 0.23, pz, tm(0xd9663a)); colliders.push({ x: px, z: pz, hw: 0.25, hd: 0.25 });
+  const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), tm(0x58a14a)); leaf.position.set(px, 0.8, pz); leaf.scale.set(1, 1.2, 1); addOutline(leaf, 0.015); scene.add(leaf);
+  const shx = cx - w / 2 + 0.3, shz = cz + 1.2;
+  const shm = tm(0xc98d55);
+  box(0.08, 1.3, 1.4, shx - 0.21, 0.65, shz, shm, 0.012);                                       // 뒤판(벽 쪽)
+  [-0.7, 0.7].forEach((o) => box(0.5, 1.3, 0.06, shx, 0.65, shz + o, shm, 0.012));             // 옆판
+  [0.04, 0.62, 1.27].forEach((y) => box(0.5, 0.06, 1.4, shx, y, shz, shm, 0.012));              // 선반
+  const bookCols = [0xe8402c, 0x3b6fc4, 0xffc93a, 0x3c9a4a, 0x8e44ad];
+  [0.07, 0.65].forEach((y, r) => { for (let i = 0; i < 5; i++) { const hh = 0.36 + ((i + r) % 3) * 0.06; box(0.3, hh, 0.16, shx, y + hh / 2, shz - 0.48 + i * 0.24, tm(bookCols[(i + r * 2) % 5]), 0); } });
+  colliders.push({ x: shx, z: shz, hw: 0.28, hd: 0.72 });
+  // 살펴보기 단서: 퀘스트와 무관(안 봐도 나갈 수 있고, 아무 순서로 몇 번이든)
+  // stand: 살펴볼 때 꼬꼬가 비켜 서는 자리(물건을 가리지 않게), obj: 바라볼 물건, cam: CAMS 자리
+  TH.clock = { id: 'clock', kind: 'look', x: nx, z: nz + 0.5, label: '알람시계', room: 'home', dlg: 'lookClock', labelY: 1.6, stand: { x: nx + 0.95, z: nz + 0.75 }, obj: { x: nx, z: nz }, cam: 'homeClock' };
+  TH.photo = { id: 'photo', kind: 'look', x: photoX, z: dz0 + 0.45, label: '가족사진', room: 'home', dlg: 'lookPhoto', labelY: 1.8, stand: { x: photoX - 1.3, z: dz0 + 0.9 }, obj: { x: photoX, z: dz0 }, cam: 'homePhoto' };
+  TH.mirror = { id: 'mirror', kind: 'look', x: ox - 0.75, z: oz + 0.4, label: '옷장 거울', room: 'home', dlg: 'lookMirror', labelY: 2.2, stand: { x: ox - 1.4, z: oz - 0.5 }, obj: { x: ox, z: oz + 0.4 }, cam: 'homeMirror' };
 }
 
 /* ── 마트 안 ── */
@@ -645,7 +735,7 @@ function groundAt(x, z, feet) {
 /* ── 상태·퀘스트 (2D 판 규칙 그대로) ───────── */
 const S = { x: -12, z: 2.4, face: 0, mode: 'loading', flags: {}, progress: 0, room: null, cam: null, sit: false, shake: 0, roam: false, placed: false };
 // roam: 제출 뒤 자유롭게 돌아다니기(문 모두 열림, 퀘스트 안내 숨김, 평가 장면·패널 안 열림)
-const QUEST = ['mom', 'martDoor', 'ramen', 'gate1', 'factoryDoor', 'rollcall', 'ch3', 'notebook'];
+const QUEST = ['homeDoor', 'mom', 'martDoor', 'ramen', 'gate1', 'factoryDoor', 'rollcall', 'ch3', 'notebook'];
 // 3장 세 곳: 조사 자리 id(TH) → 대사 묶음 이름(TH[id].spot = story.js SPOTS3). 순서는 자유, 세 곳을 다 보면 3장 패널
 const SPOT_IDS = ['seat', 'adboard', 'riverside'];
 const spotSeen = (id) => !!S.flags['seen_' + TH[id].spot];
@@ -653,6 +743,7 @@ const spotsLeft = () => SPOT_IDS.filter((id) => !spotSeen(id));
 function stepDone(id) {
   const f = S.flags, p = S.progress, r = S.room;
   switch (id) {
+    case 'homeDoor': return !!f.leftHome || !!f.talkedMom || p > 0;   // 한 번 나서면 끝(다시 들어가도 그대로)
     case 'mom': return !!f.talkedMom || p > 0;
     case 'martDoor': return r === 'mart' || p > 0;
     case 'ramen': return p > 0;
@@ -704,6 +795,7 @@ function interact(t) {
   }
   if (t.kind === 'exit') { sfx.door(); exitRoom(); return; }
   if (t.kind === 'scene') { if (!S.roam) runScene(t); return; }   // 제출 뒤에는 평가 장면·패널을 다시 열지 않는다
+  if (t.kind === 'look') { lookAt(t); return; }
   talk(DIALOGUE[t.dlg], () => {
     if (t.setFlag && !S.flags[t.setFlag]) { S.flags[t.setFlag] = true; EXAM.saveLocal(S); sfx.open(); }
   }, t);
@@ -733,7 +825,8 @@ function enterRoom(id) {
 function exitRoom() {
   const id = S.room, door = Object.values(TH).find((t) => t.toRoom === id);
   S.mode = 'fade'; for (const k in keys) keys[k] = false;
-  fadeOut(() => { S.room = null; teleport(door.x, door.z + 1.2, 0); setTimeout(() => { fadeIn(); S.mode = 'walk'; }, 150); });
+  if (id === 'home' && !S.flags.leftHome) { S.flags.leftHome = true; EXAM.saveLocal(S); }
+  fadeOut(() => { S.room = null; teleport(door.x, door.z + (id === 'home' ? 1.9 : 1.2), 0); /* 집 앞은 말풍선(1.7) 밖에 내려 줌 */ setTimeout(() => { fadeIn(); S.mode = 'walk'; }, 150); });
 }
 // 실내 장면: 라면 칸 살펴보기 / 점호 / 회의
 function runScene(t) {
@@ -753,6 +846,14 @@ function runScene(t) {
       if (S.sit) { S.sit = false; S.z = -77.4; S.face = 0; }
     }), 450);
   }
+}
+// 꼬꼬 방 단서 살펴보기: 꼬꼬가 옆으로 비켜 서서 물건을 보고, 카메라가 물건 쪽으로 다가간다(대사가 끝나면 원래 카메라)
+function lookAt(t) {
+  S.mode = 'scene'; for (const k in keys) keys[k] = false;
+  if (t.stand) { S.x = t.stand.x; S.z = t.stand.z; }
+  if (t.obj) S.face = Math.atan2(t.obj.x - S.x, t.obj.z - S.z);
+  if (t.cam) setCam(t.cam);
+  talk(DIALOGUE[t.dlg], null, null, false);
 }
 function openChapter(c) {
   if (S.roam) return;
@@ -776,6 +877,9 @@ function openNotebook() { if (S.mode !== 'walk') return; S.mode = 'panel'; EXAM.
 
 /* ── 카메라 자리(장면 연출) ── */
 const CAMS = {
+  homeClock:  { p: [-42.45, 2.4, -81.0], l: [-42.6, 0.85, -83.5] },
+  homePhoto:  { p: [-37.8, 2.6, -80.8], l: [-38.1, 0.95, -83.7] },
+  homeMirror: { p: [-38.6, 2.0, -78.6], l: [-35.8, 1.3, -79.8] },
   ramen:    { p: [-3.1, 2.0, -81.0], l: [-3.6, 1.15, -84.6] },
   rollWide: { p: [40, 5.6, -72.6], l: [40, 0.8, -81] },
   boss:     { p: [41.0, 2.0, -77.4], l: [40, 1.15, -82.2] },
@@ -1003,7 +1107,7 @@ function renderHUD() {
   });
 }
 let zoneShown = '';
-const ZONES = { village: ['', '꼬꼬네 마을'], company: ['', '불꽃식품 회사'], mart: ['1장', '동네 마트'], factory: ['2장', '불꽃식품 공장'], meet: ['3장', '회의실'] };
+const ZONES = { home: ['', '꼬꼬네 집'], village: ['', '꼬꼬네 마을'], company: ['', '불꽃식품 회사'], mart: ['1장', '동네 마트'], factory: ['2장', '불꽃식품 공장'], meet: ['3장', '회의실'] };
 function zoneBanner(z) {
   const [ch, nm] = ZONES[z];
   const b = $('zone-banner'); b.innerHTML = (ch ? '<span class="zb-ch">' + ch + '</span>' : '') + nm;
@@ -1088,7 +1192,7 @@ function tidyLabels() {
 function updateNav(dt) {
   navT += dt;
   const cur = questCur(), tq = questTarget(cur), n3 = cur === 'ch3' ? ' (' + (3 - spotsLeft().length) + '/3)' : '', qkey = cur + (tq && tq.exit ? ':exit' : '') + n3;
-  if (qkey !== lastQuest) { lastQuest = qkey; qbar.querySelector('b').textContent = tq && tq.exit ? '출입문으로 나가세요' : (QUEST_TEXT[cur] || '') + n3; qbar.classList.remove('pop'); void qbar.offsetWidth; qbar.classList.add('pop'); }
+  if (qkey !== lastQuest) { lastQuest = qkey; qbar.querySelector('b').textContent = tq && tq.exit && cur !== 'homeDoor' ? '출입문으로 나가세요' : (QUEST_TEXT[cur] || '') + n3; qbar.classList.remove('pop'); void qbar.offsetWidth; qbar.classList.add('pop'); }
   qbar.style.display = (S.mode === 'walk' || S.mode === 'talk') && cur && !S.cam ? '' : 'none';
   const tg = (S.mode === 'walk') ? tq : null;
   // 3D 화살표
@@ -1326,7 +1430,10 @@ function placeWorld(st, at) {
   if (S.progress >= 1) S.flags.talkedMom = true;
   if (S.progress >= 2) { const b = TH.boss; b.walk = null; b.x = b.front.x; b.z = b.front.z; b.col.x = b.x; b.col.z = b.z; b.actor.root.position.set(b.x, 0, b.z); b.actor.root.rotation.y = 0; }
   const md = TH.meetDoor, st0 = at || [[-12, 2.4], [GATE_X + 2.5, 2.4], [md.x, md.z + 1.4], [md.x, md.z + 1.4]][Math.min(S.progress, 3)];
-  S.room = null; teleport(st0[0], st0[1], 0);
+  // 처음 시작(아직 집을 나선 적 없음)은 꼬꼬 방 안에서
+  const atHome = !at && S.progress === 0 && !S.flags.leftHome && !S.flags.talkedMom;
+  if (atHome) { const R = ROOMS.home; S.room = 'home'; teleport(R.start.x, R.start.z, 0); }
+  else { S.room = null; teleport(st0[0], st0[1], 0); }
   $('hud').classList.remove('hide'); $('hud-who').textContent = st.who; renderHUD();
   S.placed = true;
 }
@@ -1342,7 +1449,7 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
   EXAM.init({
     onStart: (st) => {                       // 반·번호·이름 등록 뒤
       placeWorld(st);
-      const go = () => { S.mode = 'walk'; zoneShown = ''; if (S.progress >= 3) openNotebook(); };
+      const go = () => { S.mode = 'walk'; zoneShown = ''; enteredAt = performance.now(); if (S.progress >= 3) openNotebook(); };
       if (st.fresh) playOpening(go); else go();
     },
     onRoam: (st) => {                        // 끝 화면에서 '마을 돌아다니기'
