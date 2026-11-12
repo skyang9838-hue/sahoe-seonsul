@@ -14,6 +14,8 @@
    - <자료 1> 이야기 문단(1~3장)이 대사(src:'원문')에 모두, 한글본 순서대로 나오는지 본다.
 3) 렌더링 규칙: 2번 빈칸을 그리는 exam.js 코드가 기대하는 모양('(' 로 끝남, ')을/를' 로 시작)인지 본다.
 4) 연출 세기: 같은 대사 묶음의 원문 줄끼리 cut·fade가 같고 cam이 모두 있거나 모두 없는지 본다.
+   3장 세 곳(story.js SPOTS3 묶음: 회의실·광고판·강가)은 묶음끼리도 모양이 똑같아야 한다
+   (줄 수·원문 여부·말하는 이·cut·fade·cam 유무가 줄마다 같음 — 한 곳만 세게 보여 주면 답 암시).
 하나라도 어긋나면 종료 코드 1.
 """
 import re, sys, zipfile, pathlib, html as H
@@ -191,6 +193,33 @@ print(f'[원문 줄 연출 세기] 묶음 {len(groups)}개 (' + ', '.join(f'{k} 
 for k in efail:
     print(f'  ✗ {k}: 줄마다 (cut, fade, cam) = {groups[k]}')
 fails += [f'(연출 세기 {k})' for k in efail]
+# 3장 세 곳: 묶음끼리 줄 모양 비교(모든 줄 — 원문 아닌 줄도 포함)
+m3 = re.search(r'export const SPOTS3\s*=\s*\[([^\]]*)\]', story)
+spots = re.findall(r"'(\w+)'", m3.group(1)) if m3 else []
+shapes = {}
+cur = None
+for ln in dsec.splitlines():
+    mk = re.match(r'\s*(\w+)\s*:\s*\[', ln)
+    if mk: cur = mk.group(1)
+    if cur in spots:
+        for obj in re.findall(r'\{[^{}]*\}', ln):
+            who = re.search(r"who:\s*'(\w+)'", obj)
+            shapes.setdefault(cur, []).append((bool(re.search(r"src:\s*'원문'", obj)), who.group(1) if who else '',
+                bool(re.search(r'cut:\s*true', obj)), bool(re.search(r'fade:\s*true', obj)), bool(re.search(r"cam:\s*'", obj)),
+                bool(re.search(r"heroMood:", obj))))
+s3_ok = len(spots) == 3 and all(k in shapes for k in spots) and len({tuple(v) for v in shapes.values()}) == 1 \
+    and all(sum(1 for x in v if x[0]) >= 1 for v in shapes.values())
+print(f'[3장 세 곳 연출 세기] SPOTS3 = {spots}, ' + ('같음' if s3_ok else '어긋남'))
+if not s3_ok:
+    for k in spots:
+        print(f'  ✗ {k}: (원문, 말하는 이, cut, fade, cam, 표정) = {shapes.get(k)}')
+    fails.append('(3장 세 곳 연출 세기)')
+# 세 곳 원문 줄을 합치면 3장 이야기 문단이 모두, 한 번씩
+s3_said = [js_unescape(m.group(1) if m.group(1) is not None else m.group(2)) for k in spots
+           for m in LINE.finditer(dsec.split(k + ':', 1)[1].split(']', 1)[0] if (k + ':') in dsec else '') if m.group(3) == '원문']
+print(f'  세 곳 원문 줄 {len(s3_said)}개: ' + ' / '.join(t[:14] + '…' for t in s3_said))
+if len(s3_said) != 3 or len(set(s3_said)) != 3 or any(t not in story_paras for t in s3_said):
+    fails.append('(3장 세 곳 원문 줄이 이야기 문단 3개와 맞지 않음)')
 if len(app_strings) < 25:
     print('대조 항목이 너무 적습니다'); sys.exit(1)
 print('통과' if not fails else f'실패 {len(fails)}건')

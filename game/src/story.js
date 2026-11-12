@@ -7,6 +7,9 @@ export const WHO = {
   clerk: { name: '마트 점원' }, staff1: { name: '직원' }, staff2: { name: '직원' },
 };
 
+// 3장 세 곳의 대사 묶음 이름(main.js SPOTS3의 dlg와 같게)
+export const SPOTS3 = ['meeting', 'adboard', 'riverside'];
+
 export const DIALOGUE = {
   // 마을
   mom:    [{ who: 'mom', text: '꼬꼬야, 오늘 월급날이지? 마트에 같이 가자!' }],
@@ -27,14 +30,16 @@ export const DIALOGUE = {
              { who: 'boss', text: '"주문이 밀렸으니 점심시간에도 쉬지 말고 일하세요."', src: '원문', cam: 'boss' },
              { who: 'boss', text: '"일하다 다친 건 본인 잘못입니다. 회사는 책임지지 않겠습니다."', src: '원문', cam: 'boss' },
              { who: 'note', text: '꼬꼬는 공장장의 말을 듣고 걱정이 되었습니다.', src: '원문', cam: 'heroFace', heroMood: 'worry' }],
-  after2: [{ who: 'kkokko', text: '회사 옆 회의실로 가 보자.' }],
+  after2: [{ who: 'kkokko', text: '이제 회의실, 광고판, 강가를 둘러보자.' }],
   // 회의실 안
   staff1:  [{ who: 'staff1', text: '회의를 시작할 거예요. 빈자리에 앉으세요.' }],
   staff2:  [{ who: 'staff2', text: '회의를 시작할 거예요. 빈자리에 앉으세요.' }],
   foxIdle: [{ who: 'fox', text: '회의를 시작할게요. 빈자리에 앉으세요.' }],
-  meeting: [{ who: 'fox', text: "불꽃식품은 새로운 라면을 개발하기로 했습니다. 회의 끝에 아주 매운 라면인 '불꽃면'을 만들고, 한 개에 1,200원에 판매하기로 결정했습니다.", src: '원문', cam: 'fox', fade: true },
-            { who: 'note', text: "불꽃면 광고에는 '채소가 가득한 건강한 라면!'이라고 쓰여 있었지만, 실제로는 채소가 거의 들어 있지 않았습니다.", src: '원문', cam: 'ad', fade: true },
-            { who: 'note', text: '또 라면을 만드는 과정에서 생긴 더러운 물이 근처 강으로 흘러갔습니다.', src: '원문', cam: 'river', fade: true }],
+  // 3장: 세 곳(회의실 빈 의자·광고판·강가)을 각각 가서 본다. 순서는 자유, 세 곳을 다 보면 3장 패널.
+  //   세 묶음은 모양이 똑같아야 한다(원문 한 줄, 말하는 이 note, fade·cam 같음) — tools/verify_text.py가 SPOTS3로 검사
+  meeting:   [{ who: 'note', text: "불꽃식품은 새로운 라면을 개발하기로 했습니다. 회의 끝에 아주 매운 라면인 '불꽃면'을 만들고, 한 개에 1,200원에 판매하기로 결정했습니다.", src: '원문', cam: 'fox', fade: true }],
+  adboard:   [{ who: 'note', text: "불꽃면 광고에는 '채소가 가득한 건강한 라면!'이라고 쓰여 있었지만, 실제로는 채소가 거의 들어 있지 않았습니다.", src: '원문', cam: 'ad', fade: true }],
+  riverside: [{ who: 'note', text: '또 라면을 만드는 과정에서 생긴 더러운 물이 근처 강으로 흘러갔습니다.', src: '원문', cam: 'river', fade: true }],
   after3: [{ who: 'kkokko', text: '꼬꼬의 수첩을 열어 다시 읽어 보고 제출해요.', face: 'happy' }],
   // 잠긴 곳
   lockedMartDoor: [{ who: 'note', text: '먼저 엄마 닭에게 말을 걸어 봐요.' }],
@@ -57,7 +62,6 @@ export const QUEST_TEXT = {
   gate1: '오른쪽 길을 따라 회사로 가세요',
   factoryDoor: '불꽃식품 공장에 들어가세요',
   rollcall: '줄의 반짝이는 빈자리에 서 보세요',
-  meetDoor: '회의실 건물에 들어가세요',
-  seat: '반짝이는 빈 의자에 앉아 보세요',
+  ch3: '회의실·광고판·강가를 모두 살펴보세요',
   notebook: 'Esc를 눌러 꼬꼬의 수첩을 열고 제출하세요',
 };
