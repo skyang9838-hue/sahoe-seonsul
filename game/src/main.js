@@ -710,9 +710,16 @@ function interact(t) {
 }
 // 실내에서는 방 전체가 화면 가운데 오게: 꼬꼬보다 안쪽(-z)을 보고, 조금 가까이
 const ROOM_CAM = { look: 2.4, close: 1.1, up: 1.25 };
+// 바깥에서는 꼬꼬를 화면 아래 1/3쯤에 두고 조금 멀리서 본다(앞쪽 건물·간판이 위 HUD에 안 가리게).
+// 대화 중(close < 1)에는 앞보기를 줄여 꼬꼬·상대가 대사창 위에 오게 한다
+const OUT_CAM = { far: 1.35, look: 3.0, lookTalk: 1.2 };
 function camTarget(x, z, close = 1) {
-  const inRoom = !!S.room, k = close * (inRoom ? ROOM_CAM.close : 1), lz = inRoom ? z - ROOM_CAM.look : z;
-  tl.set(x, 0.7, lz); tv.set(x + CAM_OFF.x, CAM_OFF.y * k * (inRoom ? ROOM_CAM.up : 1), lz + CAM_OFF.z * k);
+  if (S.room) {
+    const k = close * ROOM_CAM.close, lz = z - ROOM_CAM.look;
+    tl.set(x, 0.7, lz); tv.set(x + CAM_OFF.x, CAM_OFF.y * k * ROOM_CAM.up, lz + CAM_OFF.z * k); return;
+  }
+  const k = close * OUT_CAM.far, lz = z - (close < 1 ? OUT_CAM.lookTalk : OUT_CAM.look);
+  tl.set(x, 0.7, lz); tv.set(x + CAM_OFF.x, CAM_OFF.y * k, lz + CAM_OFF.z * k);
 }
 function landNow() { Object.assign(J, { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, base: 0 }); camGy = 0; }
 function teleport(x, z, face) {
@@ -1138,6 +1145,8 @@ function updateNav(dt) {
       : t.id === 'rollcall' ? 'Space 서기' : t.id === 'seat' ? 'Space 앉기' : 'Space 살펴보기';
     prompt.style.left = px + 'px'; prompt.style.top = py + 'px'; prompt.style.display = '';
   } else prompt.style.display = 'none';
+  // 목적지 문 바로 앞에 서면 말풍선이 길 안내를 대신한다: 목적지 이름표·3D 화살표가 건물 간판을 덮지 않게 숨긴다
+  if (t && tg && t.kind === 'door' && t.x === tg.x && t.z === tg.z) { labelEl.style.display = 'none'; arrow.visible = false; }
 }
 
 /* ── 가림 처리 ─────────────────────────────── */
@@ -1296,7 +1305,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { S, J, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, composer,
+window.__kk = { S, J, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {
@@ -1348,7 +1357,7 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
     onEnd: () => { S.mode = 'end'; },
   });
   S.mode = 'start';
-  camPos.set(S.x + CAM_OFF.x, CAM_OFF.y, S.z + CAM_OFF.z); camLook.set(S.x, 0.7, S.z);
+  camTarget(S.x, S.z); camPos.copy(tv); camLook.copy(tl);
   } catch (e) { showLoadError(e); return; }
   loop();
 })();
