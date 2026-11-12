@@ -7,7 +7,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
 (async () => {
   const b = await chromium.launch({ channel: 'chrome', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const p = await b.newPage({ viewport: { width: W, height: H } });
-  const errs = []; p.on('pageerror', (e) => errs.push(String(e)));
+  const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.on('response', (r) => { if (r.status() >= 400) console.log('  404', r.url()); });
   let n = 0; const snap = (name) => p.screenshot({ path: path.join(out, String(++n).padStart(2, '0') + '-' + name + '.png') });
   await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload();
   await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 90000 });
@@ -37,42 +37,57 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await near('martDoor', 0, 0.6); await space(); s = await st();
   check(s.mode === 'talk', '엄마 닭 전에는 마트 문 잠김'); await finishTalk();
   // 문 잠긴 채 오른쪽 문으로 → 막힘
-  await tp(24.2, 2.2); await holdUntil('ArrowRight', async () => (await st()).mode === 'talk', 3000);
-  s = await st(); check(s.mode === 'talk' && s.x < 26, '마트 전에는 회사 가는 문이 막힘'); await finishTalk();
+  await tp(19.2, 2.2); await holdUntil('ArrowRight', async () => (await st()).mode === 'talk', 3000);
+  s = await st(); check(s.mode === 'talk' && s.x < 21, '마트 전에는 회사 가는 문이 막힘'); await finishTalk();
   // 엄마 닭
   await near('mom', -1.0, 0.2); await space(); check((await st()).mode === 'talk', '엄마 닭 말 걸기'); await p.waitForTimeout(700); await snap('talk-mom'); await finishTalk();
   check((await st()).flags.talkedMom === true, '엄마 닭 표시');
-  // 마트 → 패널
-  await near('martDoor', 0, 0.6); await space(); await p.waitForTimeout(500);
-  check((await st()).ex === 'panel', '마트 문 → 평가 패널 1장');
-  await p.waitForTimeout(300); await snap('panel1');
-  await p.fill('#p-a0', '공장에서 일하고 월급을 받는다'); await p.dispatchEvent('#p-a0', 'input');
-  await p.fill('#p-a1', '라면을 만들어 판매한다'); await p.dispatchEvent('#p-a1', 'input');
-  await p.fill('#p-a2', '월급'); await p.dispatchEvent('#p-a2', 'input'); await p.fill('#p-a3', '라면'); await p.dispatchEvent('#p-a3', 'input');
+  // 패널 스크롤 없는지 + 대사창 잘림 없는지
+  const fitCheck = async (tag) => { const r = await p.evaluate(() => [...document.querySelectorAll('#ex-left,#ex-right')].map((e) => e.scrollHeight - e.clientHeight)); check(r.every((v) => v <= 2), tag + ' 패널 스크롤 없음 (' + r.join(',') + ')'); };
+  const dlgFit = async (tag) => { const r = await p.evaluate(() => { const d = document.getElementById('dialogue').getBoundingClientRect(); return [d.top, d.bottom, innerHeight]; }); check(r[0] > 0 && r[1] <= r[2], tag + ' 대사창 화면 안 (' + r.map(Math.round).join(',') + ')'); };
+  const fill = async (id, v) => { await p.fill(id, v); await p.dispatchEvent(id, 'input'); };
+  // 마트 안으로
+  await near('martDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  s = await p.evaluate(() => __kk.S.room); check(s === 'mart', '마트 문 → 마트 안 (' + s + ')');
+  await snap('mart-in');
+  // 라면 칸까지 실제로 걸어가기(위로)
+  await holdUntil('ArrowUp', async () => (await st()).z < -82.4, 6000);
+  await near('ramen', 0, 0.1); await space(); await p.waitForTimeout(1300);
+  check((await st()).mode === 'talk', '라면 칸 → 원문 대사'); await dlgFit('라면'); await snap('ramen-closeup');
+  check(await p.evaluate(() => document.getElementById('dialogue').classList.contains('emph')), '원문 줄 강조');
+  await finishTalk(); await p.waitForTimeout(600);
+  check((await st()).ex === 'panel', '라면 대사 → 평가 패널 1장'); await p.waitForTimeout(300); await snap('panel1'); await fitCheck('1장');
+  await fill('#p-a0', '공장에서 일하고 월급을 받는다'); await fill('#p-a1', '라면을 만들어 판매한다'); await fill('#p-a2', '월급'); await fill('#p-a3', '라면');
   await p.click('#ex-done'); await p.waitForTimeout(900);
   s = await st(); check(s.prog === 1, '1장 도장 (진행 ' + s.prog + ')'); await finishTalk();
-  // 회사로 걸어가기(실제 걷기로 문 통과)
-  await tp(23.5, 2.2); await holdUntil('ArrowRight', async () => (await st()).x > 27.5, 15000);
-  s = await st(); check(s.x > 27.5, '문 열림 → 시내로 걸어 들어감 (x=' + s.x.toFixed(1) + ')');
-  await p.waitForTimeout(800); await snap('city');
-  await near('factoryDoor', 0, 0.6); await space(); check((await st()).mode === 'talk', '공장장 전에는 공장 문 잠김'); await finishTalk();
-  await near('boss', -1.1, 0.3); await space(); await p.waitForTimeout(700); await snap('talk-boss'); await finishTalk();
-  check((await st()).flags.talkedBoss === true, '공장장 표시');
-  await near('factoryDoor', 0, 0.6); await space(); await p.waitForTimeout(500);
-  check((await st()).ex === 'panel', '공장 문 → 평가 패널 2장');
-  await p.fill('#p-a4', '밤 10시까지 일했는데 돈을 더 주지 않았다.'); await p.dispatchEvent('#p-a4', 'input');
+  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('나가')), '안에서는 나가기 안내');
+  await near('exit_mart', 0, -0.4); await space(); await p.waitForTimeout(900);
+  check(await p.evaluate(() => __kk.S.room === null), '나가기 → 마을');
+  // 회사로 걸어가기
+  await tp(19, 2.2); await holdUntil('ArrowRight', async () => (await st()).x > 23, 15000);
+  s = await st(); check(s.x > 23, '문 열림 → 회사로 걸어 들어감 (x=' + s.x.toFixed(1) + ')');
+  await p.waitForTimeout(900); await snap('company');
+  await near('meetDoor', 0, 0.6); await space(); check((await st()).mode === 'talk', '공장 전에는 회의실 잠김'); await finishTalk();
+  await near('factoryDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  check(await p.evaluate(() => __kk.S.room === 'factory'), '공장 안'); await snap('factory-in');
+  await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
+  for (let i = 0; i < 60 && (await st()).mode !== 'talk'; i++) await p.waitForTimeout(200); s = await st();
+  check(s.mode === 'talk', '빈자리에 서면 점호 시작 (' + s.mode + ')'); await snap('rollcall-wide');
+  await space(2); await p.waitForTimeout(500); await snap('rollcall-boss'); await dlgFit('점호');
+  await finishTalk(); await p.waitForTimeout(600);
+  check((await st()).ex === 'panel', '점호 → 평가 패널 2장'); await p.waitForTimeout(300); await snap('panel2'); await fitCheck('2장');
+  await fill('#p-a4', '밤 10시까지 일했는데 돈을 더 주지 않았다.');
   await p.click('#ex-done'); await p.waitForTimeout(900); check((await st()).prog === 2, '2장 도장'); await finishTalk();
-  await tp(77.5, 2.2); await holdUntil('ArrowRight', async () => (await st()).x > 81.5, 15000);
-  check((await st()).x > 81.5, '문 열림 → 회의실 구역');
-  await p.waitForTimeout(700); await snap('riverside');
-  await near('river', 0, -0.9); await space(); s = await st(); check(s.mode === 'talk' && !s.flags.seeRiver, '순서를 건너뛴 강가는 아직 안 됨'); await finishTalk();
-  await near('fox', -1.1, 0.3); await space(); await finishTalk();
-  await near('ad', 0, 0.2); await space(); await p.waitForTimeout(600); await snap('ad'); await finishTalk();
-  await near('river', 0, -0.9); await space(); await finishTalk();
-  s = await st(); check(s.flags.seeFox && s.flags.seeAd && s.flags.seeRiver, '세 곳 모두 살펴봄');
-  await near('meetDoor', 0, 0.6); await space(); await p.waitForTimeout(500);
-  check((await st()).ex === 'panel', '회의실 문 → 평가 패널 3장');
-  await p.fill('#p-a5', '1,200원에 팔기로 스스로 결정했다.'); await p.dispatchEvent('#p-a5', 'input');
+  await near('exit_factory', 0, -0.4); await space(); await p.waitForTimeout(900);
+  await near('meetDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  check(await p.evaluate(() => __kk.S.room === 'meet'), '회의실 안'); await snap('meet-in');
+  await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
+  await p.waitForTimeout(1600); s = await st(); check(s.mode === 'talk', '빈 의자 → 회의 시작'); await snap('meeting-fox');
+  await space(2); await p.waitForTimeout(1200); await snap('meeting-ad');
+  await space(2); await p.waitForTimeout(1200); await snap('meeting-river');
+  await finishTalk(); await p.waitForTimeout(700);
+  check((await st()).ex === 'panel', '회의 → 평가 패널 3장'); await p.waitForTimeout(300); await snap('panel3'); await fitCheck('3장');
+  await fill('#p-a5', '1,200원에 팔기로 스스로 결정했다.');
   await p.click('#ex-done'); await p.waitForTimeout(900); check((await st()).prog === 3, '3장 도장');
   await finishTalk(); await p.waitForTimeout(500);
   check((await st()).ex === 'notebook', '수첩 열림'); await snap('notebook');

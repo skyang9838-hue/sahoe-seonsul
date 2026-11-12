@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Do+Hyeon&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=8">
-<link rel="stylesheet" href="exam.css?v=7">
+<link rel="stylesheet" href="exam.css?v=15">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -23,7 +23,7 @@
     <div id="hud-who"></div>
     <div id="hud-prog">
       <div class="slot"><span>마트</span><span class="stamp"></span></div>
-      <div class="slot"><span>회사</span><span class="stamp"></span></div>
+      <div class="slot"><span>공장</span><span class="stamp"></span></div>
       <div class="slot"><span>회의실</span><span class="stamp"></span></div>
     </div>
     <div id="hud-right"><span id="save-state">저장됨</span><span class="kbd-s">Esc 수첩</span></div>
@@ -31,6 +31,8 @@
   <div id="quest-bar" style="display:none"><span class="qb-pin">📍</span><b></b></div>
   <div id="zone-banner"></div>
 
+  <div id="cutin" class="hide"><div class="ci-band"></div><img id="ci-img" alt=""></div>
+  <img id="dlg-big" class="hide" alt="">
   <div id="dialogue" class="hide">
     <div id="dlg-face"></div>
     <div id="dlg-body"><div id="dlg-name"></div><div id="dlg-text"></div></div>
@@ -113,6 +115,6 @@
   <div id="loading"><div class="ld-title">꼬꼬의 첫 출근</div><div class="ld-bar"><div id="ld-fill"></div></div><div id="ld-msg">마을을 짓는 중…</div></div>
   <div id="fps"></div>
 </div>
-<script type="module" src="src/main.js?v=9"></script>
+<script type="module" src="src/main.js?v=14"></script>
 </body>
 </html>

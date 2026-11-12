@@ -146,6 +146,12 @@ export function buildChicken(opts = {}) {
   });
   parts.legs = legs;
 
+  if (o.flower) {   // 엄마 닭 표시: 머리 옆 분홍 꽃
+    const fl = new THREE.Group(), pm = toon(0xff7fb0, { emissive: 0xff6fa0, emissiveIntensity: 0.3 });
+    for (let i = 0; i < 5; i++) { const pe = mesh(sph(0.075, 12, 8), pm); const a = i / 5 * Math.PI * 2; pe.position.set(Math.cos(a) * 0.08, Math.sin(a) * 0.08, 0); pe.scale.set(1, 1, 0.5); fl.add(pe); }
+    const ct = mesh(sph(0.05, 10, 8), toon(0xffd23a)); ct.position.z = 0.03; fl.add(ct);
+    fl.position.set(0.3, 0.5, 0.12); fl.rotation.y = 0.6; headPivot.add(fl);
+  }
   if (o.chick) { comb.scale.setScalar(0.6); tail.scale.setScalar(0.6); }
   root.scale.setScalar(o.size);
   return makeActor(root, rig, parts);
@@ -155,13 +161,14 @@ export function buildChicken(opts = {}) {
  * 네발 짐승 친구들(두 발로 서는 2등신): kind = raccoon | bear | bunny | fox
  */
 export function buildCritter(kind, opts = {}) {
-  const P = {
+  let P = {
     raccoon: { fur: 0x9a9aa2, belly: 0xece6dc, ear: 'round', tail: 'ring', mask: true },
     bear:    { fur: 0xa8714a, belly: 0xf0d2a8, ear: 'round', tail: 'puff' },
     bunny:   { fur: 0xa9b6d6, belly: 0xf4f1ff, ear: 'long', tail: 'puff' },
     fox:     { fur: 0xf08a34, belly: 0xfff4e6, ear: 'tri', tail: 'fox' },
   }[kind];
   const o = Object.assign({ size: 1, outfit: null }, opts);
+  if (o.fur) P = Object.assign({}, P, { fur: o.fur });
   const root = new THREE.Group(), rig = new THREE.Group(); root.add(rig);
   const F = toon(P.fur), B = toon(P.belly), parts = {};
   const body = mesh(sph(0.34), F); body.position.y = 0.36; body.scale.set(1.05, 0.95, 0.98); rig.add(body);
@@ -230,6 +237,9 @@ export function buildCritter(kind, opts = {}) {
     const vest = mesh(new THREE.CylinderGeometry(0.355, 0.365, 0.36, 24, 1, true), toon(0xb8f23a, { emissive: 0x8fd41a, emissiveIntensity: 0.25, side: THREE.DoubleSide })); vest.position.y = 0.36; rig.add(vest);
     [0.3, 0.42].forEach((y) => { const st = mesh(new THREE.TorusGeometry(0.362, 0.015, 6, 32), toon(0xf4f4f4, { emissive: 0xffffff, emissiveIntensity: 0.3 }), { outline: false }); st.rotation.x = Math.PI / 2; st.position.y = y; rig.add(st); });
     parts.head.rotation.x = 0; root.userData.stern = true;
+  } else if (o.outfit === 'shop') {
+    const ap = mesh(new THREE.CylinderGeometry(0.36, 0.37, 0.34, 24, 1, true, -1.1, 2.2), toon(0xe25a3a, { side: THREE.DoubleSide })); ap.position.y = 0.33; rig.add(ap);
+    const pk = mesh(new THREE.BoxGeometry(0.16, 0.1, 0.03), toon(0xffffff)); pk.position.set(0, 0.3, 0.37); rig.add(pk);
   } else if (o.outfit === 'office') {
     const sh = mesh(new THREE.CylinderGeometry(0.355, 0.365, 0.38, 24, 1, true), toon(0xffffff, { side: THREE.DoubleSide })); sh.position.y = 0.36; rig.add(sh);
     const tie = mesh(new THREE.BoxGeometry(0.06, 0.24, 0.02), toon(0x2c3e7a)); tie.position.set(0, 0.42, 0.355); rig.add(tie);

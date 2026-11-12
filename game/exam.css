@@ -58,21 +58,21 @@
 #ex-panel{display:flex}
 #ex-left,#nb-left{flex:0 0 44%;border-right:2px dashed #e6d6c0;padding:12px 14px;overflow:auto}
 #ex-right,#nb-right{flex:1;padding:12px 16px;overflow:auto;display:flex;flex-direction:column}
-.inst{font-size:13px;color:#7a6555;margin-bottom:2px;font-family:"Gowun Dodum",sans-serif;font-weight:700}
-.res-head{font-size:15px;margin-bottom:6px}
-.scene img{width:100%;max-height:190px;object-fit:cover;border-radius:10px;border:2px solid #e6d6c0;display:block;margin-bottom:8px}
-.chapter-title{font-size:18px;color:#c24d18;margin:2px 0 6px}
-.res-text p{margin:0 0 7px;font-size:15px;line-height:1.7;font-family:"Gowun Dodum",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
+.inst{font-size:14.5px;color:#7a6555;margin-bottom:2px;font-family:"Gowun Dodum",sans-serif;font-weight:700}
+.res-head{font-size:17px;margin-bottom:6px}
+.scene img{width:100%;max-height:104px;object-fit:cover;border-radius:10px;border:2px solid #e6d6c0;display:block;margin-bottom:8px}
+.chapter-title{font-size:20px;color:#c24d18;margin:2px 0 6px}
+.res-text p{margin:0 0 7px;font-size:17px;line-height:1.7;font-family:"Gowun Dodum",sans-serif;word-break:keep-all;overflow-wrap:anywhere}
 .q{margin-bottom:14px}
-.q-prompt{font-size:15px;line-height:1.55;margin-bottom:6px;font-family:"Gowun Dodum",sans-serif;font-weight:700;word-break:keep-all}
-.q-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:14px;font-family:"Gowun Dodum",sans-serif}
+.q-prompt{font-size:17px;line-height:1.55;margin-bottom:6px;font-family:"Gowun Dodum",sans-serif;font-weight:700;word-break:keep-all}
+.q-row{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:16px;font-family:"Gowun Dodum",sans-serif}
 .q-row .lab{flex:0 0 130px;font-weight:700}
-.q-row input{flex:1;padding:6px 8px;border:2px solid #e6d6c0;border-radius:8px;font:inherit;font-size:14px}
-.fill-line{font-size:14px;line-height:2.1;font-family:"Gowun Dodum",sans-serif;word-break:keep-all}
-.fill-line input{width:110px;padding:3px 6px;border:2px solid #e6d6c0;border-radius:8px;text-align:center;font:inherit;font-size:14px}
+.q-row input{flex:1;padding:6px 8px;border:2px solid #e6d6c0;border-radius:8px;font:inherit;font-size:16px}
+.fill-line{font-size:16px;line-height:2.2;font-family:"Gowun Dodum",sans-serif;word-break:keep-all}
+.fill-line input{width:110px;padding:3px 6px;border:2px solid #e6d6c0;border-radius:8px;text-align:center;font:inherit;font-size:16px}
 .nw{white-space:nowrap}
-.cond{border:2px solid #3b2a1e;border-radius:8px;padding:6px 10px;font-size:13.5px;line-height:1.55;margin-bottom:6px;background:#fff;font-family:"Gowun Dodum",sans-serif;word-break:keep-all}
-.q textarea{width:100%;min-height:118px;resize:none;padding:8px 10px;border:2px solid #e6d6c0;border-radius:10px;font-family:"Gowun Dodum",sans-serif;font-size:14px;line-height:1.6;background:repeating-linear-gradient(#fff,#fff 21.4px,#efe6d8 22.4px)}
+.cond{border:2px solid #3b2a1e;border-radius:8px;padding:6px 10px;font-size:15.5px;line-height:1.55;margin-bottom:6px;background:#fff;font-family:"Gowun Dodum",sans-serif;word-break:keep-all}
+.q textarea{width:100%;min-height:118px;resize:none;padding:8px 10px;border:2px solid #e6d6c0;border-radius:10px;font-family:"Gowun Dodum",sans-serif;font-size:16px;line-height:1.6;background:repeating-linear-gradient(#fff,#fff 24.6px,#efe6d8 25.6px)}
 #ex-root input:read-only,#ex-root textarea:read-only{background:#f4efe7}
 .panel-btns{margin-top:auto;display:flex;justify-content:flex-end;padding-top:6px}
 #ex-notebook{display:flex;flex-direction:column}
@@ -98,3 +98,48 @@
 .ask-btns{display:flex;justify-content:flex-end;gap:8px}
 #ex-banner{position:absolute;left:50%;top:6px;transform:translateX(-50%);background:#fde3df;border:2px solid #d64a3a;color:#8a2318;border-radius:12px;padding:6px 10px;display:flex;gap:10px;align-items:center;font-size:13px}
 #ex-toast{position:absolute;left:50%;top:20px;transform:translateX(-50%);background:rgba(59,42,30,.9);color:#fff;padding:7px 16px;border-radius:12px;font-size:14px}
+
+/* 피드백 11/12: 글자 키우기, 아스트라 초상화, 이름표 */
+#dialogue{width:min(980px,94vw)!important;min-height:150px!important;padding:16px 24px!important}
+#dlg-face{display:none!important}
+#dlg-text{font-size:26px!important;line-height:1.55!important}
+#dlg-name{font-size:21px!important;padding:2px 18px!important}
+#dlg-next{font-size:15px!important}
+#dlg-big{position:absolute;left:max(1vw,calc(50% - 560px));bottom:96px;height:min(50vh,420px);z-index:2099;filter:drop-shadow(0 6px 0 rgba(0,0,0,.18));pointer-events:none}
+#dlg-big.right{left:auto;right:max(1vw,calc(50% - 560px))}
+#dlg-big.enter{animation:bigIn .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes bigIn{from{transform:translateY(40px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+#dialogue:has(~ #dlg-big.right){}
+.prompt{font-size:19px!important;padding:4px 14px!important}
+.tlabel{font-size:20px!important;padding:3px 14px!important}
+.nametag{position:absolute;transform:translate(-50%,-100%);background:rgba(255,255,255,.92);color:#3b2a1e;border:2px solid #3b2a1e;border-radius:999px;padding:1px 11px;font-size:16px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 0 rgba(0,0,0,.2)}
+.nametag.me{background:#e8662c;color:#fff;border-color:#8a3510;font-size:17px}
+#quest-bar{font-size:23px!important;padding:8px 24px 8px 14px!important}
+#zone-banner{font-size:30px!important}
+#hud{height:52px!important;font-size:19px!important}
+#hud .slot{width:110px!important;height:34px!important;font-size:17px!important}
+#save-state{font-size:15px!important}
+.kbd-s{font-size:14px!important}
+.comic-box #comic-text{font-size:28px}
+.edge-arrow b{font-size:15px!important}
+
+/* 11/12 2차: 대사 강조(형광펜·통통 글자·흔들림), 컷인, 큰 대사창 */
+#dialogue{min-height:170px!important}
+#dialogue.right-face{padding-left:24px!important;padding-right:250px!important}
+#dlg-text{font-size:28px!important}
+#dlg-text .w{display:inline-block;white-space:nowrap}
+#dlg-text .ch{display:inline-block;opacity:0}
+#dlg-text .ch.on{opacity:1;animation:chPop .22s cubic-bezier(.3,1.8,.5,1)}
+@keyframes chPop{from{transform:translateY(8px) scale(.6)}to{transform:none}}
+#dialogue.emph{background:linear-gradient(#fffef4,#fff4c9)!important;border-color:#b5651d!important;box-shadow:0 7px 0 rgba(0,0,0,.25),inset 0 0 0 3px #ffd75e!important}
+#dialogue.emph #dlg-text .ch.on{background:linear-gradient(transparent 60%,rgba(255,214,64,.75) 60%)}
+#dialogue.shake{animation:dlgShake .42s ease}
+@keyframes dlgShake{0%,100%{transform:translateX(-50%)}15%{transform:translateX(calc(-50% - 10px))}35%{transform:translateX(calc(-50% + 9px))}55%{transform:translateX(calc(-50% - 6px))}75%{transform:translateX(calc(-50% + 3px))}}
+#cutin{position:absolute;inset:0;z-index:21;pointer-events:none;overflow:hidden}
+#cutin .ci-band{position:absolute;left:-10%;right:-10%;top:22%;height:42%;background:repeating-linear-gradient(100deg,#ffcf3a 0 18px,#ffb21f 18px 36px);border-top:7px solid #3b2a1e;border-bottom:7px solid #3b2a1e;transform:skewY(-5deg)}
+#cutin img{position:absolute;right:12%;top:12%;height:62%;filter:drop-shadow(0 8px 0 rgba(0,0,0,.25))}
+#cutin.go .ci-band{animation:ciBand 1.15s ease forwards}
+#cutin.go img{animation:ciImg 1.15s cubic-bezier(.2,1.3,.4,1) forwards}
+@keyframes ciBand{0%{transform:skewY(-5deg) translateX(-110%)}18%{transform:skewY(-5deg) translateX(0)}78%{opacity:1}100%{transform:skewY(-5deg) translateX(0);opacity:0}}
+@keyframes ciImg{0%{transform:translateX(120%) scale(.8)}22%{transform:none}78%{opacity:1}100%{opacity:0;transform:scale(1.04)}}
+#dlg-big.wait{visibility:hidden}

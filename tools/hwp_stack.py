@@ -2,7 +2,8 @@
 import zipfile, re, os, shutil, sys
 P = r'C:\Users\user\Desktop\vibecoding\sahoe-seonsul'
 src = os.path.join(P, '문항', '시장경제 평가 문항 (그림).hwpx')
-dst = os.path.join(P, '문항', '시장경제 평가 문항 (그림·세로).hwpx')
+NOPIC = '--nopic' in sys.argv  # 그림 없는 판
+dst = os.path.join(P, '문항', '시장경제 평가 문항 (그림 없음).hwpx' if NOPIC else '시장경제 평가 문항 (그림·세로).hwpx')
 z = zipfile.ZipFile(src)
 files = {n: z.read(n) for n in z.namelist()}
 s = files['Contents/section0.xml'].decode('utf-8')
@@ -12,12 +13,13 @@ tcs = re.findall(r'<hp:tc .*?</hp:tc>', t, flags=re.S)
 assert len(tcs) == 8
 def paras(tc): return re.findall(r'<hp:p .*?</hp:p>', re.search(r'<hp:subList.*?</hp:subList>', tc, re.S).group(0), re.S)
 W = 45877; INNER = W - 1020
+M = 60 if NOPIC else 283  # 그림 없는 판은 1쪽에 맞추려고 칸 위아래 여백을 줄임
 def cell(row, body, h=1000, valign='CENTER'):
     return ('<hp:tr><hp:tc name="" header="0" hasMargin="0" protect="0" editable="0" dirty="0" borderFillIDRef="3">'
             f'<hp:subList id="" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="{valign}" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0">'
             + body + '</hp:subList>'
             f'<hp:cellAddr colAddr="0" rowAddr="{row}"/><hp:cellSpan colSpan="1" rowSpan="1"/><hp:cellSz width="{W}" height="{h}"/>'
-            '<hp:cellMargin left="510" right="510" top="283" bottom="283"/></hp:tc></hp:tr>')
+            f'<hp:cellMargin left="510" right="510" top="{M}" bottom="{M}"/></hp:tc></hp:tr>')
 def resize_pic(p, w, h):
     p = re.sub(r'<hp:orgSz width="\d+" height="\d+"/>', f'<hp:orgSz width="{w}" height="{h}"/>', p)
     p = re.sub(r'<hp:sz width="\d+" widthRelTo="ABSOLUTE" height="\d+"', f'<hp:sz width="{w}" widthRelTo="ABSOLUTE" height="{h}"', p)
@@ -38,11 +40,20 @@ for k in (1, 2, 3):
     ps = paras(tcs[4 + k])
     pic, story = ps[0], ''.join(ps[1:])
     assert '<hp:pic ' in pic
-    rows = cell(0, head) + cell(1, resize_pic(pic, *sizes[k])) + cell(2, story, valign='TOP')
-    tag = re.sub(r'rowCnt="\d+" colCnt="\d+"', 'rowCnt="3" colCnt="1"', tag0)
+    if NOPIC:
+        rows = cell(0, head) + cell(1, story, valign='TOP')
+    else:
+        rows = cell(0, head) + cell(1, resize_pic(pic, *sizes[k])) + cell(2, story, valign='TOP')
+    tag = re.sub(r'rowCnt="\d+" colCnt="\d+"', 'rowCnt="%d" colCnt="1"' % (2 if NOPIC else 3), tag0)
     tag = tag.replace(f'id="{tid}"', f'id="{tid + k}"')
     tbl = tag + pre + rows + '</hp:tbl>'
     blocks.append(para[:st - pst] + tbl + para[en - pst:])
+if NOPIC:  # 그림이 없으면 한 표로 (표 사이 빈 줄만큼 줄어 1쪽에 맞음)
+    rows_all = ''
+    for k in (1, 2, 3):
+        rows_all += cell(2*k-2, ''.join(paras(tcs[k]))) + cell(2*k-1, ''.join(paras(tcs[4 + k])[1:]), valign='TOP')
+    tag = re.sub(r'rowCnt="\d+" colCnt="\d+"', 'rowCnt="6" colCnt="1"', tag0)
+    blocks = [para[:st - pst] + tag + pre + rows_all + '</hp:tbl>' + para[en - pst:]]
 newp = ''.join(blocks)
 newp = re.sub(r'<hp:linesegarray>.*?</hp:linesegarray>', '', newp, flags=re.S)
 s = s[:pst] + newp + s[pen:]
@@ -63,6 +74,10 @@ REPL = [
 for a, b in REPL:
     assert s.count(a) == 1, a
     s = s.replace(a, b)
+if NOPIC:  # 1쪽에 맞추려고 '꼬꼬의 첫 출근' 줄을 뺀다 (쪽 나누기는 표 칸 안이라 안 먹힘)
+    k = s.find('<hp:t>꼬꼬의 첫 출근</hp:t>')
+    ps0 = s.rfind('<hp:p ', 0, k); pe0 = s.find('</hp:p>', k) + 7
+    s = s[:ps0] + s[pe0:]
 files['Contents/section0.xml'] = s.encode('utf-8')
 # 1장 그림을 가로로 합친 것으로 바꾼다 (image1)
 files['BinData/image1.jpg'] = open(os.path.join(P, 'assets', '장면', '장면1-가로-대사.jpg'), 'rb').read()

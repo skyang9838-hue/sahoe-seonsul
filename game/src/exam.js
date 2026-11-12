@@ -302,8 +302,26 @@ addEventListener("keyup", (e) => {
   if (e.code === "Space" && waitSpaceUp) { waitSpaceUp = false; if (focusAfter) { focusAfter.focus(); focusAfter = null; } }
 });
 
+// 시험용 초기화: 주소에 ?reset=번호:이름 (반은 상관없이) 또는 ?reset=all — 이 브라우저에 저장된 기록만 지운다
+function resetFromURL() {
+  const r = new URLSearchParams(location.search).get('reset'); if (!r) return;
+  const [num, name] = r === 'all' ? [null, null] : r.split(':');
+  const hit = (ban, n, nm) => r === 'all' || (digits(n) === digits(num) && nm === name);
+  try {
+    const rows = JSON.parse(localStorage.getItem('kkokko3d-preview-server') || '{}');
+    let cnt = 0;
+    Object.keys(rows).forEach((k) => { const [b, n, nm] = k.split('/'); if (hit(b, n, nm)) { delete rows[k]; cnt++; } });
+    localStorage.setItem('kkokko3d-preview-server', JSON.stringify(rows));
+    if (SRV.live === false && window.__stub) window.__stub.rows = rows;
+    Object.keys(localStorage).forEach((k) => { if (k.indexOf('kkokko3d:') === 0) { const [, b, n, nm] = k.split(':'); if (hit(b, n, nm)) { localStorage.removeItem(k); cnt++; } } });
+    console.log('초기화', r, cnt);
+    history.replaceState(null, '', location.pathname);
+    setTimeout(() => toast(r === 'all' ? '이 컴퓨터의 시험 기록을 모두 지웠어요.' : num + '번 ' + name + ' 기록을 지웠어요. (' + cnt + '개)'), 300);
+  } catch (e) {}
+}
+
 export function init(hooks) {
-  H = hooks; fit();
+  H = hooks; fit(); resetFromURL();
   $("btn-start").addEventListener("click", start);
   ["in-ban", "in-num", "in-name"].forEach((id) => $(id).addEventListener("keydown", (e) => { if (e.key === "Enter") start(); }));
   $("ex-done").addEventListener("click", closePanel);
