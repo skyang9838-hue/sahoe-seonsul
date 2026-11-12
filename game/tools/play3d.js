@@ -22,33 +22,6 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   async function holdUntil(key, cond, ms = 9000) { await p.keyboard.down(key); const t = Date.now(); while (Date.now() - t < ms) { if (await cond()) break; await p.waitForTimeout(80); } await p.keyboard.up(key); }
 
   let s0, s1;
-  await snap('start');
-  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.fill('#in-name', '테스트'); await p.click('#btn-start');
-  check(await waitMode('comic', 5000), '출근하기 → 오프닝 컷신');
-  await p.waitForTimeout(900); await snap('comic1');
-  check(!(await p.evaluate(() => document.querySelector('.comic-box').classList.contains('emph'))), '오프닝 1컷(안내)은 강조 없음');
-  // 건너뛰기를 눌러도 원문 컷은 보여 준다(원문 줄은 강조)
-  await p.click('#comic-skip'); await p.waitForTimeout(500);
-  s0 = await p.evaluate(() => [document.getElementById('comic-page').textContent, document.querySelector('.comic-box').classList.contains('emph'), (window.__kk.S.mode)]);
-  check(s0[0].startsWith('2') && s0[1] && s0[2] === 'comic', '건너뛰기 → 원문 컷(2)으로, 강조 (' + s0.join(',') + ')');
-  await p.waitForTimeout(2600); await snap('comic2-emph');
-  await p.click('#comic-skip'); await p.waitForTimeout(300);
-  check(await waitMode('walk', 5000), '컷신 끝 → 마을 걷기');
-  await p.waitForTimeout(700); await snap('village');
-  let s = await st(); check(s.quest === 'mom', '첫 퀘스트: 엄마 닭 (' + s.quest + ')');
-  check(await p.evaluate(() => getComputedStyle(document.getElementById('fps')).display === 'none'), 'fps 숫자 숨김(?debug 아닐 때)');
-  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('엄마')), '위쪽 퀘스트 문구');
-  // 점프
-  await p.keyboard.press('Space');
-  let jmax = 0; for (let i = 0; i < 40; i++) { jmax = Math.max(jmax, await p.evaluate(() => __kk.J.z)); if (jmax > 0.5) break; await p.waitForTimeout(60); }
-  check(jmax > 0.5, '빈 곳 Space → 점프 (최고 ' + jmax.toFixed(2) + ')');
-  await p.waitForTimeout(1500);
-  // 마트 문 먼저 → 잠김
-  await near('martDoor', 0, 0.6); await space(); s = await st();
-  check(s.mode === 'talk', '엄마 닭 전에는 마트 문 잠김'); await finishTalk();
-  // 문 잠긴 채 오른쪽 문으로 → 막힘
-  await tp(19.2, 2.2); await holdUntil('ArrowRight', async () => (await st()).mode === 'talk', 3000);
-  s = await st(); check(s.mode === 'talk' && s.x < 21, '마트 전에는 회사 가는 문이 막힘'); await finishTalk();
   // 패널 스크롤 없는지 + 대사창 잘림 없는지
   // 넘침(scroll)과 왼쪽 자료 칸의 남는 높이(무대 px)를 같이 본다
   const fitCheck = async (tag, sel = '#ex-left,#ex-right') => {
@@ -83,6 +56,56 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   };
   const dlgFit = async (tag) => { const r = await p.evaluate(() => { const d = document.getElementById('dialogue').getBoundingClientRect(); return [d.top, d.bottom, innerHeight]; }); check(r[0] > 0 && r[1] <= r[2], tag + ' 대사창 화면 안 (' + r.map(Math.round).join(',') + ')'); };
   const fill = async (id, v) => { await p.fill(id, v); await p.dispatchEvent(id, 'input'); };
+  await snap('start');
+  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.fill('#in-name', '테스트'); await p.click('#btn-start');
+  check(await waitMode('comic', 5000), '출근하기 → 오프닝 컷신');
+  await p.waitForTimeout(900); await snap('comic1');
+  check(!(await p.evaluate(() => document.querySelector('.comic-box').classList.contains('emph'))), '오프닝 1컷(안내)은 강조 없음');
+  // 건너뛰기를 눌러도 원문 컷은 보여 준다(원문 줄은 강조)
+  await p.click('#comic-skip'); await p.waitForTimeout(500);
+  s0 = await p.evaluate(() => [document.getElementById('comic-page').textContent, document.querySelector('.comic-box').classList.contains('emph'), (window.__kk.S.mode)]);
+  check(s0[0].startsWith('2') && s0[1] && s0[2] === 'comic', '건너뛰기 → 원문 컷(2)으로, 강조 (' + s0.join(',') + ')');
+  await p.waitForTimeout(2600); await snap('comic2-emph');
+  await p.click('#comic-skip'); await p.waitForTimeout(300);
+  check(await waitMode('walk', 5000), '컷신 끝 → 꼬꼬 방에서 걷기');
+  await p.waitForTimeout(700); await snap('home');
+  let s = await st(); check(s.quest === 'homeDoor' && (await p.evaluate(() => __kk.S.room)) === 'home', '첫 자리: 꼬꼬네 집 안 (' + s.quest + ')');
+  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('둘러보고')), '집 안 퀘스트 문구');
+  check(await p.evaluate(() => getComputedStyle(document.getElementById('fps')).display === 'none'), 'fps 숫자 숨김(?debug 아닐 때)');
+  // 시작 직후 Space: 가까운 것이 없어 점프만(나가기·단서가 바로 켜지지 않게)
+  check(await p.evaluate(() => document.querySelector('#labels .prompt').style.display === 'none'), '시작 자리에서는 말풍선 없음');
+  // 살펴보기 단서 3곳: 원문 강조 없이 안내 대사
+  for (const id of ['clock', 'photo', 'mirror']) {
+    await near(id, id === 'mirror' ? -0.5 : 0, id === 'mirror' ? 0 : 0.5); await p.waitForTimeout(300);
+    check(await p.evaluate(() => document.querySelector('#labels .prompt').textContent.includes('살펴보기')), id + ' 앞 → Space 살펴보기');
+    if (id === 'clock') await labelsBelowTop('꼬꼬 방');
+    await space(); s = await st(); check(s.mode === 'talk', id + ' 살펴보기 대사');
+    check(!(await p.evaluate(() => document.getElementById('dialogue').classList.contains('emph'))), id + ' 대사는 강조 없음');
+    if (id === 'photo') { await p.waitForTimeout(500); await snap('home-look'); await dlgFit('집 단서'); }
+    await finishTalk();
+  }
+  check((await st()).quest === 'homeDoor', '단서를 봐도 퀘스트는 그대로(나가기만 남음)');
+  await near('exit_home', 0, -0.4); await space(); await p.waitForTimeout(900);
+  s = await st(); check((await p.evaluate(() => __kk.S.room)) === null && s.quest === 'mom', '집 문 → 마을, 다음 퀘스트 엄마 닭 (' + s.quest + ')');
+  await p.waitForTimeout(500); await snap('village');
+  check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('엄마')), '위쪽 퀘스트 문구');
+  // 다시 들어갔다 나와도 퀘스트는 그대로
+  await near('homeDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  check((await p.evaluate(() => __kk.S.room)) === 'home' && (await st()).quest === 'mom', '마을에서 집에 다시 들어가기');
+  await near('exit_home', 0, -0.4); await space(); await p.waitForTimeout(900);
+  check((await p.evaluate(() => __kk.S.room)) === null, '다시 나오기');
+  // 점프(빈 곳에서)
+  await tp(-12, 2.4); await p.waitForTimeout(250);
+  await p.keyboard.press('Space');
+  let jmax = 0; for (let i = 0; i < 40; i++) { jmax = Math.max(jmax, await p.evaluate(() => __kk.J.z)); if (jmax > 0.5) break; await p.waitForTimeout(60); }
+  check(jmax > 0.5, '빈 곳 Space → 점프 (최고 ' + jmax.toFixed(2) + ')');
+  await p.waitForTimeout(1500);
+  // 마트 문 먼저 → 잠김
+  await near('martDoor', 0, 0.6); await space(); s = await st();
+  check(s.mode === 'talk', '엄마 닭 전에는 마트 문 잠김'); await finishTalk();
+  // 문 잠긴 채 오른쪽 문으로 → 막힘
+  await tp(19.2, 2.2); await holdUntil('ArrowRight', async () => (await st()).mode === 'talk', 3000);
+  s = await st(); check(s.mode === 'talk' && s.x < 21, '마트 전에는 회사 가는 문이 막힘'); await finishTalk();
   // 엄마 닭
   await near('mom', -1.0, 0.2); await p.waitForTimeout(300); await labelsBelowTop('엄마 닭 옆'); await space(); check((await st()).mode === 'talk', '엄마 닭 말 걸기'); await p.waitForTimeout(700); await snap('talk-mom'); await finishTalk();
   check((await st()).flags.talkedMom === true, '엄마 닭 표시');

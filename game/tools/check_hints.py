@@ -28,7 +28,11 @@ WATCH = ['월급', '돈', '고용', '판매', '팔', '1,200원', '광고', '채�
 # 허용: 원문 문항 칸 이름이 그대로 붙은 라벨
 ALLOW = {'1번 가계', '1번 기업', '가계(꼬꼬네 가족):', '기업(불꽃식품):'}
 
-with zipfile.ZipFile(repo / '문항' / '시장경제 평가 문항.hwpx') as z:
+hwpx = repo / '문항' / '시장경제 평가 문항.hwpx'
+# worktree처럼 문항/이 없는 곳: python tools/check_hints.py --hwpx "<한글본 경로>"
+if '--hwpx' in sys.argv:
+    hwpx = pathlib.Path(sys.argv[sys.argv.index('--hwpx') + 1])
+with zipfile.ZipFile(hwpx) as z:
     xml = z.read('Contents/section0.xml').decode('utf-8')
 paras = set()
 for p in re.findall(r'<hp:p\b(?:(?!<hp:p\b).)*?</hp:p>', xml, flags=re.S):
