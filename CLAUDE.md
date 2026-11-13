@@ -9,7 +9,8 @@
   - 문항 한글본 새 그림판 = `문항/시장경제 평가 문항 (그림·세로, 새 그림).hwpx` (2026 일지 11/13 기준본의 BinData 그림만 `tools/swap_pics.py --nocom`으로 교체, 일지 폴더에도 같은 이름으로 복사). **PDF는 아직** — 이 컴은 한컴 보안 모듈이 등록 안 돼 COM이 숨은 확인 창에서 멈춤(등록은 자동 모드가 막음). 한글에서 열어 PDF로 저장은 사용자 또는 다른 컴.
   - 3D 꼬꼬 = `game/assets/models/kkokko.glb`: 납작한 초상화를 넣으면 판자처럼 납작 → 아스트라로 3/4 각도 '3D 피규어' 그림을 먼저 그려 TRELLIS.2(허깅페이스, HF_TOKEN 사용자 환경변수) → Blender(`%LOCALAPPDATA%\Blender` 압축판)로 2만 면. main.js가 불러와 도형 몸을 숨기고 hero.rig에 닮(뒤뚱·통통·점프 회전은 그대로, 다리·날개·깜빡임 없음). `?oldhero`면 도형 꼬꼬. 원래 색판(만화풍 외곽선은 지저분해서 안 씀).
   - `?stub`: 주소에 붙이면 실서버 대신 스텁. play3d가 자동으로 붙임(11/13 전까지 play3d가 실서버에 0반 0번을 썼음 → 시트에서 지울 것).
-  - 다음 후보: 엄마 닭·병아리도 같은 방법으로 3D, 꼬꼬 걷기 동작(Blender 뼈대). 그래픽 다음에 ① 단계별 시간 기록·플레이테스트 ② 장별 감정 연출(사용자 11/13 보류 결정).
+  - **조연 3D (11/13 밤 워크플로, 미완)**: 피규어 그림 6장(공장장·엄마 닭·병아리·곰·토끼·여우)은 됨 = `assets/통일/3D피규어/<id>3d.png`(깃 밖). TRELLIS 단계에서 허깅페이스 무료 GPU 한도 초과로 6명 모두 실패 — 게임은 안 바뀜. **다시 할 때: 11/14 16:45 이후, 한 번에 한 명씩**(동시에 돌리면 한도를 같이 써서 다 실패. 1명당 약 120초, 무료 계정은 하루 2~3명). 순서 공장장→엄마 닭→병아리→곰→토끼→여우. 변환 뒤 Blender 15000면 → game/assets/models/<id>.glb → main.js 꼬꼬 블록을 함수로 일반화해 mom·mom2·baby·baby2·boss·bear·bunny·fox에 적용, 인물별 정면 yaw 캡처로 맞추기.
+  - 다음 후보: 꼬꼬 걷기 동작, 꼬꼬 걷기 동작(Blender 뼈대). 그래픽 다음에 ① 단계별 시간 기록·플레이테스트 ② 장별 감정 연출(사용자 11/13 보류 결정).
 - **배포 끝 (11/13 확인)**: 게임 https://skyang9838-hue.github.io/sahoe-seonsul/ · 교사 화면 `…/teacher.html` · 답안집 `…/print.html` (`.github/workflows/pages.yml`이 push마다 `game/`을 올림). GAS 서버 = 배포 `AKfycbyPTSEPP92…` @3 (Setup.js 서버에서 지움, setupAll 실행됨 — 교사 로그인·인정 단어 조회 실서버로 확인). 서버 코드를 고치면 `server/Code.gs` → clasp 폴더 Code.js로 복사 → `clasp push` → `clasp redeploy <배포ID>` (주소 그대로).
   - **남은 것 (사용자)**: 수업 전 9반 99번 점검(저장·제출 → 교사 화면 로그인·판정 → 마감 → 풀기). 실시트에 쓰는 일이라 클로드 자동 모드가 막음. 점검 줄은 끝나고 시트에서 지울 것.
   - Apps Script 편집기 https://script.google.com/d/140QnnriJ5VRhtyDchkxKYNuxmlSv9pRQiLDRajlSq57JW5EL43k6Qada/edit
