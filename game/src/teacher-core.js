@@ -1,7 +1,7 @@
 // 교사 화면(teacher.html)과 반별 답안집(print.html)이 같이 쓰는 것:
 //   서버 연결(srv.js teacherSrv) · 로그인 상자 · 반 자료 불러오기 · 채점(scorer.js 그대로) · 확정/임시 판정 합치기 · 답 칠하기
 // 인정 단어는 로그인 뒤 서버 keywords()(로컬 스텁이면 스텁 규칙)에서만 받는다. 이 파일에도 학생 화면 코드에도 넣지 않는다.
-import { API_URL } from './config.js?v=9';
+import { API_URL } from './config.js?v=10';
 import { teacherSrv } from './srv.js?v=2';
 import { gradeAnswers, totalFrom, FIELDS } from './scorer.js?v=2';
 import { ITEM_FIELDS } from './items.js?v=1';
