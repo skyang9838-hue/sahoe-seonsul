@@ -4,6 +4,12 @@
 6학년 2학기 사회 2단원 「시장경제와 국가 간 거래 — 1. 우리나라 시장경제의 특징」 서·논술형 평가를 만들고, 학생이 그 평가를 웹앱으로 수행하게 한다. 9월 기후 단원 「기후 탐사대」(Apps Script 게임형, `Playground\_보관\261006 평가연수 산출물`)의 후속.
 
 ## 지금 상태 (2026-11-13)
+- **11/13 저녁 그림 통일 + 3D 꼬꼬 (push함)**: 기준 = 대사 초상화 `game/assets/faces/`(사용자 확인: 꼬꼬 두 표정·엄마 닭·너구리 공장장·곰·여우·토끼·병아리). 노란 병아리가 주인공이던 옛 그림·늑대/부엉이 공장장 그림은 버림.
+  - 2D 10장(아스트라, 초상화를 기준표로 첨부) = `assets/통일/`(깃 밖, 사본은 2026 일지에 아직 안 옮김). `tools/unify_art.py`가 잘라서 → 게임 `game/assets/scenes/scene1~3`(2장은 패널 칸이 4.95:1 띠라 얼굴 줄만)·`comic/open1~3` + 문항용 말풍선 그림 `assets/통일/문항용/image1~3.JPG`(말풍선은 `tools/bubble.py`).
+  - 문항 한글본 새 그림판 = `문항/시장경제 평가 문항 (그림·세로, 새 그림).hwpx` (2026 일지 11/13 기준본의 BinData 그림만 `tools/swap_pics.py --nocom`으로 교체, 일지 폴더에도 같은 이름으로 복사). **PDF는 아직** — 이 컴은 한컴 보안 모듈이 등록 안 돼 COM이 숨은 확인 창에서 멈춤(등록은 자동 모드가 막음). 한글에서 열어 PDF로 저장은 사용자 또는 다른 컴.
+  - 3D 꼬꼬 = `game/assets/models/kkokko.glb`: 납작한 초상화를 넣으면 판자처럼 납작 → 아스트라로 3/4 각도 '3D 피규어' 그림을 먼저 그려 TRELLIS.2(허깅페이스, HF_TOKEN 사용자 환경변수) → Blender(`%LOCALAPPDATA%\Blender` 압축판)로 2만 면. main.js가 불러와 도형 몸을 숨기고 hero.rig에 닮(뒤뚱·통통·점프 회전은 그대로, 다리·날개·깜빡임 없음). `?oldhero`면 도형 꼬꼬. 원래 색판(만화풍 외곽선은 지저분해서 안 씀).
+  - `?stub`: 주소에 붙이면 실서버 대신 스텁. play3d가 자동으로 붙임(11/13 전까지 play3d가 실서버에 0반 0번을 썼음 → 시트에서 지울 것).
+  - 다음 후보: 엄마 닭·병아리도 같은 방법으로 3D, 꼬꼬 걷기 동작(Blender 뼈대). 그래픽 다음에 ① 단계별 시간 기록·플레이테스트 ② 장별 감정 연출(사용자 11/13 보류 결정).
 - **배포 끝 (11/13 확인)**: 게임 https://skyang9838-hue.github.io/sahoe-seonsul/ · 교사 화면 `…/teacher.html` · 답안집 `…/print.html` (`.github/workflows/pages.yml`이 push마다 `game/`을 올림). GAS 서버 = 배포 `AKfycbyPTSEPP92…` @3 (Setup.js 서버에서 지움, setupAll 실행됨 — 교사 로그인·인정 단어 조회 실서버로 확인). 서버 코드를 고치면 `server/Code.gs` → clasp 폴더 Code.js로 복사 → `clasp push` → `clasp redeploy <배포ID>` (주소 그대로).
   - **남은 것 (사용자)**: 수업 전 9반 99번 점검(저장·제출 → 교사 화면 로그인·판정 → 마감 → 풀기). 실시트에 쓰는 일이라 클로드 자동 모드가 막음. 점검 줄은 끝나고 시트에서 지울 것.
   - Apps Script 편집기 https://script.google.com/d/140QnnriJ5VRhtyDchkxKYNuxmlSv9pRQiLDRajlSq57JW5EL43k6Qada/edit

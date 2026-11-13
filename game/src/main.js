@@ -218,6 +218,20 @@ function signPlane(text, w, h, { bg = '#fff8ec', fg = '#c24d18', font = 'Jua', s
 
 /* ── 캐릭터 ────────────────────────────────── */
 const hero = buildChicken(); scene.add(hero.root);
+// 3D 꼬꼬(11/13 시험): 대사 초상화 → TRELLIS.2 → Blender 2만 면. 불러오면 도형 몸을 숨기고 같은 rig에 단다
+// (뒤뚱·통통·찌그러짐·점프 회전은 rig로 그대로, 다리·날개·눈 깜빡임은 없음). 못 불러오면 도형 꼬꼬 그대로. ?oldhero면 안 씀
+if (!new URLSearchParams(location.search).has('oldhero')) loader.load('assets/models/kkokko.glb?v=1', (g) => {
+  const m = g.scene, H = new THREE.Box3().setFromObject(hero.rig).getSize(new THREE.Vector3()).y;
+  m.rotation.y = -0.55;                       // 3/4 각도로 만든 모델이라 정면(+z)으로 돌림
+  const b = new THREE.Box3().setFromObject(m); m.scale.setScalar(H / b.getSize(new THREE.Vector3()).y);
+  const b2 = new THREE.Box3().setFromObject(m), c = b2.getCenter(new THREE.Vector3());
+  m.position.set(-c.x, -b2.min.y, -c.z);
+  m.traverse((o) => { if (!o.isMesh) return; o.castShadow = true;
+    const mt = o.material; mt.metalness = 0; mt.roughness = 1;
+    if (mt.map) { mt.map.colorSpace = THREE.SRGBColorSpace; mt.emissive = new THREE.Color(0xffffff); mt.emissiveMap = mt.map; mt.emissiveIntensity = 0.35; } });
+  hero.rig.children.forEach((o) => { o.visible = false; });
+  hero.rig.add(m);
+}, undefined, () => {});
 const NPCS = [];
 function addNPC(id, actor, x, z, ry, r = 1, room = null, who = null) {
   actor.root.position.set(x, 0, z); actor.root.rotation.y = ry; scene.add(actor.root);
