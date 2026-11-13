@@ -11,3 +11,4 @@ node_modules/
 # 인정 단어 실제 목록·실제 단어가 든 채점 시험 답안(학생이 보면 답이 샘) — 공개 저장소에 올리지 않는다
 /server/private/
 /tools/scorer_cases.json
+/server/clasp/

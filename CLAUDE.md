@@ -4,6 +4,12 @@
 6학년 2학기 사회 2단원 「시장경제와 국가 간 거래 — 1. 우리나라 시장경제의 특징」 서·논술형 평가를 만들고, 학생이 그 평가를 웹앱으로 수행하게 한다. 9월 기후 단원 「기후 탐사대」(Apps Script 게임형, `Playground\_보관\261006 평가연수 산출물`)의 후속.
 
 ## 지금 상태 (2026-11-13)
+- **GAS 배포 진행 중 (11/13 오후, 사용자가 원격으로 이어서 하기로)** — 다음 할 일 순서:
+  1. 사용자: Apps Script 편집기 https://script.google.com/d/140QnnriJ5VRhtyDchkxKYNuxmlSv9pRQiLDRajlSq57JW5EL43k6Qada/edit 에서 `Setup` 파일 → `setupAll` 실행 → 권한 허용 → 로그 "설정 끝" (교사 비밀번호·탭·인정 단어를 넣음)
+  2. 클로드: `server/clasp/Setup.js` 지우고 `clasp push --force`(인정 단어 든 파일을 서버에서 제거) → `clasp redeploy AKfycbyPTSEPP92HiQ8H3nYmSs_TcR6Mpoq3aM62YCpjy020pMSxm5dsq6xGvXshDwuvgG3s1Q`
+  3. 웹앱 주소 https://script.google.com/macros/s/AKfycbyPTSEPP92HiQ8H3nYmSs_TcR6Mpoq3aM62YCpjy020pMSxm5dsq6xGvXshDwuvgG3s1Q/exec 를 열어 `{"ok":true…}` 확인 → `game/src/config.js` API_URL에 넣기 → 커밋·push → GitHub Pages 켜기(`game/` 폴더를 어떻게 올릴지: Pages 소스가 루트/docs만 되므로 Actions 배포 또는 gh-pages 브랜치)
+  4. 수업 전 점검: 9반 99번 저장·제출 → 교사 화면 로그인·판정 → 마감 → 풀기
+- 시트: 「꼬꼬의 첫 출근 답안 (6학년)」 https://drive.google.com/open?id=1wFM-9i5cq0E9BcYOANMYZ-fPKP94W_ZN7LG7VNgde94 . clasp 폴더 `server/clasp/`(깃 제외). 교사 비밀번호·.clasp.json·Setup.js 사본은 `2026 일지 사이드 프로젝트! 꼬꼬의 첫 출근 평가 게임\비공개 채점 파일\` (다른 컴에서는 여기서 server/private·server/clasp로 복사). 사용자: 정답 단서가 공개 저장소에 있어도 괜찮다고 함(11/13).
 - **11/13 워크플로: 3문항 웹앱 + 키워드 채점 + 교사 화면 + 반별 답안집 완성 (커밋·push함, 계획서 `웹앱 계획 채점·교사.md` 13장)**
   - 게임 `exam.js` 3문항·9칸(기호 버튼, 반·번호만, 마감 전 고치기, 제출 뒤 Esc 수첩 → 답 고치기, 새로고침하면 돌아다니기, 제출 뒤 대사). 채점 `game/src/scorer.js`(학생에게 안 보임), 서버 `server/Code.gs`(GAS, 잠금·마감·TEACHER_PW 스크립트 속성), 교사 화면 `game/teacher.html`, 답안집 `game/print.html`.
   - 시험: test_scorer 칸 348개 거짓 🟢 0·놓침 0·학생 45명 판정 차이 0 / test_server 146 통과 / test_teacher 68 통과 / play3d 1366·1280·1024 ✓207 / verify_text·check_hints 통과.
