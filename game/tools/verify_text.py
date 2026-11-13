@@ -1,18 +1,18 @@
 """평가 원문 대조 (엄격·양방향) — 3D 판(game/src) 기준.
 2D 판 웹앱/tools/verify_text.py를 옮겼다. 원본 2D 파일은 그대로 둔다.
 
-기준: 문항/시장경제 평가 문항.hwpx (Contents/section0.xml의 가장 안쪽 문단)
+기준: 문항/시장경제 평가 문항 (그림·세로).hwpx (11/13 확정 3문항 기준본, Contents/section0.xml의 가장 안쪽 문단)
 
 1) 앱 → 한글본
    - src/exam.js 1번 구역(「1. 평가 원문」 ~ 「2. 화면·상태」)의 문자열은 한글본 문단 하나와 통째로 같아야 한다.
-     (2번 빈칸 문장은 앞뒤 조각을 '(　　　　　　)' 전각 공백 6칸으로 이어 붙여 비교)
+     (1번 (2) 빈칸 문장은 앞뒤 조각을 '(　　　　　　)' 전각 공백 6칸으로 이어 붙여 비교)
    - src/story.js의 src:'원문' 대사(DIALOGUE·OPENING)도 한글본 문단 하나와 통째로 같아야 한다.
      src:'원문일부'는 한글본 문단 안에 그대로 들어 있어야 한다.
    - src/main.js 간판(signPlane) 글자 중 원문을 인용한 것(줄바꿈을 띄어쓰기로 바꿔 한글본 문단 안에 있는 것)은 목록으로 보여 준다.
 2) 한글본 → 앱
-   - 지시문부터 4번 조건 나)까지 한글본 문단이 exam.js 1번 구역에 하나도 빠짐없이 있어야 한다.
-   - <자료 1> 이야기 문단(1~3장)이 대사(src:'원문')에 모두, 한글본 순서대로 나오는지 본다.
-3) 렌더링 규칙: 2번 빈칸을 그리는 exam.js 코드가 기대하는 모양('(' 로 끝남, ')을/를' 로 시작)인지 본다.
+   - 지시문부터 3번 조건 나)까지(자료 제목·<보기>·기호 줄 이름 포함) 한글본 문단이 exam.js 1번 구역에 하나도 빠짐없이 있어야 한다.
+   - <자료 1>~<자료 3> 이야기 문단이 대사(src:'원문')에 모두, 한글본 순서대로 나오는지 본다.
+3) 렌더링 규칙: 1번 (2) 빈칸을 그리는 exam.js 코드가 기대하는 모양('(' 로 끝남, ')을/를' 로 시작)인지 본다.
 4) 연출 세기: 같은 대사 묶음의 원문 줄끼리 cut·fade가 같고 cam이 모두 있거나 모두 없는지 본다.
    3장 세 곳(story.js SPOTS3 묶음: 회의실·광고판·강가)은 묶음끼리도 모양이 똑같아야 한다
    (줄 수·원문 여부·말하는 이·cut·fade·cam 유무가 줄마다 같음 — 한 곳만 세게 보여 주면 답 암시).
@@ -26,7 +26,7 @@ src = root / 'src'
 exam = (src / 'exam.js').read_text(encoding='utf-8')
 story = (src / 'story.js').read_text(encoding='utf-8')
 main = (src / 'main.js').read_text(encoding='utf-8')
-hwpx = repo / '문항' / '시장경제 평가 문항.hwpx'
+hwpx = repo / '문항' / '시장경제 평가 문항 (그림·세로).hwpx'
 # 다른 판과 대조: python tools/verify_text.py --hwpx "<한글본 경로>"
 if '--hwpx' in sys.argv:
     hwpx = pathlib.Path(sys.argv[sys.argv.index('--hwpx') + 1])
@@ -139,8 +139,8 @@ fails += [f'(간판 {s!r})' for s, q in near_miss]
 # ── 2) 한글본 → exam.js ──
 try:
     i0 = next(i for i, t in enumerate(ordered) if t.startswith('※ 다음'))
-    i1 = next(i for i, t in enumerate(ordered) if t.startswith('나) 불꽃식품이 사회적 책임'))
-    # (세로판처럼 자료 제목이 <자료 N> 으로 나뉜 판도 같은 범위를 쓴다)
+    # 문항 범위의 끝 = 3번 조건 나) (마지막 '나) 불꽃식품이 …' 문단)
+    i1 = max(i for i, t in enumerate(ordered) if t.startswith('나) 불꽃식품이'))
 except StopIteration:
     print('한글본에서 문항 범위를 찾지 못했습니다'); sys.exit(1)
 SKIP = {'구분', '이야기'}
@@ -220,6 +220,13 @@ s3_said = [js_unescape(m.group(1) if m.group(1) is not None else m.group(2)) for
 print(f'  세 곳 원문 줄 {len(s3_said)}개: ' + ' / '.join(t[:14] + '…' for t in s3_said))
 if len(s3_said) != 3 or len(set(s3_said)) != 3 or any(t not in story_paras for t in s3_said):
     fails.append('(3장 세 곳 원문 줄이 이야기 문단 3개와 맞지 않음)')
+# ── 5) 답 칸 수: 확정 3문항 = 9칸(a0~a8), 장(패널)별 칸 나눔 ──
+m_n = re.search(r'const N_ANS = (\d+);', exam)
+m_ch = re.search(r'const CH_FIELDS = (\[\[.*?\]\]);', exam)
+n_ok = bool(m_n) and m_n.group(1) == '9' and bool(m_ch) and m_ch.group(1).replace(' ', '') == '[[0,1,2,3],[4,5],[6,7,8]]'
+print(f'[답 칸] N_ANS = {m_n.group(1) if m_n else "?"}, 장별 칸 = {m_ch.group(1) if m_ch else "?"} → ' + ('맞음' if n_ok else '어긋남'))
+if not n_ok:
+    fails.append('(답 칸 수·장별 칸 나눔)')
 if len(app_strings) < 25:
     print('대조 항목이 너무 적습니다'); sys.exit(1)
 print('통과' if not fails else f'실패 {len(fails)}건')

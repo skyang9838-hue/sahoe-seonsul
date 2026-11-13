@@ -1,0 +1,81 @@
+/* 반별 답안집 — 기준본 한글 양식(시장경제 평가 문항 (그림·세로).pdf 2쪽) 문항 쪽 모양을 pt 단위로 따른다.
+   잰 값(PDF 2쪽): 쪽 테두리 58~536pt × 44~794pt, 선 0.36pt / 발문 휴먼명조 11.8pt·줄 19.2pt, x=63pt
+   (휴먼명조가 없으면 HY신명조로 — 자간 -0.55pt·낱말 사이 +1pt로 기준본 줄 폭에 맞춤: 1번 발문 기준본 339pt · 여기 342pt)
+   상자 113~481pt(발문보다 50pt 들여씀), 상자 글 한컴산뜻돋움 10pt·줄 16pt / 답 줄 점선 16pt 간격, 64~523pt, 글 함초롬바탕 10pt */
+@page{size:A4;margin:0}
+:root{
+  --qf:"휴먼명조","HumanMyeongjo","HY신명조","HCR Batang","함초롬바탕","Batang","바탕",serif;
+  --bf:"한컴산뜻돋움","Han Santteut Dotum","HCR Dotum","함초롬돋움","Malgun Gothic",sans-serif;
+  --tf:"HCR Batang","함초롬바탕","Batang","바탕",serif;
+  --line:.36pt;
+  --af:10pt;      /* 답 글자 크기 — 넘치면 줄인다 */
+  --lh:16pt;      /* 답 줄 간격(점선 간격) */
+  --ans:#1b2f6b;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:#e9ecef;font-family:var(--tf);color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.hide{display:none!important}
+
+/* 화면 위 도구 띠 (인쇄 안 됨) */
+.tools{position:sticky;top:0;z-index:5;display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:10px 16px;background:#fff;border-bottom:1px solid #d9dee4;font:14px/1.4 "Malgun Gothic",sans-serif;color:#1f2933}
+.tools b{font-size:16px}
+.tools label{display:flex;align-items:center;gap:5px;cursor:pointer;white-space:nowrap}
+.tools button{font:inherit;padding:6px 14px;border-radius:7px;border:1px solid #2f5d8a;background:#2f5d8a;color:#fff;cursor:pointer;font-weight:700}
+.tools .sp{flex:1}
+.tools .info{color:#5b6773;font-size:13px}
+.warn{padding:8px 16px;background:#fdecea;color:#a1260d;border-bottom:1px solid #f3b4a8;font:700 14px/1.4 "Malgun Gothic",sans-serif}
+.msg{padding:40px;text-align:center;font:15px "Malgun Gothic",sans-serif;color:#5b6773}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:"Malgun Gothic",sans-serif}
+.login-card{width:min(380px,92vw);background:#fff;border:1px solid #d9dee4;border-radius:12px;padding:26px}
+.login-card h1{margin:0 0 4px;font-size:21px}
+.login-sub{margin:0 0 18px;color:#5b6773;font-size:14px}
+.login-card label{display:block;font-weight:700;margin-bottom:6px}
+.login-card input{width:100%;font-size:17px;padding:9px 12px;border:1px solid #b9c2cc;border-radius:8px}
+.login-card button{margin-top:14px;width:100%;padding:10px;border:0;border-radius:8px;background:#2f5d8a;color:#fff;font-size:16px;font-weight:700}
+.login-msg{min-height:22px;margin-top:10px;color:#b42318;font-size:14px}
+.login-mode{margin:6px 0 0;color:#5b6773;font-size:12.5px}
+
+/* 한 장 = 학생 한 명 */
+.pages{padding:20px 0}
+.sheet{position:relative;width:210mm;height:297mm;margin:0 auto 20px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.18);overflow:hidden;break-inside:avoid}
+.sheet.over{outline:3px solid #d93025}
+.frame{position:absolute;left:58pt;right:59.3pt;top:44pt;bottom:47.9pt;border:var(--line) solid #000;padding:6pt 5pt 4pt 5pt;display:flex;flex-direction:column}
+.who{flex:0 0 auto;display:flex;align-items:baseline;gap:8pt;padding:0 1pt 4pt;border-bottom:var(--line) solid #000;margin-bottom:9pt;font-family:var(--qf);font-size:13pt;font-weight:700}
+.who .nm{font-weight:400}
+.who .sp{flex:1}
+.who .tot{font-family:var(--bf);font-size:11pt;font-weight:400}
+.who .tot b{font-size:14pt;margin-left:3pt}
+.stamp{font-family:var(--bf);font-size:12pt;font-weight:700;color:#c62828;border:1.2pt solid #c62828;padding:0 6pt;border-radius:3pt}
+.content{flex:1;min-height:0;overflow:hidden}
+
+.qp{margin:0;font-family:var(--qf);font-size:11.8pt;line-height:19.2pt;font-weight:400;word-spacing:var(--qws,1pt);letter-spacing:var(--qls,-.55pt);-webkit-text-stroke:.12pt currentColor;word-break:keep-all}
+.boxrow{display:flex;align-items:flex-start}
+.box{margin-left:50pt;width:368pt;border:var(--line) solid #000;padding:2pt 5.4pt 2pt;font-family:var(--bf);font-size:10pt;line-height:16pt;word-spacing:var(--bws,2.5pt);word-break:keep-all}
+.box.blanks{padding:7pt 5.4pt 6pt}
+.jm{margin-left:auto;margin-right:2pt;min-width:34pt;text-align:center;font-family:var(--bf);font-size:9pt;line-height:1.2;color:#333}
+.jm b{display:block;font-size:17pt;line-height:1.15;color:#000}
+.aval{color:var(--ans);font-family:var(--tf);font-size:var(--af)}
+.box .aval{font-size:10pt}
+.blank-ans{display:inline-block;min-width:60pt;text-align:center;padding:0 2pt}
+
+/* 답 줄: 점선(0.48pt 그리고 0.72pt 띄움, 16pt 간격) 위에 학생 답 */
+.alines{margin:0 0 0 1pt;width:459pt;font-family:var(--tf);font-size:var(--af);line-height:var(--lh);color:var(--ans);white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='160' viewBox='0 0 12 160' preserveAspectRatio='none'%3E%3Crect x='0' y='152' width='4.8' height='3.6' fill='%23000'/%3E%3C/svg%3E");
+  background-size:1.2pt var(--lh);background-repeat:repeat;background-position:0 0}
+.alines.choice{color:#000;font-size:10pt;line-height:16pt;background-size:1.2pt 16pt;padding-left:5pt}
+.alines.choice .aval{font-size:10pt}
+.alines .lb{color:#000}
+.alines .cut{color:#c62828;font-family:var(--bf);font-size:8pt}
+.alines .tag{color:#555;font-size:max(7pt,calc(var(--af) - 1.5pt));margin-right:3pt}
+.gap-s{height:8pt}
+.gap-m{height:10pt}
+
+@media print{
+  body{background:#fff}
+  .tools,.warn,.msg{display:none!important}
+  .pages{padding:0}
+  .sheet{margin:0;box-shadow:none;break-after:page;page-break-after:always}
+  .sheet:last-child{break-after:auto;page-break-after:auto}
+  .sheet.over{outline:0}
+}

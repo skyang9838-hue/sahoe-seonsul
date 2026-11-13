@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>서·논술형 채점</title>
+<link rel="stylesheet" href="teacher.css?v=1">
+</head>
+<body>
+<div id="login" class="login-wrap"></div>
+
+<div id="app" class="hide">
+  <header class="bar">
+    <div class="brand">서·논술형 채점<small>꼬꼬의 첫 출근</small></div>
+    <label class="ban">6학년 <select id="ban" aria-label="반"></select> 반</label>
+    <span class="stat" id="st-sub">제출 <b>0</b>/0</span>
+    <span class="stat warn" id="st-chk">확인 필요 <b>0</b></span>
+    <span class="tag-closed hide" id="tag-closed">마감됨</span>
+    <span class="sp"></span>
+    <button class="btn danger" id="btn-close">반 마감</button>
+    <button class="btn main" id="btn-print">답안집 PDF</button>
+    <button class="btn" id="btn-reload">새로 고침</button>
+    <button class="btn ghost" id="btn-out">나가기</button>
+  </header>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="table" aria-selected="true">반 표</button>
+    <button role="tab" data-tab="1" aria-selected="false">1번</button>
+    <button role="tab" data-tab="2" aria-selected="false">2번</button>
+    <button role="tab" data-tab="3" aria-selected="false">3번</button>
+    <span class="legend">
+      <span class="chip ga conf">◎</span><span class="chip gb conf">○</span><span class="chip gc conf">△</span>
+      <span>굵게 = 확정 · 흐리게 = 임시</span>
+      <span class="chip gb temp chk">○</span><span>노랑 테두리 = 확인 필요</span>
+      <span class="chip gn">미응답</span>
+    </span>
+  </nav>
+  <main>
+    <section id="v-table" class="view">
+      <div class="tbl-area"><div class="tbl-cols" id="tbl"></div></div>
+      <aside class="detail" id="detail"><div class="empty">표에서 칸을 누르면 그 학생의 답이 여기 펼쳐져요.</div></aside>
+    </section>
+    <section id="v-item" class="view hide">
+      <div class="itembar">
+        <span class="q" id="it-q"></span>
+        <button class="btn main" id="btn-bulk" title="제출한 학생 중 🟢만 있는 답을 임시 판정 그대로 확정해요">🟢만 있는 답 일괄 확정</button>
+        <button class="btn toggle" id="btn-yel" aria-pressed="false">🟡만 보기</button>
+        <span class="keys">키보드: 1·2·3 = ◎○△ · ←→ 이동 · Backspace 확정 지움</span>
+      </div>
+      <div class="cards" id="cards"></div>
+    </section>
+  </main>
+  <div id="toast" role="status"></div>
+</div>
+<script type="module" src="src/teacher.js?v=1"></script>
+</body>
+</html>

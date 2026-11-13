@@ -1,0 +1,17 @@
+{
+ "_설명": "공개용 가짜 인정 단어 목록 (시험·화면 개발용). 실제 목록(server/private/keywords.json, 비공개)과 구조만 같고 단어는 모두 지어낸 것이다.",
+ "version": 1,
+ "fields": {
+  "a0": {"type": "choice", "label": "1 (1) 가계", "answer": ["ㅁ", "ㅂ"]},
+  "a1": {"type": "choice", "label": "1 (1) 기업", "answer": ["ㅅ", "ㅇ"]},
+  "a2": {"type": "text", "label": "1 (2) ①", "groups": [{"id": "별빛", "label": "별빛", "words": ["별빛조각", "반짝돌", {"w": "솔", "except": ["솔방울", "칫솔", "솔직"]}, "구름표"]}]},
+  "a3": {"type": "text", "label": "1 (2) ②", "groups": [{"id": "꿈빵", "label": "꿈빵", "words": ["꿈빵", "달떡", "무지개과자"]}]},
+  "a4": {"type": "text", "label": "2 가)", "typoExcept": ["토미카"], "groups": [
+    {"id": "노을", "label": "노을", "words": ["노을바람", "보라구름", {"w": "토마", "except": ["토마토"]}]},
+    {"id": "새벽", "label": "새벽", "words": ["새벽이슬", "풀피리"]}]},
+  "a5": {"type": "text", "label": "2 나)", "neg": true, "groups": [{"id": "숲길", "label": "숲길", "words": ["숲길지도", "도토리모자", {"w": "솔", "except": ["솔방울", "솔솔", "칫솔", "솔직"]}]}]},
+  "a6": {"type": "text", "label": "3 가)", "groups": [{"id": "파랑", "label": "파랑", "words": ["파랑나비", "3,333원"]}]},
+  "a7": {"type": "text", "label": "3 나) 문제점", "groups": [{"id": "회색", "label": "회색", "words": ["회색안개", "먼지구름"]}]},
+  "a8": {"type": "text", "label": "3 나) 개선", "neg": true, "groups": [{"id": "초록", "label": "초록", "words": ["초록우산", "햇살정원", {"w": "날리지 않", "negOK": true}]}]}
+ }
+}

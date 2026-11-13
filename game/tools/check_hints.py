@@ -26,9 +26,11 @@ BANNED = ['권리', '자유', '책임', '침해', '거짓', '허위', '과장', 
 WATCH = ['월급', '돈', '고용', '판매', '팔', '1,200원', '광고', '채소', '더러운', '폐수', '강물', '다친', '다쳐',
          '점심', '밤 10시', '쉬지', '걱정', '가격', '품질', '비교', '취업', '일할 사람', '구해요']
 # 허용: 원문 문항 칸 이름이 그대로 붙은 라벨
-ALLOW = {'1번 가계', '1번 기업', '가계(꼬꼬네 가족):', '기업(불꽃식품):'}
+ALLOW = {'1번 가계', '1번 기업', '가계(꼬꼬네 가족):', '기업(불꽃식품):',
+         '1번 (1) 가계', '1번 (1) 기업',          # 답 칸 이름(빈칸 안내용)
+         '나) 다하지 못한 점', '나) 개선할 방법'}   # 3번 조건 나) 원문 낱말을 그대로 쓴 칸 이름표
 
-hwpx = repo / '문항' / '시장경제 평가 문항.hwpx'
+hwpx = repo / '문항' / '시장경제 평가 문항 (그림·세로).hwpx'
 # worktree처럼 문항/ 이 없는 곳에서는: python tools/check_hints.py --hwpx "<한글본 경로>"
 if '--hwpx' in sys.argv:
     hwpx = pathlib.Path(sys.argv[sys.argv.index('--hwpx') + 1])
@@ -93,11 +95,17 @@ for line, s in lits(mj):
         continue   # 원문 인용(verify_text.py가 글자 대조)
     texts.append((f'main.js:{line}', s))
 # exam.js (1번 원문 구역 뒤)
-ej = strip_comments(exam)
-cut = ej.find('2. 화면·상태')
-for line, s in lits(ej[cut:]):
+# (구역 표시는 주석 안에 있으므로 주석을 지우기 전에 자른다 — 전에는 지운 뒤에 찾아서 2번 구역을 통째로 못 봤다)
+cut = exam.find('2. 화면·상태')
+if cut < 0:
+    print('exam.js에서 2번 구역 표시를 찾지 못했습니다'); sys.exit(1)
+ej = strip_comments(exam[cut:])
+n_exam = 0
+for line, s in lits(ej):
     if re.search('[가-힣]', s):
-        texts.append((f'exam.js:{ej.count(chr(10), 0, cut) + line}', s))
+        texts.append((f'exam.js:{exam.count(chr(10), 0, cut) + line}', s)); n_exam += 1
+if n_exam < 20:
+    print(f'exam.js 화면 문구가 너무 적게 잡혔습니다({n_exam}개)'); sys.exit(1)
 # index.html
 body = re.sub(r'<(script|style)[^>]*>.*?</\1>', '', idx, flags=re.S)
 for m in re.finditer(r'>([^<]*[가-힣][^<]*)<', body):
@@ -121,4 +129,54 @@ for where, w, t in hits:
 print(f'주의어(원문 밖 정답 낱말) {len(watch)}개 — 사람이 판단')
 for where, w, t in watch:
     print(f'  · [{where}] "{w}" ← {t!r}')
-sys.exit(1 if hits else 0)
+
+# ── 제출 뒤 돌아다니기 대사(story.js의 이름+Roam): 인정 단어(실제 목록)가 하나도 없어야 한다 ──
+#   실제 목록은 공개 저장소에 없다 — 이 컴퓨터의 비공개 파일에서만 읽는다(없으면 건너뛰고 알린다):
+#   server/private/keywords.json(채점용, .gitignore) · 문항/키워드 채점 기준 (꼬꼬의 첫 출근).html(.gitignore)
+import json
+kw = set()
+def walk(v):
+    if isinstance(v, str):
+        if re.search('[가-힣]', v): kw.add(v.strip())
+    elif isinstance(v, dict):
+        for x in v.values(): walk(x)
+    elif isinstance(v, list):
+        for x in v: walk(x)
+priv = repo / 'server' / 'private' / 'keywords.json'
+if priv.exists():
+    try: walk(json.loads(priv.read_text(encoding='utf-8')))
+    except Exception as e: print('  (비공개 인정 단어 JSON을 읽지 못함:', e, ')')
+kwhtml = repo / '문항' / '키워드 채점 기준 (꼬꼬의 첫 출근).html'
+if kwhtml.exists():
+    for m in re.finditer(r'<span class="kw">(.*?)</span>', kwhtml.read_text(encoding='utf-8'), flags=re.S):
+        w = H.unescape(re.sub(r'<[^>]+>', '', m.group(1))).strip()
+        if w: kw.add(w)
+kw = {w for w in kw if len(w) <= 20}
+roam = []
+dsec = sj.split('export const DIALOGUE')[1].split('export const OPENING')[0] if 'export const DIALOGUE' in sj else ''
+cur = None
+for ln in dsec.splitlines():
+    mk = re.match(r'\s*(\w+)\s*:\s*\[', ln)
+    if mk: cur = mk.group(1)
+    if cur and cur.endswith('Roam'):
+        for m in re.finditer(r"text:\s*'((?:[^'\\]|\\.)*)'", ln):
+            roam.append((cur, unesc(m.group(1))))
+roam_hits = []
+for k, t in roam:
+    flat = re.sub(r'\s', '', t)
+    for w in kw:
+        wf = re.sub(r'\s', '', w)
+        if not wf: continue
+        if len(wf) == 1:   # 한 글자 낱말(돈·법·강·값 등)은 어절 첫 글자일 때만
+            if re.search(r'(^|[\s"(])' + re.escape(wf), t): roam_hits.append((k, w, t))
+        elif wf in flat:
+            roam_hits.append((k, w, t))
+if not kw:
+    print(f'제출 뒤 대사 {len(roam)}줄 — 비공개 인정 단어 목록이 이 컴퓨터에 없어 건너뜀(금지어 검사만 함)')
+else:
+    print(f'제출 뒤 대사 {len(roam)}줄 × 인정 단어 {len(kw)}개, 걸림 {len(roam_hits)}개')
+    for k, w, t in roam_hits:
+        print(f'  ✗ [{k}] 인정 단어 ← {t!r}')   # 단어 자체는 화면에만(로그에 목록을 남기지 않게 낱말은 안 찍음)
+if len(roam) < 10:
+    print('제출 뒤 대사가 너무 적게 잡혔습니다'); hits.append(('story.js', 'Roam', '(대사 묶음 못 찾음)'))
+sys.exit(1 if hits or roam_hits else 0)

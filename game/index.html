@@ -8,7 +8,7 @@
 <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=9">
-<link rel="stylesheet" href="exam.css?v=19">
+<link rel="stylesheet" href="exam.css?v=20">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -57,7 +57,6 @@
           <div class="start-form">
             <label>6학년 <input id="in-ban" inputmode="numeric" maxlength="2" autocomplete="off"> 반</label>
             <label><input id="in-num" inputmode="numeric" maxlength="2" autocomplete="off"> 번</label>
-            <label>이름 <input id="in-name" maxlength="10" autocomplete="off"></label>
           </div>
           <div id="start-msg" class="msg"></div>
           <button id="btn-start" class="btn primary big">출근하기</button>
@@ -90,14 +89,14 @@
           <div id="nb-left"><div id="nb-inst" class="inst"></div><div id="nb-res" class="res-head"></div><div id="nb-chapter" class="chapter-title"></div><div id="nb-text" class="res-text"></div></div>
           <div id="nb-right"><div id="nb-qs"></div></div>
         </div>
-        <div class="nb-foot"><span id="nb-note"></span><button id="nb-submit" class="btn primary">제출하기</button></div>
+        <div class="nb-foot"><span id="nb-note"></span><button id="nb-edit" class="btn hide">답 고치기</button><button id="nb-submit" class="btn primary">제출하기</button></div>
       </div>
 
       <div id="ex-end" class="ex-screen hide">
         <div class="end-book">
           <div class="end-stamps"><span class="stamp on"></span><span class="stamp on"></span><span class="stamp on"></span></div>
-          <div class="end-title">꼬꼬의 수첩 완성!</div>
-          <div class="end-sub">제출 완료! 선생님 화면을 기다려 주세요.</div>
+          <div class="end-title">제출 완료!</div>
+          <div id="end-sub" class="end-sub"></div>
           <div id="end-time" class="end-time"></div>
           <div class="end-btns"><button id="end-roam" class="btn primary">마을 돌아다니기</button><button id="end-view" class="btn">내 답 다시 보기</button></div>
         </div>
@@ -127,6 +126,6 @@
   setTimeout(fail, 150000);
 })();
 </script>
-<script type="module" src="src/main.js?v=18"></script>
+<script type="module" src="src/main.js?v=20"></script>
 </body>
 </html>

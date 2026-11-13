@@ -52,6 +52,24 @@ export const DIALOGUE = {
   lockedMartDoor: [{ who: 'note', text: '먼저 엄마 닭에게 말을 걸어 봐요.' }],
   lockedMeetDoor: [{ who: 'note', text: '먼저 공장에 들러요.' }],
   lockedGate1:    [{ who: 'note', text: '먼저 마트에 들러요.' }],
+  // 제출 뒤 돌아다닐 때 대사(main.js: S.roam이면 '이름+Roam'을 먼저 찾는다).
+  //   평가가 끝난 뒤라도 같은 반 친구가 아직 쓰는 중일 수 있으니 답을 암시하는 낱말(인정 단어)은 쓰지 않는다 — tools/check_hints.py가 검사
+  lookClockRoam:  [{ who: 'note', text: '알람시계가 똑딱똑딱 가고 있어요.' }],
+  lookPhotoRoam:  [{ who: 'note', text: '엄마 닭, 아기 병아리와 함께 찍은 가족사진이에요.' },
+                   { who: 'kkokko', text: '오늘 있었던 일을 들려줘야지!', face: 'happy' }],
+  lookMirrorRoam: [{ who: 'note', text: '옷장 거울에 초록 작업모가 비쳐요.' },
+                   { who: 'kkokko', text: '오늘 하루, 수고했어!', face: 'happy' }],
+  momRoam:      [{ who: 'mom', text: '꼬꼬야, 오늘 하루 수고 많았어! 천천히 둘러보고 오렴.' }],
+  babyRoam:     [{ who: 'baby', text: '삐약! 같이 놀아요!' }],
+  mom2Roam:     [{ who: 'mom', text: '장보기는 다 끝났어. 더 구경하고 갈래?' }],
+  baby2Roam:    [{ who: 'baby', text: '삐약! 여기 재밌어요!' }],
+  clerkRoam:    [{ who: 'clerk', text: '또 오세요!' }],
+  bearRoam:     [{ who: 'bear', text: '꼬꼬, 오늘 하루 수고했어!' }],
+  bunnyRoam:    [{ who: 'bunny', text: '내일 또 보자, 꼬꼬!' }],
+  bossIdleRoam: [{ who: 'boss', text: '꼬꼬 씨, 첫날 수고했어요.' }],
+  staff1Roam:   [{ who: 'staff1', text: '오늘 일정은 모두 끝났어요.' }],
+  staff2Roam:   [{ who: 'staff2', text: '오늘 일정은 모두 끝났어요.' }],
+  foxIdleRoam:  [{ who: 'fox', text: '꼬꼬 씨, 오늘 수고 많았어요.' }],
 };
 
 // 오프닝 컷: 그림(assets/comic/open1~3.jpg) + 대사

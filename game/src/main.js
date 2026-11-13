@@ -7,8 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=12';
-import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=12';
-import * as EXAM from './exam.js?v=14';
+import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=13';
+import * as EXAM from './exam.js?v=16';
 
 const $ = (id) => document.getElementById(id);
 
@@ -796,7 +796,10 @@ function interact(t) {
   if (t.kind === 'exit') { sfx.door(); exitRoom(); return; }
   if (t.kind === 'scene') { if (!S.roam) runScene(t); return; }   // 제출 뒤에는 평가 장면·패널을 다시 열지 않는다
   if (t.kind === 'look') { lookAt(t); return; }
-  talk(DIALOGUE[t.dlg], () => {
+  // 제출 뒤 돌아다닐 때는 인물마다 '제출 뒤 대사'(story.js의 이름+Roam)를 쓴다 — 옛 퀘스트 대사가 상황과 안 맞아서
+  const dlg = S.roam && DIALOGUE[t.dlg + 'Roam'] ? t.dlg + 'Roam' : t.dlg;
+  talk(DIALOGUE[dlg], () => {
+    if (S.roam) return;
     if (t.setFlag && !S.flags[t.setFlag]) { S.flags[t.setFlag] = true; EXAM.saveLocal(S); sfx.open(); }
   }, t);
 }
@@ -853,7 +856,7 @@ function lookAt(t) {
   if (t.stand) { S.x = t.stand.x; S.z = t.stand.z; }
   if (t.obj) S.face = Math.atan2(t.obj.x - S.x, t.obj.z - S.z);
   if (t.cam) setCam(t.cam);
-  talk(DIALOGUE[t.dlg], null, null, false);
+  talk(DIALOGUE[S.roam && DIALOGUE[t.dlg + 'Roam'] ? t.dlg + 'Roam' : t.dlg], null, null, false);
 }
 function openChapter(c) {
   if (S.roam) return;

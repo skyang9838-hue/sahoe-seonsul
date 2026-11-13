@@ -30,7 +30,7 @@ const SHOTS = [
   p.on('pageerror', (e) => console.log('ERR', String(e)));
   await p.goto((process.env.KK_URL || 'http://127.0.0.1:8765/') + '?shot=1&reset=all');
   await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 120000 });
-  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.fill('#in-name', '그림'); await p.click('#btn-start');
+  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.click('#btn-start');
   await p.waitForTimeout(800);
   for (let i = 0; i < 10 && (await p.evaluate(() => __kk.S.mode)) === 'comic'; i++) { await p.keyboard.press('Space'); await p.waitForTimeout(250); }
   await p.waitForTimeout(1500);

@@ -38,7 +38,7 @@ const res = { panels: [], notebook: [], dialogue: [], comic: [], signs: [] };
     });
   }, signs);
   // 시작 → 오프닝(원문 줄 기록)
-  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.fill('#in-name', '글자검사'); await p.click('#btn-start');
+  await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.click('#btn-start');
   await p.waitForFunction(() => __kk.S.mode === 'comic', null, { timeout: 8000 });
   for (let i = 0; i < 10 && (await p.evaluate(() => __kk.S.mode)) === 'comic'; i++) {
     await p.keyboard.press('Space'); await p.waitForTimeout(120);   // 타자 끝내기
