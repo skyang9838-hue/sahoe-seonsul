@@ -7,8 +7,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=12';
-import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=13';
-import * as EXAM from './exam.js?v=16';
+import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=14';
+import * as EXAM from './exam.js?v=18';
 
 const $ = (id) => document.getElementById(id);
 
