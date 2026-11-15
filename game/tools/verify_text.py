@@ -1,7 +1,7 @@
 """평가 원문 대조 (엄격·양방향) — 3D 판(game/src) 기준.
 2D 판 웹앱/tools/verify_text.py를 옮겼다. 원본 2D 파일은 그대로 둔다.
 
-기준: 문항/시장경제 평가 문항 (그림·세로).hwpx (11/13 확정 3문항 기준본, Contents/section0.xml의 가장 안쪽 문단)
+기준: 2026 일지 …/41 꼬꼬의 첫 출근 평가 게임/문항/시장경제 평가 문항 (그림·세로).hwpx (11/13 확정 3문항 기준본, 없으면 저장소 문항/ 사본, Contents/section0.xml의 가장 안쪽 문단)
 
 1) 앱 → 한글본
    - src/exam.js 1번 구역(「1. 평가 원문」 ~ 「2. 화면·상태」)의 문자열은 한글본 문단 하나와 통째로 같아야 한다.
@@ -26,11 +26,17 @@ src = root / 'src'
 exam = (src / 'exam.js').read_text(encoding='utf-8')
 story = (src / 'story.js').read_text(encoding='utf-8')
 main = (src / 'main.js').read_text(encoding='utf-8')
-hwpx = repo / '문항' / '시장경제 평가 문항 (그림·세로).hwpx'
+# 기준본은 2026 일지 사본(11/13 확정판, 세 컴 모두 같은 주소)을 먼저 쓴다.
+# 저장소 안 문항/ 폴더는 깃에 안 올라가고 거기 같은 이름 파일은 11/12판(옛 4문항)이라 기본으로 쓰면 거짓 실패가 난다.
+_NAME = '시장경제 평가 문항 (그림·세로).hwpx'
+_JOURNAL = pathlib.Path('G:/내 드라이브/2026 일지/5 사이드 프로젝트/41 꼬꼬의 첫 출근 평가 게임/문항') / _NAME
+hwpx = _JOURNAL if _JOURNAL.exists() else repo / '문항' / _NAME
 # 다른 판과 대조: python tools/verify_text.py --hwpx "<한글본 경로>"
 if '--hwpx' in sys.argv:
     hwpx = pathlib.Path(sys.argv[sys.argv.index('--hwpx') + 1])
-print('기준:', hwpx.name)
+print('기준:', hwpx)
+if hwpx != _JOURNAL and '--hwpx' not in sys.argv:
+    print('  ⚠ 2026 일지 기준본을 못 찾아 저장소 사본으로 대조함 (11/12판이면 거짓 실패가 날 수 있음)')
 
 # ── 한글본 문단 ──
 with zipfile.ZipFile(hwpx) as z:

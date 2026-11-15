@@ -45,9 +45,20 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
         a.camMax = Math.max(a.camMax, __kk.camera.position.y);
         if (a.started && !J.on) { a.done = true; a.land = J.z; return; } requestAnimationFrame(tick); };
       requestAnimationFrame(tick); });
-    // gap = 'apex': 다음 Space는 꼬꼬가 오르막 끝(정점 가까이)에 왔을 때 누른다(느린 렌더링에서도 2단 점프가 확실히 나가게)
-    const apex = () => p.waitForFunction(() => __kk.J.on && __kk.J.pre <= 0 && __kk.J.vz < 1.5, null, { timeout: 4000, polling: 'raf' }).catch(() => {});
-    for (let i = 0; i < n; i++) { if (gap === 'apex' && i) await apex(); await p.keyboard.press('Space'); if (gap !== 'apex') await p.waitForTimeout(gap); if (until && await p.evaluate(until)) break; }
+    // gap = 'apex': 첫 Space만 진짜 키로 누르고, 나머지는 페이지 안에서 정점 가까이 온 그 프레임에 바로 Space를 보낸다.
+    //   (예전엔 정점을 기다린 뒤 Playwright로 눌렀는데, 느린 렌더링(1024·1280)에서는 그 사이 꼬꼬가 한참 내려와 2단 점프가 낮게 나가거나 착지 뒤에 눌렸다)
+    //   두 번째 = 첫 점프 정점(vz<1.5), 세 번째 = 2단 점프 정점, 네 번째 = 그 뒤 내려오는 중(vz<-1.5). 3·4번째에 더 안 올라가야 한다.
+    if (gap === 'apex') {
+      await p.keyboard.press('Space');
+      await p.evaluate((n) => { const st = window.__apexPress = { sent: 1, want: n };
+        const send = () => { dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ', bubbles: true })); dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ', bubbles: true })); st.sent++; };
+        const tick = () => { const J = __kk.J; if (st.sent >= st.want || __air.done) return;
+          const ready = st.sent === 1 ? !J.dbl && J.vz < 1.5 : st.sent === 2 ? J.dbl && J.vz < 1.5 : J.vz < -1.5;
+          if (J.on && J.pre <= 0 && ready) send();
+          requestAnimationFrame(tick); };
+        requestAnimationFrame(tick); }, n);
+      const t0 = Date.now(); while (Date.now() - t0 < 8000 && await p.evaluate(() => __apexPress.sent < __apexPress.want && !__air.done)) await p.waitForTimeout(60);
+    } else for (let i = 0; i < n; i++) { await p.keyboard.press('Space'); await p.waitForTimeout(gap); if (until && await p.evaluate(until)) break; }
     return p.evaluate(() => ({ max: +__air.max.toFixed(2), fly: __kk.J.fly, z: +__kk.J.z.toFixed(2), scr: __air.scr, camAtMax: +(__air.camAtMax || 0).toFixed(2), camMax: +__air.camMax.toFixed(2) }));
   }
   const airLand = async (ms = 40000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(() => __air.done)) break; await p.waitForTimeout(150); } return p.evaluate(() => ({ done: __air.done, land: __air.land, max: +__air.max.toFixed(2), mode: __kk.S.mode })); };
