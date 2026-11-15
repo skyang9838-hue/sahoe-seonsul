@@ -37,7 +37,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#1d2a1c;font-family:"J
 
 #loading{position:absolute;inset:0;background:#1b120c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s;overflow:hidden}
 /* 로딩에도 시작 포스터를 흐리게 깔아, 로딩이 걷히면 같은 그림이 또렷해지며 이어지게 */
-#loading::before{content:"";position:absolute;inset:-24px;background:url("assets/title/poster.jpg?v=1") center/cover no-repeat;filter:blur(10px) brightness(.8)}
+#loading::before{content:"";position:absolute;inset:-24px;background:url("assets/title/poster.jpg?v=2") center/cover no-repeat;filter:blur(10px) brightness(.8)}
 #loading>*{position:relative}
 #ld-msg{background:rgba(255,248,236,.85);padding:2px 14px;border-radius:999px}
 #loading.done{opacity:0;pointer-events:none}
