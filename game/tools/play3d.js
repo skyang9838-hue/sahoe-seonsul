@@ -34,6 +34,20 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     for (let i = 0; i < 60; i++) { const j = await jz(); if (!j.on) break; await p.waitForTimeout(60); }
     await p.waitForTimeout(150); return jz();
   }
+  // 공중 높이 재기: Space를 n번(gap ms 간격, 또는 until 조건이 맞을 때까지) 누르고 착지까지 페이지 안에서 매 프레임 최고 높이를 잰다
+  async function airRun(n, gap, until) {
+    await p.evaluate(() => { const a = window.__air = { max: 0, started: false, done: false, camMax: -1e9, scr: [] };
+      const tick = () => { const J = __kk.J; if (J.on) a.started = true;
+        if (J.z > a.max) { a.max = J.z; const c = __kk.camera, V = c.position.constructor, v = new V(__kk.S.x, J.z + 0.6, __kk.S.z).project(c); a.scr = [Math.round((v.x * 0.5 + 0.5) * innerWidth), Math.round((-v.y * 0.5 + 0.5) * innerHeight)]; a.camAtMax = c.position.y; }
+        a.camMax = Math.max(a.camMax, __kk.camera.position.y);
+        if (a.started && !J.on) { a.done = true; a.land = J.z; return; } requestAnimationFrame(tick); };
+      requestAnimationFrame(tick); });
+    // gap = 'apex': 다음 Space는 꼬꼬가 오르막 끝(정점 가까이)에 왔을 때 누른다(느린 렌더링에서도 2단 점프가 확실히 나가게)
+    const apex = () => p.waitForFunction(() => __kk.J.on && __kk.J.pre <= 0 && __kk.J.vz < 1.5, null, { timeout: 4000, polling: 'raf' }).catch(() => {});
+    for (let i = 0; i < n; i++) { if (gap === 'apex' && i) await apex(); await p.keyboard.press('Space'); if (gap !== 'apex') await p.waitForTimeout(gap); if (until && await p.evaluate(until)) break; }
+    return p.evaluate(() => ({ max: +__air.max.toFixed(2), fly: __kk.J.fly, z: +__kk.J.z.toFixed(2), scr: __air.scr, camAtMax: +(__air.camAtMax || 0).toFixed(2), camMax: +__air.camMax.toFixed(2) }));
+  }
+  const airLand = async (ms = 40000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await p.evaluate(() => __air.done)) break; await p.waitForTimeout(150); } return p.evaluate(() => ({ done: __air.done, land: __air.land, max: +__air.max.toFixed(2), mode: __kk.S.mode })); };
   async function holdUntil(key, cond, ms = 9000) { await p.keyboard.down(key); const t = Date.now(); while (Date.now() - t < ms) { if (await cond()) break; await p.waitForTimeout(80); } await p.keyboard.up(key); }
 
   let s0, s1;
@@ -148,6 +162,11 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   let jmax = 0; for (let i = 0; i < 40; i++) { jmax = Math.max(jmax, await p.evaluate(() => __kk.J.z)); if (jmax > 0.5) break; await p.waitForTimeout(60); }
   check(jmax > 0.5, '빈 곳 Space → 점프 (최고 ' + jmax.toFixed(2) + ')');
   await p.waitForTimeout(1500);
+  // 제출 전: 2단 점프까지만(공중에서 Space를 더 눌러도 더 안 올라감). 이론 최고 = (V0²+V2²)/2g ≈ 2.08
+  await tp(-12, 2.4); await p.waitForTimeout(250);
+  let air = await airRun(4, 'apex'); let airL = await airLand(8000);
+  check(airL.done && airL.land === 0 && air.max > 1.6 && air.max <= 2.1 && !air.fly, '제출 전 Space 4번(정점마다) → 2단 점프까지만, 3단·날기 없음 (최고 ' + air.max + ', 날갯짓 ' + air.fly + ')');
+  const preMax = air.max; await p.waitForTimeout(1500);
   // 소품 올라서기 (벤치 윗면 0.95, 점프 정점 약 1.29)
   check(await p.evaluate(() => __kk.colliders.filter((c) => c.top !== undefined).every((c) => c.top <= 1.2)), '올라서는 소품은 모두 허리 높이 이하(1.2 이하)');
   check(await p.evaluate(() => __kk.colliders.filter((c) => c.top !== undefined && !c.off).every((c) => Math.abs(c.x - 21) - c.hw > 1.5 && Math.abs(c.z) + c.hd < 12.6 && c.x - c.hw > -22 && c.x + c.hw < 70 || c.z < -50)), '울타리 문·세계 가장자리 가까이에는 올라서는 소품 없음');
@@ -361,6 +380,27 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   await roamChecks('Enter →'); await snap('roam');
   check(await p.evaluate(() => document.getElementById('kbd-nb').textContent.includes('내 답')), 'HUD 안내: Esc 내 답 보기');
+  // 제출 뒤 날기: Space 연타 → 2단 점프보다 높이, 상한(땅 위 25)은 못 넘고, 카메라가 따라가고, 다시 내려앉음
+  check(await p.evaluate(() => document.getElementById('kbd-nb').textContent.includes('날기')), 'HUD 안내: Space 연타 날기');
+  await p.evaluate(() => { __kk.S.room = null; __kk.teleport(-12, 2.4, 0); }); await p.waitForTimeout(600);
+  const camG = await p.evaluate(() => __kk.camera.position.y);
+  air = await airRun(120, 140, () => __kk.J.z >= __kk.FLY_TOP - 0.05);
+  await p.keyboard.press('Space'); await p.waitForTimeout(140); await p.keyboard.press('Space'); await p.waitForTimeout(400);   // 상한에서 더 눌러 보기
+  air.max2 = await p.evaluate(() => +__air.max.toFixed(2)); await snap('fly-top');
+  check(air.max > preMax + 1 && air.max > 20, '제출 뒤 Space 연타 → 2단 점프(' + preMax + ')보다 높이 날기 (최고 ' + air.max + ', 날갯짓 ' + air.fly + ')');
+  check(air.max2 <= 25.01, '날기 높이 상한 25를 안 넘음 (상한에서 더 눌러도 ' + air.max2 + ')');
+  check(air.camAtMax > camG + 15 && air.scr[1] > 20 && air.scr[1] < H - 20 && air.scr[0] > 20 && air.scr[0] < W - 20, '높이 날 때 카메라가 따라감 (카메라 y ' + camG.toFixed(1) + ' → ' + air.camAtMax + ', 꼬꼬 화면 ' + air.scr.join(',') + ')');
+  airL = await airLand();
+  let camL = 0; for (let i = 0; i < 40; i++) { camL = await p.evaluate(() => __kk.camera.position.y); if (Math.abs(camL - camG) < 0.1) break; await p.waitForTimeout(100); }
+  check(airL.done && airL.land === 0 && airL.mode === 'walk', '날다가 손 떼면 땅에 내려앉음 (발 ' + airL.land + ')');
+  check(Math.abs(camL - camG) < 0.3, '내려앉으면 카메라 높이 제자리 (' + camG.toFixed(2) + ' → ' + camL.toFixed(2) + ')');
+  // 실내(마트): 벽 높이로 상한을 낮춰 벽 위로 못 나감
+  await p.evaluate(() => { __kk.S.room = null; }); await near('martDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
+  const inR = await p.evaluate(() => { const R = __kk.ROOMS.mart; __kk.teleport(R.cx, R.cz + 1.2, Math.PI); return { cx: R.cx, cz: R.cz, w: R.w, d: R.d, top: __kk.flyTop() }; }); await p.waitForTimeout(300);
+  air = await airRun(14, 140); await snap('fly-mart'); airL = await airLand(10000);
+  const inS = await p.evaluate(() => ({ room: __kk.S.room, x: __kk.S.x, z: __kk.S.z }));
+  check(inS.room === 'mart' && inR.top < 2.2 && air.max <= inR.top + 0.01 && air.fly > 2 && airL.done && inS.room === 'mart' && Math.abs(inS.x - inR.cx) < inR.w / 2 && Math.abs(inS.z - inR.cz) < inR.d / 2, '마트 안 날기: 천장 높이 상한 ' + inR.top.toFixed(2) + ' 안 (최고 ' + air.max + '), 방 안에 내려앉음');
+  await near('exit_mart', 0, -0.4); await space(); await p.waitForTimeout(900);
   // 제출 뒤 대사: 엄마 닭이 옛 퀘스트 대사(마트 가자) 대신 제출 뒤 대사
   await near('mom', -1.0, 0.2); await p.waitForTimeout(300); await space(); await p.waitForTimeout(1500);
   s0 = await p.evaluate(() => document.getElementById('dlg-text').textContent);
