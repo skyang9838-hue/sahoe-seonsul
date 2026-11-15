@@ -191,6 +191,8 @@ function place(name, x, z, { s = 1, h = 0, w = 0, ry = 0, solid = true, shrink =
     occluders.push({ x, z, r: Math.max(sx, sz) * 0.5, mats, outs, a: 1 });
   }
   if (solid) { const c = { x, z, hw: info.w * shrink / 2, hd: info.d * shrink / 2 }; if (top) c.top = top === true ? info.h : top; colliders.push(c); }
+  // 나무 잎 부분: 땅에서는 줄기만 막지만, 제출 뒤 날 때(S.roam)는 잎 높이에서 잎 너비만큼 막는다(몸이 나무를 뚫고 들어가지 않게)
+  if (solid && /^trees?_/.test(name)) colliders.push({ x, z, hw: info.w * 0.36, hd: info.d * 0.36, canopy: true, y0: info.h * 0.3, y1: info.h });
   return info;
 }
 const front = (b, gap = 0.6) => ({ x: b.x, z: b.z + b.d / 2 + gap });   // 건물 정면(남쪽) 문 앞 (place는 null을 돌려주지 않는다 — 못 받은 모델은 대체 상자)
@@ -252,6 +254,9 @@ function box(w, h, d, x, y, z, mat, ol = 0.02, parent = scene) {
 function buildWorld() {
   // 땅
   plane(112, 60, grass([21, 11]), 24, 0, 0);
+  // 바깥 넓은 풀밭(그림자 없음, 원래 땅판보다 조금 아래): 제출 뒤 높이 날 때 땅판 끝이 하늘에 드러나지 않게
+  const outer = new THREE.Mesh(new THREE.PlaneGeometry(320, 240), new THREE.MeshToonMaterial({ map: grass([60, 45]), gradientMap: GRAD_ENV }));
+  outer.rotation.x = -Math.PI / 2; outer.position.set(24, -0.12, 0); scene.add(outer);
   plane(49, 17.4, pavement([13, 5]), 45.5, -5.1, 0.006);
   plane(44, 3.6, dirt([11, 1.2]), -0.5, 2.2);
   // 연못
@@ -714,12 +719,16 @@ function addGate(x, need, lockedDlg) {
 /* ── 충돌 ──────────────────────────────────── */
 const HR = 0.36, STEP_EPS = 0.05;
 // feet: 꼬꼬 발 높이. 올라설 수 있는 소품(top)은 발이 그 위에 있으면 막지 않는다. top이 없는 것은 높이와 상관없이 막는다.
+function hitsBox(x, z, c) {
+  const dx = Math.max(Math.abs(x - c.x) - c.hw, 0), dz = Math.max(Math.abs(z - c.z) - c.hd, 0);
+  return dx * dx + dz * dz < HR * HR;
+}
 function blocked(x, z, feet = 0) {
   for (const c of colliders) {
     if (c.off) continue;
     if (c.top !== undefined && feet >= c.top - STEP_EPS) continue;
-    const dx = Math.max(Math.abs(x - c.x) - c.hw, 0), dz = Math.max(Math.abs(z - c.z) - c.hd, 0);
-    if (dx * dx + dz * dz < HR * HR) return c;
+    if (c.canopy && (!S.roam || feet >= c.y1 || feet + 1.0 <= c.y0 || hitsBox(S.x, S.z, c))) continue;   // 이미 잎 속이면 빠져나가게 둔다
+    if (hitsBox(x, z, c)) return c;
   }
   return null;
 }
@@ -928,6 +937,7 @@ function playVerb(t, done) {
   CAMS.verb = { p: [S.x - sx * C.side + f.x * C.ahead, C.up + lift, S.z - sz * C.side + f.z * C.ahead],
     l: [S.x + f.x * C.look, C.lookUp + lift, S.z + f.z * C.look] };
   setCam('verb');
+  $('zone-banner').classList.remove('show');   // 들어오자마자 시작해도 구역 띠가 동작 위에 남지 않게(세 곳 같은 화면)
   sfx.blip();
   VERB = { v, t0: performance.now(), done, ended: false };
   verbLog.push({ spot: t.spot, start: VERB.t0, end: 0 });   // 자동 검사용 기록(길이가 세 곳 같은지)
@@ -1512,6 +1522,9 @@ function loop() {
     // 날 때(제출 뒤)는 높이를 따라 카메라도 같이 올라간다(점프 높이까지는 지금처럼 거의 안 움직임)
     camFly += ((S.roam ? Math.max(0, J.z - J.base - 1.2) : 0) - camFly) * Math.min(1, dt * 4);
     tl.y += camGy + camFly + (J.z - J.base - camFly) * 0.25; tv.y += camGy + camFly;
+    // 높이 날수록 카메라를 꼬꼬 위쪽으로 돌려 내려다본다 → 지평선(맵 끝)이 화면에 안 들어온다
+    const fk = Math.min(1, Math.max(0, (camFly - 2) / 10));
+    if (fk > 0) { const back = tv.z - tl.z; tl.z += (S.z - tl.z) * fk; tv.z = tl.z + back * (1 - 0.75 * fk); }   // 보는 곳도 꼬꼬 쪽으로 → 꼬꼬가 화면 가운데
     camLook.lerp(tl, Math.min(1, dt * 6));
     camPos.lerp(tv, Math.min(1, dt * 4));
   }
@@ -1520,6 +1533,7 @@ function loop() {
   // 실내면 하늘 대신 어두운 바탕
   const inside = camLook.z < -50;
   if (inside !== wasInside) { wasInside = inside; scene.background = inside ? INSIDE_BG : SKY; scene.fog.color.set(inside ? 0x2b211a : 0xcfe9ff); }
+  scene.fog.near = 26 + camFly; scene.fog.far = 62 + camFly;   // 높이 날 때 땅이 안개에 묻히지 않게(날지 않으면 그대로)
   waterUniform.value += dt;
   if (POLL.on && POLL.flow) { const f = navT * 1.3 % 1; POLL.flow.offset.y += dt * 1.6; POLL.splash.scale.set(1 + f * 0.35, 1 + f * 0.35, 1); POLL.splash.material.opacity = 0.9 - f * 0.5; }
   for (const c of clouds) { c.position.x += c.userData.drift * dt; if (c.position.x > 150) c.position.x = -40; }
