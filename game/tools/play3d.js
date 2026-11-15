@@ -281,11 +281,18 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('(0/3)')), '3장 퀘스트: 세 곳 (0/3)');
   // 3장 세 곳(순서 자유): 광고판 → 회의실 빈 의자 → 강가 순서로 가 본다. 곳마다 연출(검은 전환·카메라·강조·초상화)을 재서 셋이 같은지 본다
   const fx3 = {};
+  // 기기가 느려도 놓치지 않게: 검은 전환(#fade.on)과 조사 동작은 페이지 안에서 기록해 두고 읽는다
+  await p.evaluate(() => { window.__fadeLog = []; const f = document.getElementById('fade');
+    new MutationObserver(() => { if (f.classList.contains('on')) __fadeLog.push(performance.now()); }).observe(f, { attributes: true, attributeFilter: ['class'] }); });
+  let mark = { fade: 0, verb: 0 };
+  const arm = async () => { mark = await p.evaluate(() => ({ fade: __fadeLog.length, verb: __kk.verbLog.length })); };
   const spotRun = async (id, tag) => {
     // 원문 줄이 뜰 때까지: 검은 전환이 있었는지, 카메라 연출이 켜졌는지
-    let faded = false; const t0 = Date.now();
-    while (Date.now() - t0 < 6000) {
-      const r = await p.evaluate(() => [document.getElementById('fade').classList.contains('on'), __kk.S.mode, !document.getElementById('dialogue').classList.contains('hide')]);
+    // 먼저 조사 동작(동사): 키 한 번 + 짧은 행동. 중간 장면을 찍고 길이를 잰다(세 곳 같아야 함)
+    let faded = false, verbShot = false; const t0 = Date.now();
+    while (Date.now() - t0 < 10000) {
+      const r = await p.evaluate(() => [document.getElementById('fade').classList.contains('on'), __kk.S.mode, !document.getElementById('dialogue').classList.contains('hide'), __kk.verb]);
+      if (r[3] && !r[3].ended && !verbShot && r[3].t > 700) { verbShot = true; await snap('verb-' + id); }
       if (r[0]) faded = true;
       if (r[1] === 'talk' && r[2] && !r[0]) break;
       await p.waitForTimeout(40);
@@ -293,27 +300,31 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     await p.waitForTimeout(500);
     const r = await p.evaluate(() => ({ talk: __kk.S.mode === 'talk', emph: document.getElementById('dialogue').classList.contains('emph'), cam: !!__kk.S.cam,
       face: !document.getElementById('dlg-big').classList.contains('hide'), cut: !document.getElementById('cutin').classList.contains('hide'), name: document.getElementById('dlg-name').textContent }));
-    fx3[id] = JSON.stringify({ faded, emph: r.emph, cam: r.cam, face: r.face, cut: r.cut, name: r.name });
+    const lg = await p.evaluate((m) => ({ v: __kk.verbLog.slice(m.verb), f: __fadeLog.slice(m.fade) }), mark);
+    const vv = lg.v.length === 1 && lg.v[0].end ? lg.v[0] : null, vsec = vv ? (vv.end - vv.start) / 1000 : 0, vlen = Math.round(vsec * 2) / 2;   // 비교는 0.5초 단위(프레임 간격 오차)
+    faded = faded || (!!vv && lg.f.some((t) => t >= vv.end));   // 동작이 끝난 뒤 원문 줄의 검은 전환
+    check(!!vv && vlen > 0, tag + ' → 조사 동작 ' + vsec.toFixed(2) + '초' + (verbShot ? ' (중간 장면 찍음)' : ' (기기가 느려 중간 장면 못 찍음)'));
+    fx3[id] = JSON.stringify({ verb: vlen, faded, emph: r.emph, cam: r.cam, face: r.face, cut: r.cut, name: r.name });
     check(r.talk && r.emph && faded && r.cam, tag + ' → 원문 대사 (' + fx3[id] + ')');
     await dlgFit(tag);
   };
   // 광고판: 앞까지 걸어가서 반짝이는 자리에 서기
   await near('adboard', 0, 2.2); await p.waitForTimeout(300); await labelsBelowTop('광고판 앞');
-  await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
+  await arm(); await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
   await spotRun('adboard', '광고판'); await snap('spot-ad'); await finishTalk(); await p.waitForTimeout(600);
   s = await st(); check(s.mode === 'walk' && s.ex !== 'panel' && s.flags.seen_adboard, '광고판만 보면 패널 안 열림 (' + s.mode + '/' + s.ex + ')');
   check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('(1/3)')), '퀘스트 (1/3)');
   // 회의실: 문 → 빈 의자
   await near('meetDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
   check(await p.evaluate(() => __kk.S.room === 'meet'), '회의실 안'); await p.waitForTimeout(500); await snap('meet-in'); await labelsBelowTop('회의실 안');
-  await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
+  await arm(); await holdUntil('ArrowUp', async () => (await st()).mode !== 'walk', 6000);
   await spotRun('seat', '회의실 빈 의자'); await snap('spot-meeting'); await finishTalk(); await p.waitForTimeout(600);
   s = await st(); check(s.mode === 'walk' && s.ex !== 'panel' && !(await p.evaluate(() => __kk.S.sit)), '두 곳 뒤에도 패널 안 열림, 의자에서 일어남 (' + s.mode + ')');
   check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('나가')), '안 본 곳이 바깥이면 나가기 안내');
   await near('exit_meet', 0, -0.4); await space(); await p.waitForTimeout(900);
   // 강가: 배수관 옆 자리로 걸어가기
   await near('riverside', -2.2, 0); await p.waitForTimeout(300); await labelsBelowTop('강가');
-  await holdUntil('ArrowRight', async () => (await st()).mode !== 'walk', 6000);
+  await arm(); await holdUntil('ArrowRight', async () => (await st()).mode !== 'walk', 6000);
   await spotRun('riverside', '강가'); await snap('spot-river');
   check(fx3.adboard === fx3.seat && fx3.seat === fx3.riverside, '세 곳 연출이 같음');
   await finishTalk(); await p.waitForTimeout(900);

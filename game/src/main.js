@@ -6,7 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
-import { buildChicken, buildCritter } from './chars.js?v=12';
+import { buildChicken, buildCritter } from './chars.js?v=13';
 import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=14';
 import * as EXAM from './exam.js?v=18';
 
@@ -123,7 +123,7 @@ const protos = {};
 const MODELS = ['home', 'market', 'well', 'windmill', 'bench', 'streetlight', 'bush', 'box', 'barrel',
   'tree_single_A', 'tree_single_B', 'trees_A_medium', 'trees_B_small', 'rock_single_A', 'rock_single_C',
   'fence_wood_straight', 'crate_A_small', 'crate_A_big', 'cloud_big', 'crate_carrots', 'crate_tomatoes', 'crate_lettuce',
-  'building_G', 'car_sedan', 'firehydrant', 'dumpster'];
+  'building_G', 'car_sedan', 'firehydrant', 'dumpster', 'bowl'];
 const ALIAS = { building_G: 'office' };
 // 모델 하나: 시간 제한 15초, 실패하면 2번 더 받는다. 끝내 못 받으면 null(그 자리는 대체 상자)
 const texCache = {};   // KayKit 아틀라스는 파일마다 같은 그림 → 이름·크기가 같으면 텍스처 하나를 같이 쓴다
@@ -364,6 +364,7 @@ function buildWorld() {
   const voidPlane = new THREE.Mesh(new THREE.PlaneGeometry(170, 46), new THREE.MeshBasicMaterial({ color: 0x2b211a }));
   voidPlane.rotation.x = -Math.PI / 2; voidPlane.position.set(30, -0.02, -80); scene.add(voidPlane);
   buildHomeRoom(); buildMart(); buildFactoryRoom(); buildMeetRoom();
+  buildVerbProps();
   NPCS.forEach((n) => { TH[n.id] = n; });
 }
 
@@ -843,12 +844,105 @@ function runScene(t) {
   } else if (t.spot) {   // 3장 세 곳은 똑같은 방식: 자리에 서기 → 원문 한 줄 → 세 곳을 다 봤으면 3장 패널
     if (t.id === 'seat') { S.x = 80; S.z = -78.45; S.sit = true; } else { S.x = t.x; S.z = t.z; }
     S.face = t.face;
-    setTimeout(() => talk(DIALOGUE[t.spot], () => {
+    playVerb(t, () => talk(DIALOGUE[t.spot], () => {
       if (!S.flags['seen_' + t.spot]) { S.flags['seen_' + t.spot] = true; EXAM.saveLocal(S); }
       if (!spotsLeft().length) { openChapter(2); return; }
       if (S.sit) { S.sit = false; S.z = -77.4; S.face = 0; }
-    }), 450);
+    }));
   }
+}
+/* ── 3장 세 곳 조사 동작(동사) ──────────────────
+   자리에 서면 키 한 번(또는 저절로) → 짧은 행동 → 원문 한 줄. 미니게임 아님, 결과는 늘 같다.
+   세 곳은 길이·효과음(blip 한 번)·카메라 다가가기가 모두 같아야 한다 — 한 곳만 길거나 세면 답이 될 줄을 골라 주는 셈.
+   그래서 시간·소리·카메라는 playVerb 하나가 맡고, 곳마다 다른 것은 VERBS의 자세(pose)·소품(prop)뿐이다. */
+const VERB_MS = 1500;          // 동작 길이(세 곳 같음)
+const VERB_TIDY_MS = 380;      // 동작이 끝나고 원문 줄의 검은 전환(fade)이 화면을 덮은 뒤에 소품·자세를 되돌린다
+const VERB_CAM = { side: 3.4, ahead: 1.4, up: 2.4, look: 0.45, lookUp: 0.9 };   // 꼬꼬 옆 앞쪽에서 꼬꼬와 소품을 함께
+const VP = {};                 // 동작 소품: paper(회의실 탁자 서류), ramen(라면 그릇)
+let VERB = null;               // 지금 하는 동작 { v, t0, done, ended }
+const verbLog = [];
+const ease01 = (k) => k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
+const span = (k, a, b) => ease01((k - a) / (b - a));
+function buildVerbProps() {
+  // 회의실 탁자 위 서류: 글자 없는 얇은 판(평소에도 탁자 위에 놓여 있다)
+  const paper = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.012, 0.52), tm(0xfbf6ea));
+  paper.castShadow = true; addOutline(paper, 0.008);
+  const home = { p: new THREE.Vector3(80, 0.862, -79.42), r: new THREE.Euler(0, 0.12, 0) };
+  paper.position.copy(home.p); paper.rotation.copy(home.r); scene.add(paper);
+  VP.paper = { m: paper, home };
+  // 라면 그릇: 면만 가득, 채소는 작은 초록 조각 둘(원문: 광고엔 채소 가득, 실제로는 거의 없음). 평소엔 숨김
+  const g = new THREE.Group(); g.visible = false; scene.add(g);
+  const bw = 0.5;
+  const pb = protos.bowl, bowlH = pb && !pb.fallback ? pb.size.y * bw / pb.size.x : 0.2;
+  if (pb && !pb.fallback) { const b = pb.holder.clone(true); const sc = bw / pb.size.x; toonify(b, { outline: 0.015 / sc }); b.scale.setScalar(sc); g.add(b); }
+  else { const b = new THREE.Mesh(new THREE.CylinderGeometry(bw / 2, bw * 0.32, bowlH, 24, 1, true), toon(0xf4efe6, { env: true })); b.material.side = THREE.DoubleSide; b.position.y = bowlH / 2; addOutline(b, 0.012); g.add(b); }
+  const top = bowlH * 0.82, R = bw * 0.4;
+  const soup = new THREE.Mesh(new THREE.CircleGeometry(R, 24), toon(0xd8642e)); soup.rotation.x = -Math.PI / 2; soup.position.y = top; g.add(soup);
+  const noodleM = toon(0xf3d58a), rr = rnd(31);
+  for (let i = 0; i < 9; i++) {
+    const n = new THREE.Mesh(new THREE.TorusGeometry(R * (0.25 + rr() * 0.35), 0.014, 5, 20), noodleM);
+    n.rotation.x = -Math.PI / 2; n.rotation.z = rr() * 6; n.scale.set(1, 0.55 + rr() * 0.5, 1);
+    n.position.set((rr() - 0.5) * R * 0.5, top + 0.008 + i * 0.002, (rr() - 0.5) * R * 0.5); g.add(n);
+  }
+  const greenM = toon(0x4caf50);
+  [[0.09, 0.05], [-0.06, -0.08]].forEach(([x, z]) => { const v = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.012, 0.025), greenM); v.position.set(x, top + 0.03, z); v.rotation.y = x * 20; g.add(v); });
+  VP.ramen = { g };
+}
+const fwd = (face, d) => ({ x: Math.sin(face) * d, z: Math.cos(face) * d });
+// 곳마다 다른 것: 바라보는 쪽(face), 자세(pose: headX·lean·wing·sy), 소품(prop). k는 0→1 진행
+const VERBS = {
+  meeting: {   // 의자에 앉은 채 탁자 위 서류를 집어 들여다본다
+    pose: (k) => ({ headX: 0.32 * span(k, 0.25, 0.5), wing: span(k, 0, 0.25) }),
+    prop(k) {
+      const P = VP.paper, f = fwd(S.face, 0.62), u = span(k, 0.05, 0.35);
+      const hand = new THREE.Vector3(S.x + f.x, 0.42 + 0.72, S.z + f.z);
+      P.m.position.lerpVectors(P.home.p, hand, u);
+      // 꼬꼬 쪽으로 세워 든다: 꼬꼬와 같은 방향(+π)으로 돌리고 먼 쪽 끝을 들어 올림
+      const yawT = Math.atan2(Math.sin(S.face + Math.PI), Math.cos(S.face + Math.PI)), y0 = P.home.r.y;
+      P.m.rotation.set(0.75 * u, y0 + (yawT - y0) * u, 0, 'YXZ');
+    },
+    tidy() { const P = VP.paper; P.m.position.copy(P.home.p); P.m.rotation.copy(P.home.r); },
+  },
+  adboard: {   // 광고판을 올려다본 뒤, 앞에 나타난 라면 그릇을 내려다본다
+    pose: (k) => ({ headX: k < 0.42 ? -0.5 * span(k, 0, 0.2) : 0.5 * span(k, 0.42, 0.6) }),
+    prop(k) {
+      const g = VP.ramen.g, f = fwd(S.face, 0.62);
+      if (k < 0.4) { g.visible = false; return; }
+      if (!g.visible) { g.visible = true; g.position.set(S.x + f.x, 0, S.z + f.z); puff(S.x + f.x, S.z + f.z, 6); }
+      g.scale.setScalar(Math.min(1, (k - 0.4) / 0.1) * (1 + 0.12 * Math.sin(Math.min(1, (k - 0.4) / 0.16) * Math.PI)));
+    },
+    tidy() { VP.ramen.g.visible = false; },
+  },
+  riverside: { face: 0,   // 강가에 쪼그려 앉아 물을 들여다본다(고개 숙임)
+    pose: (k) => { const u = span(k, 0, 0.3); return { headX: 0.55 * span(k, 0.15, 0.45), lean: 0.28 * u, sy: 1 - 0.2 * u }; },
+    prop() {}, tidy() {},
+  },
+};
+function playVerb(t, done) {
+  const v = VERBS[t.spot];
+  if (!v) { done(); return; }
+  if (v.face !== undefined) S.face = v.face;
+  // 카메라: 꼬꼬 옆 앞쪽으로 다가간다(lookAt처럼 setCam으로 — 자리만 꼬꼬 기준으로 계산, 세 곳 같은 거리)
+  const lift = S.sit ? 0.42 : 0, f = fwd(S.face, 1), sx = Math.cos(S.face), sz = -Math.sin(S.face), C = VERB_CAM;
+  CAMS.verb = { p: [S.x - sx * C.side + f.x * C.ahead, C.up + lift, S.z - sz * C.side + f.z * C.ahead],
+    l: [S.x + f.x * C.look, C.lookUp + lift, S.z + f.z * C.look] };
+  setCam('verb');
+  sfx.blip();
+  VERB = { v, t0: performance.now(), done, ended: false };
+  verbLog.push({ spot: t.spot, start: VERB.t0, end: 0 });   // 자동 검사용 기록(길이가 세 곳 같은지)
+}
+// 매 프레임: 진행(k)에 맞춰 자세·소품. 끝나면 원문 줄로 넘기고, 검은 전환 뒤 되돌린다
+function updateVerb() {
+  if (!VERB) return null;
+  const k = Math.min(1, (performance.now() - VERB.t0) / VERB_MS);
+  VERB.v.prop(k);
+  const pose = VERB.v.pose(k);
+  if (k >= 1 && !VERB.ended) {
+    VERB.ended = true; const V = VERB; verbLog[verbLog.length - 1].end = performance.now();
+    setTimeout(() => { V.v.tidy(); if (VERB === V) VERB = null; }, VERB_TIDY_MS);
+    V.done();
+  }
+  return pose;
 }
 // 꼬꼬 방 단서 살펴보기: 꼬꼬가 옆으로 비켜 서서 물건을 보고, 카메라가 물건 쪽으로 다가간다(대사가 끝나면 원래 카메라)
 function lookAt(t) {
@@ -1339,7 +1433,9 @@ function loop() {
   hero.root.position.set(S.x, 0, S.z);
   let dy = S.face - hero.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   hero.root.rotation.y += dy * Math.min(1, dt * 12);
-  hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy, lift: J.z + (S.sit ? 0.42 : 0), spin: J.spin * Math.PI * 2 });
+  const pose = updateVerb() || {};
+  hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy: sy * (pose.sy || 1), lift: J.z + (S.sit ? 0.42 : 0), spin: J.spin * Math.PI * 2,
+    headX: pose.headX, lean: pose.lean, wing: pose.wing });
   for (const n of NPCS) {
     let mv = false;
     if (n.walk) {
@@ -1412,7 +1508,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { S, J, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
+window.__kk = { get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, S, J, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {

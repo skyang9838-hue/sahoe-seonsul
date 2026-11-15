@@ -253,7 +253,7 @@ export function buildCritter(kind, opts = {}) {
 // 절차 애니메이션: 걷기 뒤뚱, 숨쉬기, 깜빡임, 말하기, 점프 찌그러짐, 둘러보기
 function makeActor(root, rig, parts) {
   const st = { t: Math.random() * 10, walk: 0, blinkT: 1 + Math.random() * 3, blink: 0, talk: false,
-    lookT: 3 + Math.random() * 4, lookY: 0, mood: '', sx: 1, sy: 1, lift: 0, spin: 0 };
+    lookT: 3 + Math.random() * 4, lookY: 0, mood: '', sx: 1, sy: 1, lift: 0, spin: 0, hx: 0, lean: 0, wing: 0 };
   function update(dt, s = {}) {
     st.t += dt;
     const moving = !!s.moving;
@@ -261,7 +261,10 @@ function makeActor(root, rig, parts) {
     const w = moving ? 1 : 0;
     // 몸 뒤뚱
     rig.rotation.z = Math.sin(st.walk) * 0.11 * w;
-    rig.rotation.x = moving ? 0.08 : 0;
+    // 동작 자세(3장 조사 등): headX 고개 숙임(+)·듦(-), lean 몸 앞으로 기울임, wing 날개 앞으로 들기(0~1). 부드럽게 따라간다
+    const ease = Math.min(1, dt * 9);
+    st.hx += ((s.headX || 0) - st.hx) * ease; st.lean += ((s.lean || 0) - st.lean) * ease; st.wing += ((s.wing || 0) - st.wing) * ease;
+    rig.rotation.x = (moving ? 0.08 : 0) + st.lean;
     // 다리 번갈아
     parts.legs.forEach((l, i) => {
       const ph = st.walk + (i ? Math.PI : 0);
@@ -270,7 +273,7 @@ function makeActor(root, rig, parts) {
     });
     // 날개
     const flap = s.jumping ? Math.sin(st.t * 28) * 0.9 + 0.6 : moving ? Math.sin(st.walk * 2) * 0.25 + 0.15 : Math.sin(st.t * 2) * 0.05;
-    parts.wings.forEach((p, i) => { p.rotation.z = (i ? -1 : 1) * flap; });
+    parts.wings.forEach((p, i) => { p.rotation.z = (i ? -1 : 1) * flap * (1 - st.wing); p.rotation.x = -st.wing * 1.1; });
     parts.tail.rotation.x = Math.sin(st.t * 3 + st.walk) * 0.08;
     // 숨쉬기 + 찌그러짐(점프)
     const breath = moving ? 0 : Math.sin(st.t * 2.6) * 0.022;
@@ -288,8 +291,10 @@ function makeActor(root, rig, parts) {
     // 둘러보기
     st.lookT -= dt;
     if (st.lookT <= 0) { st.lookY = moving ? 0 : (Math.random() - 0.5) * 1.1; st.lookT = 2.5 + Math.random() * 4; }
+    if (s.headX) st.lookY = 0;   // 무언가를 들여다보는 동안은 두리번거리지 않는다
     parts.head.rotation.y += ((moving ? 0 : st.lookY) - parts.head.rotation.y) * Math.min(1, dt * 4);
     parts.head.rotation.z = st.mood === 'worry' ? 0.18 : 0;
+    parts.head.rotation.x = st.hx;
     // 말하기: 아래 부리 여닫기 + 고개 까딱
     const talk = st.talk ? Math.max(0, Math.sin(st.t * 18)) : 0;
     if (parts.beakBot) parts.beakBot.rotation.x = Math.PI / 2 + talk * 0.5;
