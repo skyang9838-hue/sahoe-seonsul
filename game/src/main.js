@@ -382,10 +382,11 @@ function texConcrete(rep) { return canvasTex(256, 256, (g, w, h) => {
 }, rep); }
 const matCache = {};
 const tm = (c) => matCache[c] || (matCache[c] = toon(c, { env: true }));
+const ROOM_H = 3.0;   // 방 벽 높이(제출 뒤 날기 높이 상한도 이것으로 정한다)
 // 지붕 없는 방: 뒷벽·옆벽은 높게, 앞벽(카메라 쪽)은 낮게, 앞 가운데에 나가는 문
 function buildRoom(id, cx, cz, w, d, { floor, wall, trim }) {
   plane(w, d, floor, cx, cz, 0.01);
-  const wm = toon(wall, { env: true }), trm = toon(trim, { env: true }), H = 3.0, T = 0.3;
+  const wm = toon(wall, { env: true }), trm = toon(trim, { env: true }), H = ROOM_H, T = 0.3;
   box(w + T * 2, H, T, cx, H / 2, cz - d / 2 - T / 2, wm);
   box(T, H, d, cx - w / 2 - T / 2, H / 2, cz, wm); box(T, H, d, cx + w / 2 + T / 2, H / 2, cz, wm);
   box(w, 0.3, 0.06, cx, 0.15, cz - d / 2 + 0.03, trm, 0.012);
@@ -817,7 +818,7 @@ function camTarget(x, z, close = 1) {
   const k = close * OUT_CAM.far, lz = z - (close < 1 ? OUT_CAM.lookTalk : OUT_CAM.look);
   tl.set(x, 0.7, lz); tv.set(x + CAM_OFF.x, CAM_OFF.y * k, lz + CAM_OFF.z * k);
 }
-function landNow() { Object.assign(J, { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, base: 0 }); camGy = 0; }
+function landNow() { Object.assign(J, { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, base: 0, fly: 0, flapT: 0 }); camGy = 0; camFly = 0; }
 function teleport(x, z, face) {
   S.x = x; S.z = z; S.face = face; hero.root.rotation.y = face; landNow();
   camTarget(x, z); camPos.copy(tv); camLook.copy(tl);
@@ -1393,11 +1394,22 @@ function updateOccluders(dt) {
 
 /* ── 입력 ──────────────────────────────────── */
 const keys = {};
-const J = { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, land: 0, base: 0 };   // z: 발 높이(땅 0, 소품 위면 그 윗면), base: 마지막으로 딛은 높이
+const J = { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, land: 0, base: 0, fly: 0, flapT: 0 };   // z: 발 높이(땅 0, 소품 위면 그 윗면), base: 마지막으로 딛은 높이, fly: 이번 점프의 날갯짓 횟수(제출 뒤만)
 const GRAV = 26, V0 = 8.2, V2 = 6.4;
+// 제출 뒤(S.roam) 날기: 공중에서 Space마다 날갯짓(횟수 제한 없음). 바깥은 땅 위 FLY_TOP까지,
+// 실내 방(지붕 없음, 벽 높이 ROOM_H)은 꼬꼬 머리가 벽 위로 안 나오게 낮춘다. 날갯짓한 뒤에는 천천히 내려온다(FLY_FALL)
+const FLY_TOP = 25, HERO_H = 1.1, FLY_FALL = 7;
+function flyTop() { return S.room ? ROOM_H - HERO_H : FLY_TOP; }
 function jump() {
-  if (!J.on) { Object.assign(J, { on: true, pre: 0.06, vz: 0, dbl: false, spin: 0, base: J.z }); return; }
+  if (!J.on) { Object.assign(J, { on: true, pre: 0.06, vz: 0, dbl: false, spin: 0, base: J.z, fly: 0, flapT: 0 }); return; }
+  if (S.roam) { if (J.pre <= 0) flap(); return; }   // 제출 전에는 아래 2단 점프 그대로
   if (!J.dbl && J.pre <= 0) { J.dbl = true; J.vz = V2; J.spin = 0.0001; sfx.jump2(); puff(S.x, S.z, 6); }
+}
+function flap() {
+  if (!J.dbl) J.spin = 0.0001;   // 첫 날갯짓은 2단 점프처럼 한 바퀴
+  J.dbl = true; J.fly++; J.flapT = 0.28;
+  J.vz = J.z >= flyTop() - 0.05 ? 0 : V2;
+  sfx.jump2(); puff(S.x, S.z, 3, J.z);
 }
 addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
@@ -1407,7 +1419,7 @@ addEventListener('keydown', (e) => {
   if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
   if (S.mode !== 'walk') return;
   if (e.code === 'Escape') { openNotebook(); return; }
-  if (e.code === 'Space' && !e.repeat) { const t = nearestThing(); if (t) interact(t); else jump(); return; }
+  if (e.code === 'Space' && !e.repeat) { const t = nearestThing(); if (t && !(S.roam && J.on && J.z > 2.3)) interact(t); else jump(); return; }   // 높이 나는 중에는 말 걸기 대신 날갯짓
   keys[e.code] = true;
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -1416,7 +1428,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 /* ── 루프 ──────────────────────────────────── */
 const clock = new THREE.Clock();
 const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tv = new THREE.Vector3(), tl = new THREE.Vector3();
-let camGy = 0, stepT = 0, fpsT0 = performance.now(), fpsN = 0, lowT = 0, highT = 0, gateCool = 0, wasInside = false;
+let camGy = 0, camFly = 0, stepT = 0, fpsT0 = performance.now(), fpsN = 0, lowT = 0, highT = 0, gateCool = 0, wasInside = false;
 const SKY = scene.background, INSIDE_BG = new THREE.Color(0x2b211a);
 function loop() {
   if (S.mode === 'start' || S.mode === 'pledge') { clock.getDelta(); fpsT0 = performance.now(); fpsN = 0; requestAnimationFrame(loop); return; }   // 포스터·판깔기가 화면을 다 덮는 동안은 3D를 그리지 않는다
@@ -1450,11 +1462,13 @@ function loop() {
     if (J.pre > 0) { J.pre -= dt; sy = 0.8; sx = 1.15; if (J.pre <= 0) { J.vz = V0; sfx.jump(); } }
     else {
       const prevZ = J.z;
-      J.z += J.vz * dt - GRAV * dt * dt / 2; J.vz -= GRAV * dt;   // 정확한 적분: 프레임 수와 상관없이 정점이 같다(V0²/2g ≈ 1.29)
+      if (J.fly && J.vz <= -FLY_FALL) { J.z -= FLY_FALL * dt; J.vz = -FLY_FALL; }   // 날갯짓한 뒤에는 활공하듯 천천히
+      else { J.z += J.vz * dt - GRAV * dt * dt / 2; J.vz -= GRAV * dt; }   // 정확한 적분: 프레임 수와 상관없이 정점이 같다(V0²/2g ≈ 1.29)
+      if (S.roam) { const top = flyTop(); if (J.z > top) { J.z = top; if (J.vz > 0) J.vz = 0; } }
       const v = J.vz / V0; sy = 1 + Math.max(-0.06, Math.min(0.15, v * 0.15)); sx = 1 - (sy - 1) * 0.6;
       if (J.spin) J.spin = Math.min(1, J.spin + dt / 0.45);
       const g = J.vz <= 0 ? groundAt(S.x, S.z, prevZ) : -1;
-      if (J.z <= g) { J.z = g; J.base = g; J.on = false; J.spin = 0; J.land = 0.14; puff(S.x, S.z, 8, g); sfx.land(); }
+      if (J.z <= g) { J.z = g; J.base = g; J.on = false; J.spin = 0; J.fly = 0; J.flapT = 0; J.land = 0.14; puff(S.x, S.z, 8, g); sfx.land(); }
     }
   }
   if (J.land > 0) { J.land -= dt; sy *= 0.78; sx *= 1.2; }
@@ -1464,6 +1478,12 @@ function loop() {
   const pose = updateVerb() || {};
   hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy: sy * (pose.sy || 1), lift: J.z + (S.sit ? 0.42 : 0), spin: J.spin * Math.PI * 2,
     headX: pose.headX, lean: pose.lean, wing: pose.wing });
+  // 날기: 날갯짓 직후엔 크게 퍼덕이고, 내려올 때는 날개를 펴고 살랑
+  if (J.fly && J.on) {
+    J.flapT -= dt;
+    const w = J.flapT > 0 ? Math.sin(J.flapT * 45) * 1.0 + 0.8 : 1.15 + Math.sin(navT * 9) * 0.12;
+    hero.parts.wings.forEach((p, i) => { p.rotation.z = (i ? -1 : 1) * w; });
+  }
   for (const n of NPCS) {
     let mv = false;
     if (n.walk) {
@@ -1489,7 +1509,9 @@ function loop() {
   else {
     camTarget(S.x, S.z, S.mode === 'talk' ? 0.72 : 1);
     camGy += (J.base - camGy) * Math.min(1, dt * 5);      // 소품 위에 서면 카메라도 천천히 그만큼 올라간다
-    tl.y += camGy + (J.z - J.base) * 0.25; tv.y += camGy;
+    // 날 때(제출 뒤)는 높이를 따라 카메라도 같이 올라간다(점프 높이까지는 지금처럼 거의 안 움직임)
+    camFly += ((S.roam ? Math.max(0, J.z - J.base - 1.2) : 0) - camFly) * Math.min(1, dt * 4);
+    tl.y += camGy + camFly + (J.z - J.base - camFly) * 0.25; tv.y += camGy + camFly;
     camLook.lerp(tl, Math.min(1, dt * 6));
     camPos.lerp(tv, Math.min(1, dt * 4));
   }
@@ -1536,7 +1558,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, S, J, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
+window.__kk = { get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, S, J, FLY_TOP, flyTop, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {
@@ -1584,7 +1606,7 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
       if (!S.placed) placeWorld(st, [-12, 2.4]);   // 새로고침 뒤 바로 끝 화면이었으면 마을 입구에서
       else { S.progress = Math.max(S.progress, st.progress || 3); setPollution(true); renderHUD(); }
       for (const k in keys) keys[k] = false;
-      $('kbd-nb').textContent = 'Esc 내 답 보기';
+      $('kbd-nb').textContent = 'Space 연타 날기 · Esc 내 답 보기';
       S.cam = null; S.sit = false; zoneShown = ''; S.mode = 'walk';
     },
     getFlags: () => S.flags,
