@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=12';
 import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=14';
-import * as EXAM from './exam.js?v=18';
+import * as EXAM from './exam.js?v=19';
 
 const $ = (id) => document.getElementById(id);
 
@@ -995,6 +995,33 @@ function advance() {
   if (S.mode === 'walk' && talkQueue.length) { const q = talkQueue.shift(); talk(q[0], q[1], q[2], q[3]); }
 }
 
+/* ── 판깔기: 로그인 직후 검은 화면에 안내 네 줄 → "성실하게 하겠습니다"를 직접 쳐야 시작 ── */
+function showPledge(done) {
+  S.mode = 'pledge'; for (const k in keys) keys[k] = false;
+  const box = $('pledge'), lines = [...box.querySelectorAll('.pl-lines p')], ask = box.querySelector('.pl-ask'), inp = $('pledge-in');
+  const GOAL = '성실하게하겠습니다';
+  let finished = false;
+  lines.forEach((l) => l.classList.remove('on')); ask.classList.remove('on'); inp.value = ''; inp.classList.remove('bad');
+  box.classList.remove('hide');
+  lines.forEach((l, i) => setTimeout(() => l.classList.add('on'), 400 + i * 900));
+  setTimeout(() => { ask.classList.add('on'); box.dataset.ready = '1'; inp.focus(); }, 400 + lines.length * 900 + 300);
+  const block = (e) => { e.preventDefault(); };
+  const onBefore = (e) => { if (/^insertFrom(Paste|Drop)/.test(e.inputType || '')) e.preventDefault(); };
+  const onKey = (e) => {
+    if (e.key !== 'Enter' || finished) return;
+    e.preventDefault();
+    if (inp.value.replace(/\s/g, '') === GOAL) {
+      finished = true; inp.blur();
+      ['paste', 'drop'].forEach((t) => inp.removeEventListener(t, block)); inp.removeEventListener('beforeinput', onBefore); inp.removeEventListener('keydown', onKey);
+      box.classList.add('hide'); delete box.dataset.ready; audioUnlock(); done();
+    } else { inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad'); }
+  };
+  box.onclick = () => { if (box.dataset.ready) inp.focus(); };   // 바깥을 눌러도 칸에 다시 포커스
+  ['paste', 'drop'].forEach((t) => inp.addEventListener(t, block));
+  inp.addEventListener('beforeinput', onBefore);
+  inp.addEventListener('keydown', onKey);
+}
+
 /* ── 오프닝 컷신 ───────────────────────────── */
 function playOpening(done) {
   S.mode = 'comic'; let i = 0;
@@ -1280,7 +1307,7 @@ function jump() {
 }
 addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
-  if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start') return;   // 시험 화면은 exam.js가 처리
+  if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge') return;   // 시험 화면·판깔기는 따로 처리
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   audioUnlock();
   if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
@@ -1298,6 +1325,7 @@ const camPos = new THREE.Vector3(), camLook = new THREE.Vector3(), tv = new THRE
 let camGy = 0, stepT = 0, fpsT0 = performance.now(), fpsN = 0, lowT = 0, highT = 0, gateCool = 0, wasInside = false;
 const SKY = scene.background, INSIDE_BG = new THREE.Color(0x2b211a);
 function loop() {
+  if (S.mode === 'start' || S.mode === 'pledge') { clock.getDelta(); fpsT0 = performance.now(); fpsN = 0; requestAnimationFrame(loop); return; }   // 포스터·판깔기가 화면을 다 덮는 동안은 3D를 그리지 않는다
   const dt = Math.min(0.05, clock.getDelta());
   let moving = false;
   gateCool -= dt;
@@ -1453,7 +1481,7 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
     onStart: (st) => {                       // 반·번호·이름 등록 뒤
       placeWorld(st);
       const go = () => { S.mode = 'walk'; zoneShown = ''; enteredAt = performance.now(); if (S.progress >= 3) openNotebook(); };
-      if (st.fresh) playOpening(go); else go();
+      if (st.fresh) showPledge(() => playOpening(go)); else go();   // 판깔기는 처음 시작하는 학생에게만(이어하기·제출한 학생은 안 나옴)
     },
     onRoam: (st) => {                        // 끝 화면에서 '마을 돌아다니기'
       S.roam = true;

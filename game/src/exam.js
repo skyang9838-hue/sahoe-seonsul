@@ -360,7 +360,7 @@ function start() {
       S.progress = Math.max(S.progress, local.progress || 0); S.flags = local.flags || {};
     }
     if (S.submitted) S.progress = Math.max(S.progress, 3);
-    $("start-msg").textContent = ""; hide("ex-start"); hide("ex-root");
+    $("start-msg").textContent = ""; hide("ex-start"); hide("ex-root"); $("ex-root").classList.remove("on-poster");
     renderSaveState();
     if (S.dirty) save(false);
     // 이미 제출한 학생(새로고침 등): 끝 화면 말고 바로 마을 돌아다니기 — Esc 수첩에서 답 보기·고치기
@@ -454,6 +454,7 @@ export function init(hooks) {
   $("ex-banner-retry").addEventListener("click", () => save(false));
   $("end-view").addEventListener("click", endToNotebook);
   $("end-roam").addEventListener("click", roam);
+  $("ex-root").classList.add("on-poster");   // 시작 화면은 3D 흐림 배경 말고 움직이는 포스터
   show("ex-root"); show("ex-start"); setTimeout(() => $("in-ban").focus(), 60);
   window.__ex = { S, SRV, N_ANS, get mode() { return mode; }, get roaming() { return roaming; } };
 }

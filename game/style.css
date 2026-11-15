@@ -35,7 +35,11 @@ html,body{margin:0;height:100%;overflow:hidden;background:#1d2a1c;font-family:"J
 #letterbox::before{top:0}#letterbox::after{bottom:0}
 #letterbox.on::before,#letterbox.on::after{height:7vh}
 
-#loading{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#ffe9b8,#f2b46b);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s}
+#loading{position:absolute;inset:0;background:#1b120c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s;overflow:hidden}
+/* 로딩에도 시작 포스터를 흐리게 깔아, 로딩이 걷히면 같은 그림이 또렷해지며 이어지게 */
+#loading::before{content:"";position:absolute;inset:-24px;background:url("assets/title/poster.jpg?v=1") center/cover no-repeat;filter:blur(10px) brightness(.8)}
+#loading>*{position:relative}
+#ld-msg{background:rgba(255,248,236,.85);padding:2px 14px;border-radius:999px}
 #loading.done{opacity:0;pointer-events:none}
 .ld-title{font-size:58px;color:#fff;text-shadow:0 5px 0 #c24d18,0 9px 0 rgba(59,42,30,.3);-webkit-text-stroke:2px #8a3510}
 .ld-bar{width:320px;height:18px;border:3px solid var(--ink);border-radius:999px;background:#fff;overflow:hidden}
@@ -43,3 +47,22 @@ html,body{margin:0;height:100%;overflow:hidden;background:#1d2a1c;font-family:"J
 #ld-msg{color:var(--ink);font-size:16px}
 #fps{position:absolute;right:8px;bottom:6px;font:12px monospace;color:rgba(255,255,255,.7);display:none}
 body.debug #fps{display:block}
+
+/* 판깔기: 로그인 직후, 처음 시작하는 학생에게만 */
+#pledge{position:absolute;inset:0;z-index:45;background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(18px,4vh,40px);padding:0 6vw;font-family:"Gowun Dodum","Malgun Gothic",sans-serif;font-weight:700}
+.pl-lines p{margin:0 0 clamp(10px,2.2vh,22px);font-size:clamp(22px,3.3vw,46px);line-height:1.4;text-align:center;word-break:keep-all;opacity:0;transform:translateY(12px);transition:opacity .8s ease,transform .8s ease}
+.pl-lines p.on{opacity:1;transform:none}
+.pl-ask{display:flex;flex-direction:column;align-items:center;gap:12px;opacity:0;visibility:hidden;transition:opacity .6s ease}
+.pl-ask.on{opacity:1;visibility:visible}
+.pl-guide{font-size:clamp(16px,1.7vw,24px);color:#e8dccb;text-align:center;word-break:keep-all}
+.pl-guide b{color:#fff}
+#pledge-in{width:min(560px,80vw);padding:10px 16px;font:inherit;font-size:clamp(20px,2.2vw,30px);text-align:center;color:#fff;background:#111;border:3px solid #6b5b4c;border-radius:12px;outline:none}
+#pledge-in:focus{border-color:#f6b26b}
+#pledge-in.bad{border-color:#d64a3a;animation:plShake .4s ease}
+@keyframes plShake{0%,100%{transform:none}20%{transform:translateX(-10px)}40%{transform:translateX(9px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}
+.pl-key{font-size:14px;color:#a8998a}
+.pl-key .kbd{color:#3b2a1e}
+@media (prefers-reduced-motion: reduce){
+  .pl-lines p{transform:none;transition:opacity .2s}
+  #pledge-in.bad{animation:none}
+}
