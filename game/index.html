@@ -7,8 +7,8 @@
 <!-- 글꼴은 직접 둔다(assets/fonts, 필요한 글자만 뽑은 woff2) — 늦게 받아지거나 막혀서 패널 글자가 넘치지 않게 -->
 <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=9">
-<link rel="stylesheet" href="exam.css?v=20">
+<link rel="stylesheet" href="style.css?v=10">
+<link rel="stylesheet" href="exam.css?v=21">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -49,17 +49,23 @@
 
   <!-- 평가 화면(960×540 무대를 창에 맞춰 키움) -->
   <div id="ex-root" class="hide">
+    <div id="poster" aria-hidden="true">
+      <img class="pst-img" src="assets/title/poster.jpg?v=1" alt="">
+      <div class="pst-cloud c1"></div><div class="pst-cloud c2"></div>
+      <div class="pst-steam"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="pst-shade"></div>
+    </div>
     <div id="ex-stage">
       <div id="ex-start" class="ex-screen hide">
+        <h1 class="game-title poster-title" aria-label="꼬꼬의 첫 출근"><span aria-hidden="true"><i>꼬</i><i>꼬</i><i>의</i> <i>첫</i> <i>출</i><i>근</i></span></h1>
         <div class="start-card">
-          <h1 class="game-title">꼬꼬의 첫 출근</h1>
           <div class="sub">6학년 사회 서·논술형 평가</div>
           <div class="start-form">
             <label>6학년 <input id="in-ban" inputmode="numeric" maxlength="2" autocomplete="off"> 반</label>
             <label><input id="in-num" inputmode="numeric" maxlength="2" autocomplete="off"> 번</label>
+            <button id="btn-start" class="btn primary big">출근하기</button>
           </div>
           <div id="start-msg" class="msg"></div>
-          <button id="btn-start" class="btn primary big">출근하기</button>
           <div class="keys-hint"><span class="kbd">←↑↓→</span> 걷기 <span class="kbd">Space</span> 점프 · 말 걸기 <span class="kbd">Esc</span> 수첩</div>
         </div>
       </div>
@@ -111,6 +117,20 @@
     </div>
   </div>
 
+  <div id="pledge" class="hide" role="dialog" aria-modal="true" aria-label="시작 전 안내">
+    <div class="pl-lines">
+      <p>이것은 게임이 아닙니다.</p>
+      <p>사회과 서·논술형 수행평가입니다.</p>
+      <p>선생님이 직접 준비했고, 모든 답안을 직접 읽습니다.</p>
+      <p>같은 문항이 종이 평가지로도 있습니다. 성실하게 임해 주세요.</p>
+    </div>
+    <div class="pl-ask">
+      <div class="pl-guide">아래에 똑같이 입력하면 시작합니다: <b>성실하게 하겠습니다</b></div>
+      <input id="pledge-in" autocomplete="off" spellcheck="false" aria-label="성실하게 하겠습니다 입력">
+      <div class="pl-key">입력하고 <span class="kbd">Enter</span></div>
+    </div>
+  </div>
+
   <div id="loading"><div class="ld-title">꼬꼬의 첫 출근</div><div class="ld-bar"><div id="ld-fill"></div></div><div id="ld-msg">마을을 짓는 중…</div></div>
   <div id="fps"></div>
 </div>
@@ -126,6 +146,6 @@
   setTimeout(fail, 150000);
 })();
 </script>
-<script type="module" src="src/main.js?v=24"></script>
+<script type="module" src="src/main.js?v=25"></script>
 </body>
 </html>

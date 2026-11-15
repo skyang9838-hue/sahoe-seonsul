@@ -11,7 +11,10 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   if (NOFONT) await p.route(/\.woff2(\?|$)|fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   const errs = []; p.on('pageerror', (e) => errs.push(String(e))); p.on('response', (r) => { if (r.status() >= 400) console.log('  404', r.url()); });
   let n = 0; const snap = (name) => p.screenshot({ path: path.join(out, String(++n).padStart(2, '0') + '-' + name + '.png') });
-  await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload();
+  await p.goto(URL); await p.evaluate(() => localStorage.clear()); await p.reload({ waitUntil: 'domcontentloaded' });
+  // 로딩 화면: 시작 포스터를 흐리게 깔았는지
+  if (await p.evaluate(() => !document.getElementById('loading').classList.contains('done'))) { await p.waitForTimeout(300); await snap('loading'); }
+  check(await p.evaluate(() => /title\/poster\.jpg/.test(getComputedStyle(document.getElementById('loading'), '::before').backgroundImage)), '로딩 화면에 포스터를 흐리게 깔았음');
   await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 90000 });
   const st = () => p.evaluate(() => ({ mode: __kk.S.mode, x: __kk.S.x, z: __kk.S.z, prog: __kk.S.progress, flags: __kk.S.flags, quest: __kk.questCur(), ex: window.__ex && __ex.mode, ans: window.__ex && __ex.S.answers, sub: window.__ex && __ex.S.submitted }));
   const waitMode = async (m, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if ((await st()).mode === m) return true; await p.waitForTimeout(100); } return false; };
@@ -101,12 +104,47 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   const srvRow = () => p.evaluate(() => { const r = JSON.parse(localStorage.getItem('kkokko3d-v3-server') || '{}'); return r['0/0'] || null; });
   const act = () => p.evaluate(() => document.activeElement && document.activeElement.id);
   const login = async () => { await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.click('#btn-start'); };
-  await snap('start');
+  await p.waitForTimeout(1600); await snap('start-poster');
+  // 시작 화면 = 움직이는 포스터: 창 전체를 덮고(cover), 반·번호 카드는 아래쪽
+  s0 = await p.evaluate(() => { const r = document.getElementById('ex-root'), im = document.querySelector('#poster .pst-img'), b = im.getBoundingClientRect(), c = document.querySelector('.start-card').getBoundingClientRect(), t = document.querySelector('.poster-title').getBoundingClientRect();
+    return { on: r.classList.contains('on-poster'), vis: getComputedStyle(document.getElementById('poster')).display !== 'none', loaded: im.complete && im.naturalWidth > 0, fit: getComputedStyle(im).objectFit, cover: b.left <= 1 && b.top <= 1 && b.right >= innerWidth - 1 && b.bottom >= innerHeight - 1, card: [Math.round(c.top), Math.round(c.bottom)], title: [Math.round(t.top), Math.round(t.bottom)], H: innerHeight, anim: getComputedStyle(im).animationName }; });
+  check(s0.on && s0.vis && s0.loaded && s0.fit === 'cover' && s0.cover, '시작 화면: 포스터가 창 전체를 덮음 (' + s0.fit + ', 그림 받음 ' + s0.loaded + ')');
+  check(s0.anim === 'kenburns', '포스터 느린 확대 애니메이션 (' + s0.anim + ')');
+  check(s0.card[0] > s0.H * 0.6 && s0.card[1] <= s0.H && s0.title[1] < s0.card[0], '반·번호 카드는 화면 아래쪽, 제목과 안 겹침 (카드 ' + s0.card.join('~') + ' / 제목 ' + s0.title.join('~') + ' / 높이 ' + s0.H + ')');
   check(await p.evaluate(() => !document.getElementById('in-name') && !!document.getElementById('in-ban') && !!document.getElementById('in-num')), '시작 화면: 반·번호만(이름 칸 없음)');
   await p.click('#btn-start'); await p.waitForTimeout(200);
   check(await p.evaluate(() => document.getElementById('start-msg').textContent.includes('반과 번호')), '빈칸으로 출근하기 → 반·번호 안내');
   await login();
-  check(await waitMode('comic', 5000), '출근하기 → 오프닝 컷신');
+  // 판깔기: 처음 시작하는 학생에게만. 검은 화면에 네 줄이 하나씩 → "성실하게 하겠습니다"를 쳐야 오프닝
+  check(await waitMode('pledge', 5000), '출근하기 → 판깔기 화면');
+  check(await p.evaluate(() => !document.getElementById('ex-root').classList.contains('on-poster') && document.getElementById('ex-root').classList.contains('hide')), '판깔기로 넘어가면 포스터·시작 화면 닫힘');
+  await p.waitForTimeout(1500);
+  s0 = await p.evaluate(() => [...document.querySelectorAll('#pledge .pl-lines p')].filter((l) => l.classList.contains('on')).length);
+  check(s0 >= 1 && s0 < 4, '판깔기 줄은 한 줄씩 나타남 (1.5초 뒤 ' + s0 + '/4줄)');
+  for (let i = 0; i < 80 && !(await p.evaluate(() => !!document.getElementById('pledge').dataset.ready)); i++) await p.waitForTimeout(100);
+  s0 = await p.evaluate(() => ({ on: [...document.querySelectorAll('#pledge .pl-lines p')].filter((l) => l.classList.contains('on') && +getComputedStyle(l).opacity > 0.5).length, ask: getComputedStyle(document.querySelector('#pledge .pl-ask')).visibility, bg: getComputedStyle(document.getElementById('pledge')).backgroundColor, focus: document.activeElement && document.activeElement.id }));
+  check(s0.on === 4 && s0.ask === 'visible', '네 줄이 다 나온 뒤 입력 칸·안내가 보임 (' + s0.on + '줄, ' + s0.ask + ')');
+  check(s0.bg === 'rgb(0, 0, 0)', '판깔기 배경은 검은색 (' + s0.bg + ')');
+  check(s0.focus === 'pledge-in', '판깔기 입력 칸에 자동 포커스 (' + s0.focus + ')');
+  await p.waitForTimeout(700); await snap('pledge');
+  // 붙여넣기·끌어 놓기 막힘
+  s0 = await p.evaluate(() => { const i = document.getElementById('pledge-in'); const dt = new DataTransfer(); dt.setData('text/plain', '성실하게 하겠습니다');
+    const pe = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }); i.dispatchEvent(pe);
+    const de = new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }); i.dispatchEvent(de); return [pe.defaultPrevented, de.defaultPrevented, i.value]; });
+  check(s0[0] && s0[1] && s0[2] === '', '판깔기 칸 붙여넣기·끌어 놓기 막힘 (' + s0.join(',') + ')');
+  // 꼬꼬는 안 움직임
+  s1 = await st(); await p.keyboard.press('ArrowRight'); await p.keyboard.press('Space'); await p.waitForTimeout(300);
+  const sp = await st(); check(sp.mode === 'pledge' && sp.x === s1.x && sp.z === s1.z, '판깔기 중 방향키·Space로 꼬꼬가 안 움직임');
+  await p.fill('#pledge-in', '');
+  // 틀린 문장 → 통과 안 됨, 칸 흔들림
+  await p.keyboard.type('열심히 하겠습니다'); await p.keyboard.press('Enter'); await p.waitForTimeout(250);
+  s0 = await p.evaluate(() => [window.__kk.S.mode, document.getElementById('pledge-in').classList.contains('bad'), document.getElementById('pledge').classList.contains('hide')]);
+  check(s0[0] === 'pledge' && s0[1] && !s0[2], '틀린 문장 + Enter → 통과 안 됨, 칸 흔들림 (' + s0.join(',') + ')');
+  await snap('pledge-wrong');
+  // 맞는 문장(띄어쓰기는 무시) → 오프닝
+  await p.fill('#pledge-in', ''); await p.keyboard.type('성실하게  하겠 습니다'); await p.keyboard.press('Enter');
+  check(await waitMode('comic', 5000), '맞는 문장(띄어쓰기 무시) + Enter → 오프닝 컷신');
+  check(await p.evaluate(() => document.getElementById('pledge').classList.contains('hide')), '판깔기 화면 닫힘');
   await p.waitForTimeout(900); await snap('comic1');
   check(!(await p.evaluate(() => document.querySelector('.comic-box').classList.contains('emph'))), '오프닝 1컷(안내)은 강조 없음');
   // 건너뛰기를 눌러도 원문 컷은 보여 준다(원문 줄은 강조)
@@ -240,6 +278,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.reload(); await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 90000 });
   await login(); await p.waitForTimeout(1200);
   s = await st();
+  check(await p.evaluate(() => document.getElementById('pledge').classList.contains('hide')), '이어하기: 새로고침 뒤 판깔기 안 나옴');
   check(s.mode === 'walk' && s.prog === 1 && JSON.stringify(s.ans.slice(0, 4)) === JSON.stringify(['ㄱㄷ', 'ㄴㄹ', '월급', '라면']) && !s.sub, '이어하기: 새로고침 뒤 진행 1·답 그대로, 바로 걷기 (' + s.mode + ', 진행 ' + s.prog + ')');
   // 회사로 걸어가기
   await tp(19, 2.2); await holdUntil('ArrowRight', async () => (await st()).x > 23, 15000);
@@ -429,6 +468,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await login(); await p.waitForTimeout(1200);
   s = await st(); check(s.sub && s.ex === 'game' && JSON.stringify(s.ans) === ansAfterEdit, '새로고침 → 끝 화면 없이 바로 돌아다니기, 제출 상태·답 그대로 (' + s.ex + ')');
   check(await p.evaluate(() => document.getElementById('ex-end').classList.contains('hide') && document.getElementById('ex-toast').textContent.includes('Esc')), '새로고침 뒤 안내: Esc로 수첩에서 고칠 수 있음');
+  check(await p.evaluate(() => document.getElementById('pledge').classList.contains('hide') && __kk.S.mode !== 'pledge'), '제출 뒤 새로고침 → 판깔기 안 나옴');
   await roamChecks('새로고침 뒤'); await snap('roam-reload');
   s = await st(); check(s.x < -8 && !(await p.evaluate(() => __kk.S.room)) && await p.evaluate(() => !document.getElementById('hud').classList.contains('hide')), '새로고침 뒤 마을 입구에서 시작·HUD 보임 (x=' + s.x.toFixed(1) + ')');
   await near('meetDoor', 0, 0.6); await space(); await p.waitForTimeout(900);
