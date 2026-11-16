@@ -241,3 +241,7 @@
 #ex-panel[data-c="2"] #ex-left{flex-basis:41.5%}
 .scene[data-c="0"] img{max-height:158px}
 .scene[data-c="0"] img{width:auto;max-width:100%;margin:0 auto 8px}
+
+/* 시작 화면 오른쪽 아래 작은 교사 관리 버튼 */
+#teacher-link{position:absolute;right:12px;bottom:10px;font:12px/1 "Gowun Dodum",sans-serif;color:rgba(255,255,255,.7);background:rgba(0,0,0,.28);padding:6px 10px;border-radius:999px;text-decoration:none;z-index:3}
+#teacher-link:hover{color:#fff;background:rgba(0,0,0,.45)}

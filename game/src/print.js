@@ -1,6 +1,6 @@
 // 반별 답안집: print.html?ban=N — 학생 1명 = A4 1장, 번호순. 기준본 한글 양식의 문항 쪽 모양에 학생 답을 채운다.
 //   판정 넣기(?grade=1)·미제출 장 넣기(?missing=1)는 위 띠에서 켜고 끈다. 긴 답은 글자를 줄여 한 장에 맞추고, 그래도 넘치면 위에 경고.
-import { T, esc, loadKeywords, loadClass, loginBox } from './teacher-core.js?v=1';
+import { T, esc, loadKeywords, loadClass, loginBox } from './teacher-core.js?v=2';
 import { Q1, Q2, Q3, symShow } from './items.js?v=1';
 
 const $ = (id) => document.getElementById(id);

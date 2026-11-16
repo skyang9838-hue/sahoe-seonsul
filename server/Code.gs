@@ -16,7 +16,7 @@
  *   인정단어 (숨김) A열에 인정 단어 JSON을 나눠 담는다. setupKeywords()로 넣는다.
  *
  * 비밀 두 가지는 코드에 넣지 않는다
- *   - 교사 비밀번호: 스크립트 속성 TEACHER_PW
+ *   - 교사 비밀번호: 'teacher' 고정 (login_)
  *   - 인정 단어: 숨김 탭 '인정단어' (없으면 스크립트 속성 KEYWORDS_JSON)
  *
  * 동시 접속: 시트에 쓰는 요청(register·save·submit·grade·gradeBulk·close)은 모두 스크립트 락 안에서 쓴다.
@@ -250,8 +250,8 @@ function write_(b, final) {
 /* ── 교사: 로그인·토큰 ───────────────────── */
 
 function login_(pw) {
-  var real = PropertiesService.getScriptProperties().getProperty('TEACHER_PW');
-  if (!real) return { ok: false, msg: '교사 비밀번호가 아직 설정되지 않았어요. 스크립트 속성 TEACHER_PW를 넣어 주세요.' };
+  // 11/16 사용자: 비밀번호는 쉽게 'teacher'로 (게임 화면의 작은 '교사 관리' 버튼으로 들어옴)
+  var real = 'teacher';
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get('pwfail')) || 0;
   if (fails >= 10) return { ok: false, msg: '비밀번호를 여러 번 틀렸어요. 10분 뒤 다시 해 주세요.' };

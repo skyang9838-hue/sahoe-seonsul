@@ -184,12 +184,13 @@ export const itemGreenOnly = (j, item) => {
 export function loginBox(root, onOk) {
   root.innerHTML =
     '<form class="login-card" autocomplete="off">' +
-    '<h1>서·논술형 채점</h1><p class="login-sub">6학년 사회 「꼬꼬의 첫 출근」 · 교사용</p>' +
+    '<h1>교사 관리</h1><p class="login-sub">꼬꼬의 첫 출근 · 6학년 사회 서·논술형</p>' +
     '<label for="lg-pw">교사 비밀번호</label>' +
     '<input id="lg-pw" type="password" autocomplete="current-password" required>' +
     '<button id="lg-go" type="submit">들어가기</button>' +
     '<div id="lg-msg" class="login-msg" role="alert"></div>' +
     (T.live ? '' : '<p class="login-mode">로컬 시험 모드 — 서버 주소가 비어 있어 이 컴퓨터에 저장된 답을 봐요.</p>') +
+    '<a class="login-back" href="./">← 게임 화면으로</a>' +
     '</form>';
   const f = root.querySelector('form'), pw = root.querySelector('#lg-pw'), msg = root.querySelector('#lg-msg'), go = root.querySelector('#lg-go');
   pw.focus();
