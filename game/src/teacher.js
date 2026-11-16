@@ -60,6 +60,7 @@ async function openBan(ban) {
   if (!ban) { V.students = []; V.closed = false; render(); $('tbl').innerHTML = '<div class="loading">아직 들어온 반이 없어요. 학생이 게임에서 반·번호를 넣으면 여기 나타나요.</div>'; return; }
   V.busy = true;
   const r = await loadClass(ban);
+  if (ban !== V.ban) return;   // 그사이 다른 반을 골랐으면 늦게 온 이 응답은 버린다(앞 반 학생이 덮어쓰지 않게)
   V.busy = false;
   if (authLost(r)) return;
   if (!r || !r.ok) { toast((r && r.msg) || '불러오지 못했어요.', true); return; }
