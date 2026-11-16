@@ -190,4 +190,4 @@ mark.kw-y{background:var(--hl-y);color:inherit;border-radius:4px;padding:0 2px;b
   .detail{flex-basis:340px}
   .cards{grid-template-columns:1fr}
 }
-.detail .fld .fl{min-width:54px;max-width:96px;white-space:normal}
+.detail .fld .fl{flex:0 0 96px;min-width:0;white-space:normal}
