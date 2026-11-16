@@ -1,7 +1,7 @@
 // 교사 화면: 로그인 → 반 고르기 → 반 표 / 1·2·3번 문항 탭에서 판정 확정 → 반 마감 · 답안집
 // 채점은 scorer.js(teacher-core.js를 거쳐) 그대로. 인정 단어는 로그인 뒤 서버 keywords()로만 받는다.
 import { T, ITEMS, esc, judge, needsCheck, loadKeywords, loadClass, syncAuto, prepItems, prepTotal,
-  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=3';
+  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=4';
 import { Q1, Q2, Q3, FIELD_NAME, symShow } from './items.js?v=1';
 
 const $ = (id) => document.getElementById(id);
@@ -11,7 +11,7 @@ const MC = { '◎': 'ma', '○': 'mb', '△': 'mc' };
 const DOT = { green: '🟢', yellow: '🟡', none: '⚪', empty: '⚪' };
 const KEY_BAN = 'kkokko3d-teacher-ban';   // 마지막에 본 반(이 브라우저 편의용)
 
-const V = { ban: '', bans: [], closed: false, students: [], tab: 'table', sel: null, cur: 0, yellowOnly: false, busy: false };
+const V = { ban: '', bans: [], closed: false, students: [], tab: 'table', sel: null, cur: 0, yellowOnly: false, busy: false, seq: 0 };
 let chain = Promise.resolve();   // 서버 저장 순서를 지킨다(같은 학생을 빠르게 두 번 눌러도 마지막 값이 남게)
 
 /* ── 알림 ───────────────── */
@@ -58,9 +58,12 @@ async function openBan(ban) {
   V.ban = ban; V.sel = null; V.cur = 0;
   try { if (ban) localStorage.setItem(KEY_BAN, ban); } catch (e) {}
   if (!ban) { V.students = []; V.closed = false; render(); $('tbl').innerHTML = '<div class="loading">아직 들어온 반이 없어요. 학생이 게임에서 반·번호를 넣으면 여기 나타나요.</div>'; return; }
-  V.busy = true;
+  // 불러오는 동안 앞 반 학생을 화면에서 치운다 — 그 사이 누른 판정이 새 반 같은 번호에 저장되지 않게 (11/16 검토)
+  V.students = []; V.closed = false; V.busy = true;
+  render(); $('tbl').innerHTML = '<div class="loading">불러오는 중…</div>';
+  const seq = ++V.seq;
   const r = await loadClass(ban);
-  if (ban !== V.ban) return;   // 그사이 다른 반을 골랐으면 늦게 온 이 응답은 버린다(앞 반 학생이 덮어쓰지 않게)
+  if (seq !== V.seq) return;   // 그사이 다른 반을 고르거나 다시 불러왔으면 늦게 온 이 응답은 버린다
   V.busy = false;
   if (authLost(r)) return;
   if (!r || !r.ok) { toast((r && r.msg) || '불러오지 못했어요.', true); return; }
@@ -96,17 +99,19 @@ function render() {
 
 // 맨 위 판정 요약: 문항별 ◎○△·미응답·확인 필요 몇 명 (사용자 11/16: 답안보다 평가 결과가 먼저 보이게)
 function renderSummary() {
-  const reg = V.students.filter((s) => s.registered);
+  if (!V.ban) { $('sum').innerHTML = ''; return; }
+  const reg = V.students;   // 미접속 학생도 표에 '미응답'으로 나오므로 같이 센다
   const sub = V.students.filter((s) => s.submitted).length;
   const rows = [['1번', (s) => s.j.items[0]], ['2번', (s) => s.j.items[1]], ['3번', (s) => s.j.items[2]], ['종합', (s) => ({ grade: s.j.total.grade, check: s.j.total.check && !s.j.total.direct })]];
   const cnt = (get, g) => reg.filter((s) => get(s).grade === g).length;
   const chk = (get) => reg.filter((s) => get(s).grade !== '미응답' && get(s).check).length;
+  const chkTot = reg.filter((s) => s.registered && needsCheck(s.j)).length;   // 종합 줄 = 위 띠 '확인 필요'와 같은 기준
   const n = (v, cls) => '<td class="' + cls + (v ? '' : ' zero') + '">' + v + '</td>';
   $('sum').innerHTML = '<div class="sum-head"><b>6학년 ' + esc(V.ban) + '반</b><span>제출 ' + sub + ' / ' + V.students.length + '명</span>' +
     (V.closed ? '<span class="tag-closed">마감됨</span>' : '') + '</div>' +
     '<table class="sum-t"><thead><tr><th></th><th class="ga">◎</th><th class="gb">○</th><th class="gc">△</th><th>미응답</th><th class="ck">확인 필요</th></tr></thead><tbody>' +
-    rows.map(([l, get]) => '<tr' + (l === '종합' ? ' class="tot"' : '') + '><th>' + l + '</th>' + n(cnt(get, '◎'), 'ga') + n(cnt(get, '○'), 'gb') + n(cnt(get, '△'), 'gc') + n(cnt(get, '미응답'), 'gn') + n(chk(get), 'ck') + '</tr>').join('') +
-    '</tbody></table><p class="sum-note">흐린 판정(임시)도 함께 셉니다. 확인 필요는 노란 테두리 칸이에요.</p>';
+    rows.map(([l, get]) => '<tr' + (l === '종합' ? ' class="tot"' : '') + '><th>' + l + '</th>' + n(cnt(get, '◎'), 'ga') + n(cnt(get, '○'), 'gb') + n(cnt(get, '△'), 'gc') + n(cnt(get, '미응답'), 'gn') + n(l === '종합' ? chkTot : chk(get), 'ck') + '</tr>').join('') +
+    '</tbody></table><p class="sum-note">흐린 판정(임시)도 함께 셉니다. 확인 필요는 노란 테두리 칸 · 종합 줄은 확인할 문항이 하나라도 있는 학생 수예요.</p>';
 }
 
 function renderTable() {
@@ -133,7 +138,7 @@ function cellTd(s, item, inner) {
 function renderDetail() {
   const d = $('detail');
   const s = V.sel && V.students.find((x) => x.num === V.sel.num);
-  if (!s) { d.innerHTML = '<div class="empty">표에서 칸을 누르면 그 학생의 답이 여기 펼쳐져요.<br>1·2·3 = ◎○△, ←→ = 이전·다음 학생</div>'; return; }
+  if (!s) { d.innerHTML = '<div class="empty">표에서 칸을 누르면 그 학생의 답이 여기 펼쳐져요.<br>1·2·3 = ◎○△ · ↑↓ 학생 · ←→ 문항</div>'; return; }
   if (V.sel.item !== '종합') { d.innerHTML = card(s, V.sel.item, true); return; }
   const j = s.j, t = j.total;
   d.innerHTML = '<div class="det-head"><b>' + esc(s.num) + '번</b><span>' + esc(s.name) + '</span>' + status(s) + '</div>' +
@@ -194,9 +199,10 @@ function renderItem() {
   const list = visibleList();
   if (V.cur >= list.length) V.cur = Math.max(0, list.length - 1);
   const box = $('cards'), top = box.scrollTop;
-  box.innerHTML = list.length ? list.map((s, i) => card(s, item, false, i)).join('') : '<div class="none">' + (V.yellowOnly ? '이 문항에 🟡 답이 없어요.' : '학생이 없어요.') + '</div>';
+  box.innerHTML = list.length ? list.map((s, i) => card(s, item, false, i)).join('') : '<div class="none">' + (V.yellowOnly ? '이 문항에 확인할 답이 없어요.' : '학생이 없어요.') + '</div>';
   box.scrollTop = top;
 }
+function scrollSel() { const c = $('tbl').querySelector('td.cell.sel'); if (c) c.scrollIntoView({ block: 'nearest' }); }
 function scrollCur() { const c = $('cards').querySelector('.card.cur'); if (c) c.scrollIntoView({ block: 'nearest' }); }
 
 /* ── 판정 저장 ───────────────── */
@@ -211,6 +217,7 @@ function commit(job, okMsg) {
   return chain;
 }
 function setMark(num, item, v) {
+  if (V.busy) return;
   const s = V.students.find((x) => x.num === num); if (!s) return;
   if (item === '종합') { commit(prepTotal(s, v), v ? '종합 ' + v + ' (직접)' : '종합을 자동 계산으로'); return; }
   const it = s.j.items[+item - 1];
@@ -239,6 +246,7 @@ document.querySelector('.tabs').addEventListener('click', (e) => {
 $('btn-yel').addEventListener('click', () => { V.yellowOnly = !V.yellowOnly; V.cur = 0; render(); $('cards').scrollTop = 0; });
 $('btn-bulk').addEventListener('click', () => {
   const item = V.tab;
+  if (V.busy) return;
   const elig = V.students.filter((s) => s.submitted && itemGreenOnly(s.j, item) && !s.j.items[+item - 1].confirmed);
   if (!elig.length) return;
   commit(prepItems(elig.map((s) => ({ s, item, value: s.j.items[+item - 1].auto }))), item + '번 ' + elig.length + '명 일괄 확정');
@@ -259,14 +267,16 @@ document.addEventListener('keydown', (e) => {
   if (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
   if (e.key === 'Enter' && e.target.matches && e.target.matches('td.cell')) { e.target.click(); return; }
   const mark = { 1: '◎', 2: '○', 3: '△' }[e.key];
-  const fwd = e.key === 'ArrowRight' || e.key === 'ArrowDown', back = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+  let fwd = e.key === 'ArrowRight' || e.key === 'ArrowDown', back = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
   const clear = e.key === 'Backspace' || e.key === 'Delete';
   if (!mark && !fwd && !back && !clear) return;
   if (V.tab === 'table') {
     if (!V.sel) return;
     e.preventDefault();
     const i = V.students.findIndex((x) => x.num === V.sel.num);
-    if (fwd || back) { const n = V.students[i + (fwd ? 1 : -1)]; if (n) { V.sel = { num: n.num, item: V.sel.item }; render(); } return; }
+    // 표: ↑↓ = 학생, ←→ = 문항 열 (세로 한 줄이라 화면이 따라간다)
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { const n = V.students[i + (e.key === 'ArrowDown' ? 1 : -1)]; if (n) { V.sel = { num: n.num, item: V.sel.item }; render(); scrollSel(); } return; }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const cols = ['1', '2', '3', '종합'], c = cols.indexOf(String(V.sel.item)) + (e.key === 'ArrowRight' ? 1 : -1); if (cols[c]) { V.sel = { num: V.sel.num, item: cols[c] }; render(); scrollSel(); } return; }
     const s = V.students[i]; if (!s) return;
     if (V.sel.item === '종합') { if (mark) setMark(s.num, '종합', mark); else if (clear) setMark(s.num, '종합', ''); return; }
     const it = s.j.items[+V.sel.item - 1];
@@ -280,9 +290,9 @@ document.addEventListener('keydown', (e) => {
   const s = list[V.cur], item = V.tab, it = s.j.items[+item - 1];
   if (mark) {
     if (!(it.confirmed && it.grade === mark)) setMark(s.num, item, mark);
-    // 판정하면 다음 학생으로 (🟡만 보기에서도 그 학생은 목록에 남는다 — 확인 표시가 아니라 🟡 낱말로 거르므로)
-    const nl = visibleList();
-    V.cur = Math.min(nl.length - 1, nl.indexOf(s) + 1); renderItem(); scrollCur();
+    // 판정하면 다음 학생으로. '확인할 답만 보기'에서 확정해 목록에서 빠지면 다음 학생이 그 자리로 올라오므로 자리를 그대로 둔다
+    const nl = visibleList(), at = nl.indexOf(s);
+    V.cur = Math.max(0, Math.min(nl.length - 1, at < 0 ? V.cur : at + 1)); renderItem(); scrollCur();
   } else if (clear && it.confirmed) setMark(s.num, item, it.grade);
 });
 
