@@ -282,6 +282,8 @@ export function scoreField(text, def) {
 /* ───────── 7. 문항 판정 (3-4) ───────── */
 const ok = (st) => st === 'green' || st === 'yellow';
 const yel = (st) => st === 'yellow';
+// 글은 썼는데 인정 단어가 하나도 안 걸린 칸(⚪) — 목록 밖의 맞는 말일 수 있어 교사 확인으로 띄운다 (사용자 11/16)
+const wrote = (st) => st === 'none';
 
 function item(no, grade, check, basis) { return { no, grade, check: grade === '미응답' ? false : check, basis }; }
 
@@ -291,10 +293,11 @@ function judge1(f) {
   const p2 = ok(f.a2.state) && ok(f.a3.state);
   const p2y = yel(f.a2.state) || yel(f.a3.state);
   const basis = { '(1)': p1, '(2)': p2 };
+  const w = wrote(f.a2.state) || wrote(f.a3.state);
   if (p1 && p2) return item(1, '◎', p2y, basis);
   if (p2) return item(1, '○', p2y, basis);
-  if (p1) return item(1, '○', false, basis);
-  return item(1, '△', false, basis);
+  if (p1) return item(1, '○', w, basis);
+  return item(1, '△', w, basis);
 }
 
 function judge2(f) {
@@ -302,8 +305,8 @@ function judge2(f) {
   const right = f.a4.state, law = f.a5.state;     // a4 = 권리 묶음들 중 가장 좋은 상태
   const basis = { 권리: right, 법제도: law };
   if (ok(right) && ok(law)) return item(2, '◎', yel(right) || yel(law), basis);
-  if (ok(right)) return item(2, '○', yel(right), basis);
-  return item(2, '△', false, basis);
+  if (ok(right)) return item(2, '○', yel(right) || wrote(law), basis);
+  return item(2, '△', wrote(right) || wrote(law), basis);
 }
 
 function judge3(f) {
@@ -311,8 +314,8 @@ function judge3(f) {
   const fr = f.a6.state, re = f.a7.state, im = f.a8.state;
   const basis = { 자유: fr, 책임: re, 개선: im };
   if (ok(fr) && ok(re) && ok(im)) return item(3, '◎', yel(fr) || yel(re) || yel(im), basis);
-  if (ok(fr) && ok(re)) return item(3, '○', yel(fr) || yel(re), basis);
-  return item(3, '△', false, basis);
+  if (ok(fr) && ok(re)) return item(3, '○', yel(fr) || yel(re) || wrote(im), basis);
+  return item(3, '△', [fr, re, im].some(wrote), basis);
 }
 
 /* ───────── 8. 종합 (3-5, 평가계획 단계식) ───────── */

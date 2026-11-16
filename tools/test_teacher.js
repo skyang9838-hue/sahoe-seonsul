@@ -81,10 +81,10 @@ function seed() {
   const LS = (k) => p.evaluate((k) => JSON.parse(localStorage.getItem(k) || 'null'), k);
 
   /* 1. 학생 화면에 교사 화면 길이 없는지 */
-  section('학생 화면에 교사 화면 링크 없음');
+  section('학생 화면의 교사 관리 버튼 (11/16 사용자: 작게 하나만)');
   const idx = fs.readFileSync(path.join(GAME, 'index.html'), 'utf8');
   const studentJs = ['main.js', 'exam.js', 'story.js', 'config.js', 'chars.js', 'toon.js', 'srv.js'].map((f) => fs.readFileSync(path.join(GAME, 'src', f), 'utf8')).join('\n');
-  check(!/teacher|print\.html|교사/.test(idx), 'index.html에 teacher·print·교사 글자 없음');
+  check((idx.match(/teacher\.html/g) || []).length === 1 && !/print\.html/.test(idx), 'index.html에 교사 관리 링크 하나만, 답안집 링크 없음');
   check(!/teacher\.html|print\.html|teacher\.js|teacher-core/.test(studentJs), '학생 쪽 스크립트에 교사 화면 주소 없음');
   const tchSrc = ['teacher.js', 'teacher-core.js', 'print.js', 'items.js'].map((f) => fs.readFileSync(path.join(GAME, 'src', f), 'utf8')).join('\n');
   const privKw = path.join(ROOT, 'server', 'private', 'keywords.json');
@@ -103,7 +103,7 @@ function seed() {
 
   /* 2. 로그인 */
   section('로그인');
-  await p.goto(BASE + 'teacher.html');
+  await p.goto(BASE + 'teacher.html?stub');
   await p.evaluate(({ rows, roster }) => { localStorage.clear(); sessionStorage.clear(); localStorage.setItem('kkokko3d-v3-server', JSON.stringify(rows)); localStorage.setItem('kkokko3d-v3-roster', JSON.stringify(roster)); }, { rows, roster });
   await p.reload(); await p.waitForSelector('#lg-pw');
   await snap(p, 'login-1366');
@@ -120,7 +120,7 @@ function seed() {
   const tbl = await p.evaluate(() => ({ rows: document.querySelectorAll('table.cls tbody tr').length, tables: document.querySelectorAll('table.cls').length,
     sub: document.getElementById('st-sub').textContent, chk: document.getElementById('st-chk').textContent, ban: document.getElementById('ban').value,
     bans: [...document.querySelectorAll('#ban option')].map((o) => o.value) }));
-  check(tbl.rows === 26 && tbl.tables === 2, '반 표 26명(두 칸으로 나눔) (' + tbl.rows + '행, 표 ' + tbl.tables + '개)');
+  check(tbl.rows === 26 && tbl.tables === 1, '반 표 26명 한 줄로 세로 ('  + tbl.rows + '행, 표 ' + tbl.tables + '개)');
   check(tbl.sub.replace(/\s/g, '') === '제출23/26', '제출 23/26 (' + tbl.sub + ')');
   const expChk = Object.values(EXP).filter((r) => r.items.some((it) => it.check) || r.total.check).length;
   check(tbl.chk.replace(/\s/g, '') === '확인필요' + expChk, '확인 필요 ' + expChk + '명 (' + tbl.chk + ')');
@@ -142,7 +142,7 @@ function seed() {
   check(c1.stt.startsWith('제출') && c24.stt === '작성 중' && c26.stt === '미접속' && c26.g.every((x) => x.t === '미응답'), '상태: 제출 · 작성 중 · 미접속(명단만, 미응답 회색)');
   check(c1.nm === '가짜가람', '명단 이름 표시');
   const fitT = await p.evaluate(() => { const a = document.querySelector('.tbl-area'); return { sh: a.scrollHeight, ch: a.clientHeight, sw: document.documentElement.scrollWidth, iw: innerWidth }; });
-  check(fitT.sh <= fitT.ch && fitT.sw <= fitT.iw, '1366×768: 반 표 26명이 스크롤 없이 한눈에 (높이 ' + fitT.sh + '/' + fitT.ch + ', 너비 ' + fitT.sw + '/' + fitT.iw + ')');
+  check(fitT.sw <= fitT.iw, '1366×768: 반 표 세로 한 줄, 가로 넘침 없음 (세로는 스크롤 — 11/16 사용자) (높이 ' + fitT.sh + '/' + fitT.ch + ', 너비 ' + fitT.sw + '/' + fitT.iw + ')');
   // 칸 누르면 답 펼침
   await p.click('td.cell[data-num="2"][data-item="2"]'); await p.waitForTimeout(200);
   const det = await p.evaluate(() => ({ t: document.getElementById('detail').textContent, g: document.querySelectorAll('#detail mark.kw-g').length, y: document.querySelectorAll('#detail mark.kw-y').length, q: document.querySelector('#detail .kw-q') && document.querySelector('#detail .kw-q').textContent }));
@@ -239,7 +239,7 @@ function seed() {
   // 실제 게임 화면(같은 저장소)에서 3반 1번으로 들어가면 읽기 전용
   {
     const g = await ctx.newPage(); g.on('pageerror', (e) => errs.push('game: ' + e));
-    await g.goto(BASE + 'index.html');
+    await g.goto(BASE + 'index.html?stub');
     await g.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 120000 });
     await g.fill('#in-ban', '3'); await g.fill('#in-num', '1'); await g.click('#btn-start');
     await g.waitForFunction(() => window.__ex && __ex.S.row && __ex.mode === 'game', null, { timeout: 20000 }).catch(() => {});
@@ -291,7 +291,7 @@ function seed() {
   await pr.emulateMedia({ media: null });
   fs.writeFileSync(path.join(OUT, 'answerbook-3반.pdf'), await pr.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true }));
   // 4반: 글자를 줄여도 넘치는 답 → 경고
-  await pr.goto(BASE + 'print.html?ban=4'); await pr.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 15000 });
+  await pr.goto(BASE + 'print.html?ban=4&stub'); await pr.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 15000 });
   si = await sheetInfo(pr);
   check(si.n === 1 && si.over === 1 && si.warn, '아주 긴 답(4반) → 한 장을 넘으면 화면에 경고');
   { const n4 = await countPdf(pr); check(n4 === 1, '넘쳐도 그 학생은 1장(뒤 장으로 밀리지 않음) (' + n4 + ')'); }
@@ -301,9 +301,9 @@ function seed() {
   {
     const c2 = await b.newContext({ viewport: { width: 1000, height: 1300 }, deviceScaleFactor: 110 / 96 });
     const q = await c2.newPage();
-    await q.goto(BASE + 'teacher.html');
+    await q.goto(BASE + 'teacher.html?stub');
     await q.evaluate(({ rows, roster }) => { localStorage.setItem('kkokko3d-v3-server', JSON.stringify(rows)); localStorage.setItem('kkokko3d-v3-roster', JSON.stringify(roster)); }, { rows, roster });
-    await q.goto(BASE + 'print.html?ban=3&grade=0');
+    await q.goto(BASE + 'print.html?ban=3&grade=0&stub');
     await q.fill('#lg-pw', 'teacher'); await q.click('#lg-go');
     await q.waitForFunction(() => document.body.dataset.ready === '1', null, { timeout: 15000 });
     await q.locator('.sheet').first().screenshot({ path: path.join(OUT, 'print-sheet1-110dpi.png') });
@@ -316,7 +316,7 @@ function seed() {
   section('1280×720 · 로그아웃');
   await p.setViewportSize({ width: 1280, height: 720 }); await p.waitForTimeout(300);
   const f12 = await p.evaluate(() => { const a = document.querySelector('.tbl-area'); return { sh: a.scrollHeight, ch: a.clientHeight, sw: document.documentElement.scrollWidth, iw: innerWidth, bar: document.querySelector('.bar').getBoundingClientRect().height }; });
-  check(f12.sh <= f12.ch && f12.sw <= f12.iw, '1280×720: 반 표 스크롤 없음·가로 넘침 없음 (높이 ' + f12.sh + '/' + f12.ch + ', 너비 ' + f12.sw + '/' + f12.iw + ', 위 띠 ' + Math.round(f12.bar) + 'px)');
+  check(f12.sw <= f12.iw, '1280×720: 가로 넘침 없음 (높이 ' + f12.sh + '/' + f12.ch + ', 너비 ' + f12.sw + '/' + f12.iw + ', 위 띠 ' + Math.round(f12.bar) + 'px)');
   await p.click('td.cell[data-num="7"][data-item="3"]'); await p.waitForTimeout(150);
   await snap(p, 'table-detail-1280');
   await p.click('.tabs button[data-tab="3"]'); await p.waitForTimeout(150);
@@ -327,7 +327,7 @@ function seed() {
   await p.click('#btn-out'); await p.waitForTimeout(200);
   check(await p.evaluate(() => !!document.getElementById('lg-pw') && document.getElementById('app').classList.contains('hide') && !sessionStorage.getItem('kkokko3d-v3-token')), '나가기 → 로그인 화면, 토큰 지움');
   // 토큰 없이 직접 답안집 주소 → 로그인 먼저
-  await p.goto(BASE + 'print.html?ban=3'); await p.waitForTimeout(400);
+  await p.goto(BASE + 'print.html?ban=3&stub'); await p.waitForTimeout(400);
   check(await p.evaluate(() => !!document.getElementById('lg-pw') && document.querySelectorAll('.sheet').length === 0), '로그인 없이 답안집 주소 → 로그인 상자만(답 안 보임)');
 
   check(errs.length === 0, '페이지 오류 없음 ' + errs.slice(0, 3).join(' / '));

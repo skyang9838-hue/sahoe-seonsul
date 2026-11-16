@@ -1,7 +1,7 @@
 // 교사 화면: 로그인 → 반 고르기 → 반 표 / 1·2·3번 문항 탭에서 판정 확정 → 반 마감 · 답안집
 // 채점은 scorer.js(teacher-core.js를 거쳐) 그대로. 인정 단어는 로그인 뒤 서버 keywords()로만 받는다.
 import { T, ITEMS, esc, judge, needsCheck, loadKeywords, loadClass, syncAuto, prepItems, prepTotal,
-  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=2';
+  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=3';
 import { Q1, Q2, Q3, FIELD_NAME, symShow } from './items.js?v=1';
 
 const $ = (id) => document.getElementById(id);
@@ -94,21 +94,36 @@ function render() {
   if (V.tab === 'table') { renderTable(); renderDetail(); } else renderItem();
 }
 
+// 맨 위 판정 요약: 문항별 ◎○△·미응답·확인 필요 몇 명 (사용자 11/16: 답안보다 평가 결과가 먼저 보이게)
+function renderSummary() {
+  const reg = V.students.filter((s) => s.registered);
+  const sub = V.students.filter((s) => s.submitted).length;
+  const rows = [['1번', (s) => s.j.items[0]], ['2번', (s) => s.j.items[1]], ['3번', (s) => s.j.items[2]], ['종합', (s) => ({ grade: s.j.total.grade, check: s.j.total.check && !s.j.total.direct })]];
+  const cnt = (get, g) => reg.filter((s) => get(s).grade === g).length;
+  const chk = (get) => reg.filter((s) => get(s).grade !== '미응답' && get(s).check).length;
+  const n = (v, cls) => '<td class="' + cls + (v ? '' : ' zero') + '">' + v + '</td>';
+  $('sum').innerHTML = '<div class="sum-head"><b>6학년 ' + esc(V.ban) + '반</b><span>제출 ' + sub + ' / ' + V.students.length + '명</span>' +
+    (V.closed ? '<span class="tag-closed">마감됨</span>' : '') + '</div>' +
+    '<table class="sum-t"><thead><tr><th></th><th class="ga">◎</th><th class="gb">○</th><th class="gc">△</th><th>미응답</th><th class="ck">확인 필요</th></tr></thead><tbody>' +
+    rows.map(([l, get]) => '<tr' + (l === '종합' ? ' class="tot"' : '') + '><th>' + l + '</th>' + n(cnt(get, '◎'), 'ga') + n(cnt(get, '○'), 'gb') + n(cnt(get, '△'), 'gc') + n(cnt(get, '미응답'), 'gn') + n(chk(get), 'ck') + '</tr>').join('') +
+    '</tbody></table><p class="sum-note">흐린 판정(임시)도 함께 셉니다. 확인 필요는 노란 테두리 칸이에요.</p>';
+}
+
 function renderTable() {
   const st = V.students;
+  renderSummary();
   if (!st.length) { $('tbl').innerHTML = '<div class="loading">이 반에는 아직 학생이 없어요.</div>'; return; }
-  const half = st.length > 12 ? Math.ceil(st.length / 2) : st.length;
-  const parts = [st.slice(0, half), st.slice(half)].filter((p) => p.length);
-  $('tbl').innerHTML = parts.map((part) =>
+  // 한 줄로 세로로 주르륵 (사용자 11/16: 두 덩어리로 나누지 말 것)
+  $('tbl').innerHTML =
     '<table class="cls"><thead><tr><th>번호</th><th>이름</th><th>상태</th><th>1번</th><th>2번</th><th>3번</th><th>종합</th></tr></thead><tbody>' +
-    part.map((s) => {
+    st.map((s) => {
       const j = s.j;
       const cells = j.items.map((it) => cellTd(s, it.no, chip(it.grade, it.confirmed, it.check))).join('');
       const t = j.total;
       const tMini = t.direct ? '<span class="mini">직접</span>' : t.candidate && !t.confirmed ? '<span class="mini">◎ 후보</span>' : '';
       return '<tr data-num="' + esc(s.num) + '" class="' + (s.submitted ? '' : 'not-sub') + '"><td class="num">' + esc(s.num) + '</td><td class="nm" title="' + esc(s.name) + '">' + esc(s.name) + '</td><td class="stt">' + status(s) + '</td>' +
         cells + cellTd(s, '종합', chip(t.grade, t.confirmed, t.check && !t.direct) + tMini) + '</tr>';
-    }).join('') + '</tbody></table>').join('');
+    }).join('') + '</tbody></table>';
 }
 function cellTd(s, item, inner) {
   const sel = V.sel && V.sel.num === s.num && V.sel.item === item;
@@ -207,7 +222,7 @@ function setMark(num, item, v) {
 $('ban').addEventListener('change', (e) => openBan(e.target.value));
 $('btn-reload').addEventListener('click', () => { if (V.ban) openBan(V.ban); else start(); });
 $('btn-out').addEventListener('click', () => { T.logout(); showLogin(''); });
-$('btn-print').addEventListener('click', () => { if (V.ban) window.open('print.html?ban=' + encodeURIComponent(V.ban), '_blank'); });
+$('btn-print').addEventListener('click', () => { if (V.ban) window.open('print.html?ban=' + encodeURIComponent(V.ban) + (new URLSearchParams(location.search).has('stub') ? '&stub' : ''), '_blank'); });
 $('btn-close').addEventListener('click', async () => {
   if (!V.ban) return;
   const on = !V.closed;

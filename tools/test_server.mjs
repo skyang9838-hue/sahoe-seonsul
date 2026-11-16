@@ -175,7 +175,7 @@ section('마감');
 {
   const g = makeGas();
   g.props.TEACHER_PW = 'pw-시험';
-  const tok = g.post({ action: 'login', pw: 'pw-시험' }).token;
+  const tok = g.post({ action: 'login', pw: 'teacher' }).token;
   g.post({ action: 'register', ban: '3', num: '1' });
   g.post({ action: 'register', ban: '4', num: '1' });
   g.post({ action: 'save', ban: '3', num: '1', answers: A9('마감 전'), progress: 1 });
@@ -211,11 +211,12 @@ section('교사 로그인·토큰');
     check(r2.auth === false, a + ': 지어낸 토큰 거부');
   }
   check(!g.ss.getSheetByName('설정') && !g.ss.getSheetByName('채점'), '토큰 없는 요청은 아무 탭도 안 만듦');
-  check(/TEACHER_PW/.test(g.post({ action: 'login', pw: '' }).msg), '비밀번호 속성이 없으면 설정하라고 안내');
+  // 11/16 사용자: 비밀번호는 'teacher' 고정 (스크립트 속성은 안 봄)
   g.props.TEACHER_PW = 'kokko!2026';
-  check(g.post({ action: 'login', pw: 'teacher' }).ok === false, '틀린 비밀번호 거부(스텁 기본값도 안 통함)');
+  check(g.post({ action: 'login', pw: 'kokko!2026' }).ok === false, '옛 스크립트 속성 비밀번호는 안 통함');
+  check(g.post({ action: 'login', pw: 'Teacher' }).ok === false, '대소문자 다르면 거부');
   check(g.post({ action: 'login' }).ok === false, '비밀번호 없음 거부');
-  const ok = g.post({ action: 'login', pw: 'kokko!2026' });
+  const ok = g.post({ action: 'login', pw: 'teacher' });
   check(ok.ok && typeof ok.token === 'string' && ok.token.length >= 32 && ok.hours === 6, '맞는 비밀번호 → 토큰(6시간)');
   check(g.post({ action: 'list', token: ok.token, ban: '' }).ok === true, '토큰으로 list');
   g.tick(6 * 3600 - 5);
@@ -223,11 +224,10 @@ section('교사 로그인·토큰');
   g.tick(10);
   check(g.post({ action: 'list', token: ok.token, ban: '' }).auth === false, '6시간 지나면 토큰 끝');
   for (let i = 0; i < 10; i++) g.post({ action: 'login', pw: '틀림' + i });
-  const locked = g.post({ action: 'login', pw: 'kokko!2026' });
+  const locked = g.post({ action: 'login', pw: 'teacher' });
   check(locked.ok === false && /10분/.test(locked.msg), '10번 틀리면 맞는 비밀번호도 10분 막음');
   g.tick(601);
-  check(g.post({ action: 'login', pw: 'kokko!2026' }).ok === true, '10분 뒤 다시 로그인');
-  check(!CODE.includes('kokko!2026') && !/TEACHER_PW\s*=\s*['"]/.test(CODE), '비밀번호가 코드에 없음');
+  check(g.post({ action: 'login', pw: 'teacher' }).ok === true, '10분 뒤 다시 로그인');
 }
 
 /* ── 5. 인정 단어 ─────────────────────────── */
@@ -235,7 +235,7 @@ section('인정 단어');
 {
   const g = makeGas();
   g.props.TEACHER_PW = 'p';
-  const tok = g.post({ action: 'login', pw: 'p' }).token;
+  const tok = g.post({ action: 'login', pw: 'teacher' }).token;
   const none = g.post({ action: 'keywords', token: tok });
   check(none.ok === false && /setupKeywords/.test(none.msg), '인정 단어가 없으면 안내');
   let threw = ''; try { g.ctx.setupKeywords(); } catch (e) { threw = String(e.message); }
@@ -261,7 +261,7 @@ section('인정 단어');
   check(JSON.stringify(g.post({ action: 'keywords', token: tok }).keywords) === JSON.stringify(SAMPLE_KW), '다시 넣은 목록');
   // 스크립트 속성 대체
   const g2 = makeGas(); g2.props.TEACHER_PW = 'p'; g2.props.KEYWORDS_JSON = JSON.stringify(SAMPLE_KW);
-  const t2 = g2.post({ action: 'login', pw: 'p' }).token;
+  const t2 = g2.post({ action: 'login', pw: 'teacher' }).token;
   check(JSON.stringify(g2.post({ action: 'keywords', token: t2 }).keywords) === JSON.stringify(SAMPLE_KW), '시트에 없으면 스크립트 속성 KEYWORDS_JSON');
   g2.props.KEYWORDS_JSON = '{깨짐';
   check(/깨져/.test(g2.post({ action: 'keywords', token: t2 }).msg), '깨진 JSON이면 안내');
@@ -282,7 +282,7 @@ section('채점 저장·list');
 {
   const g = makeGas();
   g.props.TEACHER_PW = 'p';
-  const tok = g.post({ action: 'login', pw: 'p' }).token;
+  const tok = g.post({ action: 'login', pw: 'teacher' }).token;
   for (const n of ['1', '2', '3']) g.post({ action: 'register', ban: '3', num: n });
   g.post({ action: 'register', ban: '5', num: '1' });
   g.post({ action: 'submit', ban: '3', num: '2', answers: A9((i) => '답' + i), progress: 3 });
@@ -347,7 +347,7 @@ section('잠금');
 {
   const g = makeGas();
   g.props.TEACHER_PW = 'p';
-  const tok = g.post({ action: 'login', pw: 'p' }).token;
+  const tok = g.post({ action: 'login', pw: 'teacher' }).token;
   g.post({ action: 'register', ban: '3', num: '1' });
   const before = g.ss.getSheetByName('답안').writes;
   g.lock.busy = true;   // 다른 요청이 락을 쥐고 안 놓는 상황
@@ -433,7 +433,7 @@ section('로컬 스텁과 약속 대조');
   check((await te.list('3')).auth === false, '스텁 교사: 로그인 전 list 거부');
   check((await te.login('틀림')).ok === false, '스텁 교사: 틀린 비밀번호 거부');
   const tl = await te.login(srv.STUB_PW);
-  const gl = g.post({ action: 'login', pw: 'p' });
+  const gl = g.post({ action: 'login', pw: 'teacher' });
   check(tl.ok && keys(tl) === keys(gl), '스텁 교사 login 응답 키 같음');
   const tok = gl.token;
   const tc = await te.close('3', true), gc = g.post({ action: 'close', token: tok, ban: '3', on: true });
