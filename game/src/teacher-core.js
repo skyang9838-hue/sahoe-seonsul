@@ -2,7 +2,7 @@
 //   서버 연결(srv.js teacherSrv) · 로그인 상자 · 반 자료 불러오기 · 채점(scorer.js 그대로) · 확정/임시 판정 합치기 · 답 칠하기
 // 인정 단어는 로그인 뒤 서버 keywords()(로컬 스텁이면 스텁 규칙)에서만 받는다. 이 파일에도 학생 화면 코드에도 넣지 않는다.
 import { API_URL } from './config.js?v=12';
-import { teacherSrv } from './srv.js?v=2';
+import { teacherSrv } from './srv.js?v=3';
 import { gradeAnswers, totalFrom, FIELDS } from './scorer.js?v=4';
 import { ITEM_FIELDS } from './items.js?v=1';
 
@@ -190,7 +190,7 @@ export function loginBox(root, onOk) {
     '<button id="lg-go" type="submit">들어가기</button>' +
     '<div id="lg-msg" class="login-msg" role="alert"></div>' +
     (T.live ? '' : '<p class="login-mode">로컬 시험 모드 — 서버 주소가 비어 있어 이 컴퓨터에 저장된 답을 봐요.</p>') +
-    '<a class="login-back" href="./">← 게임 화면으로</a>' +
+    '<a class="login-back" href="./' + (/[?&]stub(=|&|$)/.test(location.search) ? '?stub' : '') + '">← 게임 화면으로</a>' +
     '</form>';
   const f = root.querySelector('form'), pw = root.querySelector('#lg-pw'), msg = root.querySelector('#lg-msg'), go = root.querySelector('#lg-go');
   pw.focus();

@@ -142,6 +142,7 @@ function stubTeacher(opts) {
     const tries = opts.keywordsURL ? [opts.keywordsURL] : [];
     const local = typeof location !== 'undefined' && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
     if (local) tries.push(new URL('../../server/private/keywords.json', import.meta.url).href);
+    else tries.push(new URL('./keywords.json', import.meta.url).href);   // 공개 체험 주소(?stub): 공개한 실제 인정 단어 (11/24 사용자 결정 '다 공개')
     tries.push(new URL('./keywords.sample.json', import.meta.url).href);
     kwCache = tries.reduce((pr, u) => pr.then((got) => got || fetch(u, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null)).then((j) => (j && j.fields ? { j, u } : null)).catch(() => null)), Promise.resolve(null))
