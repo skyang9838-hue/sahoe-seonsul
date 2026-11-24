@@ -251,7 +251,8 @@ function write_(b, final) {
 
 function login_(pw) {
   // 11/16 사용자: 비밀번호는 쉽게 'teacher'로 (게임 화면의 작은 '교사 관리' 버튼으로 들어옴)
-  var real = 'teacher';
+  // 11/24: 매뉴얼 공개 대비 — 효성남초 실서버만 Secret.js(깃 밖)의 TEACHER_PW_OVERRIDE로 바꿈. 없으면 'teacher'
+  var real = (typeof TEACHER_PW_OVERRIDE !== 'undefined' && TEACHER_PW_OVERRIDE) ? String(TEACHER_PW_OVERRIDE) : 'teacher';
   var cache = CacheService.getScriptCache();
   var fails = Number(cache.get('pwfail')) || 0;
   if (fails >= 10) return { ok: false, msg: '비밀번호를 여러 번 틀렸어요. 10분 뒤 다시 해 주세요.' };
