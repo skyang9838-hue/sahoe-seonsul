@@ -6,7 +6,7 @@
 const path = require('path'), fs = require('fs');
 const { chromium } = require(path.join(process.argv[2], 'node_modules', 'playwright'));
 const outJson = process.argv[3];
-const URL = process.env.KK_URL || 'http://127.0.0.1:8765/';
+const URL = (process.env.KK_URL || 'http://127.0.0.1:8765/') + '?stub';   // 실서버(GAS) 말고 스텁으로 (0반 0번이 실시트에 들어가지 않게)
 const game = path.resolve(__dirname, '..');
 const mainSrc = fs.readFileSync(path.join(game, 'src', 'main.js'), 'utf8');
 const vExam = (mainSrc.match(/exam\.js\?v=(\d+)/) || [])[1], vStory = (mainSrc.match(/story\.js\?v=(\d+)/) || [])[1];
@@ -39,6 +39,12 @@ const res = { panels: [], notebook: [], dialogue: [], comic: [], signs: [] };
   }, signs);
   // 시작 → 오프닝(원문 줄 기록)
   await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.click('#btn-start');
+  // 처음 시작하면 판깔기(따라 칠 문장)가 먼저 나온다 → 줄이 다 나오면 문장을 쳐서 넘긴다
+  await p.waitForFunction(() => __kk.S.mode === 'pledge' || __kk.S.mode === 'comic', null, { timeout: 8000 });
+  if (await p.evaluate(() => __kk.S.mode === 'pledge')) {
+    await p.waitForFunction(() => !!document.getElementById('pledge').dataset.ready, null, { timeout: 15000 });
+    await p.fill('#pledge-in', ''); await p.focus('#pledge-in'); await p.keyboard.type('혼자 생각해서 쓰겠습니다'); await p.keyboard.press('Enter');
+  }
   await p.waitForFunction(() => __kk.S.mode === 'comic', null, { timeout: 8000 });
   for (let i = 0; i < 10 && (await p.evaluate(() => __kk.S.mode)) === 'comic'; i++) {
     await p.keyboard.press('Space'); await p.waitForTimeout(120);   // 타자 끝내기
@@ -79,7 +85,12 @@ const res = { panels: [], notebook: [], dialogue: [], comic: [], signs: [] };
       text: [...document.getElementById('ex-text').querySelectorAll('p')].map((e) => e.textContent), qs: lines(qs) };
     qs.remove(); return out;
   });
-  const closePanel = async () => { await p.click('#ex-done'); await p.waitForTimeout(500); if (await p.evaluate(() => !document.getElementById('ex-ask').classList.contains('hide'))) await p.click('#ex-ask-yes'); await p.waitForTimeout(800); };
+  // 2번 문항은 처음 [다 썼어요]에 검은 주의 화면이 뜬다 → 버튼이 켜지면 눌러 패널로 돌아간 뒤 다시 [다 썼어요]
+  const closePanel = async () => { await p.click('#ex-done'); await p.waitForTimeout(500);
+    if (await p.evaluate(() => !document.getElementById('ex-warn').classList.contains('hide'))) {
+      await p.waitForFunction(() => !document.getElementById('ex-warn-go').disabled, null, { timeout: 5000 }); await p.click('#ex-warn-go'); await p.waitForTimeout(300);
+      await p.click('#ex-done'); await p.waitForTimeout(500); }
+    if (await p.evaluate(() => !document.getElementById('ex-ask').classList.contains('hide'))) await p.click('#ex-ask-yes'); await p.waitForTimeout(800); };
   // 마을·마트
   await near('mom', -1.0, 0.2); await space(); await recordTalk('mom');
   await near('martDoor', 0, 0.6); await space(); await p.waitForTimeout(900);

@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=13';
 import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=14';
-import * as EXAM from './exam.js?v=19';
+import * as EXAM from './exam.js?v=21';
 
 const $ = (id) => document.getElementById(id);
 
@@ -363,13 +363,15 @@ function buildWorld() {
     if (c) { c.g.position.y = 11 + (i % 3) * 1.5; c.g.userData.drift = 0.3 + (i % 3) * 0.15; clouds.push(c.g); }
   }
   // 세계 가장자리
-  colliders.push({ x: 24, z: -14.6, hw: 50, hd: 1 }, { x: 24, z: 13.6, hw: 50, hd: 1 }, { x: -23, z: 0, hw: 1, hd: 20 }, { x: 71, z: 0, hw: 1, hd: 20 });
+  // 서쪽 끝은 길(z 2.2) 자리를 비워 둔다 — 그 길목은 미래 마을 FUT.col이 제출 전까지 막는다
+  colliders.push({ x: 24, z: -14.6, hw: 50, hd: 1 }, { x: 24, z: 13.6, hw: 50, hd: 1 }, { x: -23, z: -9.7, hw: 1, hd: 10.3 }, { x: -23, z: 11.9, hw: 1, hd: 8.1 }, { x: 71, z: 0, hw: 1, hd: 20 });
 
   /* 3) 실내 */
   const voidPlane = new THREE.Mesh(new THREE.PlaneGeometry(170, 46), new THREE.MeshBasicMaterial({ color: 0x2b211a }));
   voidPlane.rotation.x = -Math.PI / 2; voidPlane.position.set(30, -0.02, -80); scene.add(voidPlane);
   buildHomeRoom(); buildMart(); buildFactoryRoom(); buildMeetRoom();
   buildVerbProps();
+  buildFuture();
   NPCS.forEach((n) => { TH[n.id] = n; });
 }
 
@@ -791,7 +793,7 @@ let enteredAt = 0;
 function nearestThing() {
   let best = null, bd = 1.7;
   const justIn = performance.now() - enteredAt < 600;
-  for (const k in TH) { const t = TH[k]; if (!sameRoom(t) || (justIn && t.kind === 'exit') || (t.spot && S.progress < 2) || (S.roam && t.kind === 'scene')) continue; const d = Math.hypot(t.x - S.x, t.z - S.z); if (d < bd) { bd = d; best = t; } }
+  for (const k in TH) { const t = TH[k]; if (!sameRoom(t) || (justIn && t.kind === 'exit') || (t.spot && S.progress < 2) || (S.roam && t.kind === 'scene') || (t.fut && !FUT.open)) continue; const d = Math.hypot(t.x - S.x, t.z - S.z); if (d < bd) { bd = d; best = t; } }
   return best;
 }
 function interact(t) {
@@ -807,6 +809,7 @@ function interact(t) {
   if (t.kind === 'exit') { sfx.door(); exitRoom(); return; }
   if (t.kind === 'scene') { if (!S.roam) runScene(t); return; }   // 제출 뒤에는 평가 장면·패널을 다시 열지 않는다
   if (t.kind === 'look') { lookAt(t); return; }
+  if (t.kind === 'fut') { futAct(t); return; }
   // 제출 뒤 돌아다닐 때는 인물마다 '제출 뒤 대사'(story.js의 이름+Roam)를 쓴다 — 옛 퀘스트 대사가 상황과 안 맞아서
   const dlg = S.roam && DIALOGUE[t.dlg + 'Roam'] ? t.dlg + 'Roam' : t.dlg;
   talk(DIALOGUE[dlg], () => {
@@ -963,6 +966,170 @@ function lookAt(t) {
   if (t.cam) setCam(t.cam);
   talk(DIALOGUE[S.roam && DIALOGUE[t.dlg + 'Roam'] ? t.dlg + 'Roam' : t.dlg], null, null, false);
 }
+
+/* ── 미래 마을: 제출한 학생만(S.roam) 마을 왼쪽 끝 새 길로 들어가는 작은 구역 (6-2 사회 「경제성장과 우리 생활」 78~92쪽) ──
+   제출 전에는 묶음(FUT.g)이 안 보이고 길목(FUT.col)이 막혀 있다. 평가 답과 무관 — 서버로 아무것도 보내지 않는다. */
+const FUT = { open: false, g: null, col: null, anim: null, lift: 0, qi: 0, done: false, bits: [], lastEnter: 0 };
+const FUT_LINE = {
+  time: ['1960년 우리나라 1인당 GNI(국민 한 사람 몫)는 약 120달러였어요. (세계 은행 자료)', '1980년에는 약 1,870달러가 되었어요. (세계 은행 자료)', '2023년에는 약 35,490달러가 되었어요. (세계 은행 자료)'],
+  grow: '나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 경제성장이라고 해요.',
+  tech: '경제성장에 따라 첨단 기술이 빠르게 발전하면서 물건을 만드는 속도가 빨라지고 생산량이 늘어났어요.',
+};
+const CIPHER = [
+  ['나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 ㄱㅈㅅㅈ(이)라고 해요.', '경제성장'],
+  ['전쟁 뒤 빠르게 이룬 우리나라 경제성장을 세계는 \'ㅎㄱㅇ ㄱㅈ\'이라고 불렀어요.', '한강의기적'],
+  ['경제가 성장하면 교육과 의료가 좋아져 사람들의 ㅅㅇ ㅈ이 높아져요.', '삶의질'],
+  ['경제가 성장하면서 잘사는 사람과 어렵게 사는 사람의 차이가 커지는 ㅂㅂ ㄱㅊ이 나타나기도 해요.', '빈부격차'],
+];
+function buildFuture() {
+  const g = new THREE.Group(); g.visible = false; scene.add(g); FUT.g = g;
+  const grp = (x, z) => { const b = new THREE.Group(); b.position.set(x, 0, z); g.add(b); return b; };
+  g.add(plane(23, 19, pavement([6, 5]), -35, 1.5, 0.012), plane(24, 3.2, dirt([7, 1]), -34, 2.2, 0.016));
+  const sign = (text, x, z, w = 1.8, size = 96) => {
+    [-1, 1].forEach((o) => box(0.12, 1.5, 0.12, x + o * (w / 2 - 0.15), 0.75, z, tm(0x8a5a36), 0.015, g));
+    const s = signPlane(text, w, 0.62, { size, fg: '#2c3e7a' }); s.position.set(x, 1.4, z + 0.07); g.add(s);
+    colliders.push({ x, z, hw: w / 2, hd: 0.15 });
+  };
+  sign('미래 마을', -25.2, 0.1, 2.0, 92);
+  // 1) 시간 여행 거리(길 북쪽): 1960년대 초가집 · 1980년대 공장 · 2020년대 빌딩
+  const hut = grp(-28, -6);
+  box(2.2, 1.1, 1.8, 0, 0.55, 0, tm(0xe9d6a6), 0.02, hut); box(0.5, 0.75, 0.05, 0, 0.38, 0.92, tm(0x7a5230), 0.01, hut);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(1.75, 1.1, 4), tm(0xc9a24a)); roof.rotation.y = Math.PI / 4; roof.position.y = 1.65; addOutline(roof, 0.02); hut.add(roof);
+  const fac = grp(-33.5, -6.2), win = tm(0x4a6a8a);
+  box(3.0, 2.0, 2.2, 0, 1, 0, tm(0xb8664a), 0.02, fac); box(3.1, 0.25, 2.3, 0, 2.1, 0, tm(0x8d4a36), 0.015, fac);
+  box(1.4, 1.2, 1.4, -2.1, 0.6, 0.3, tm(0xd8c7a8), 0.02, fac);
+  [-0.9, 0, 0.9].forEach((x) => box(0.5, 0.45, 0.04, x, 1.25, 1.11, win, 0, fac));
+  const chim = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.3, 3.4, 12), tm(0x9a9a9a)); chim.position.set(1.0, 2.7, -0.5); addOutline(chim, 0.015); fac.add(chim);
+  const tw = grp(-39.2, -6.6);
+  const winTex = canvasTex(64, 64, (c, w, h) => { c.fillStyle = '#6fa6d2'; c.fillRect(0, 0, w, h); c.fillStyle = '#d9f0ff'; [[8, 10], [36, 10], [8, 40], [36, 40]].forEach(([x, y]) => c.fillRect(x, y, 20, 16)); }, [2, 8]);
+  const glass = new THREE.MeshToonMaterial({ map: winTex, gradientMap: GRAD_ENV });
+  box(2.0, 8.0, 2.0, 0, 4, 0, glass, 0.02, tw); box(1.4, 10.5, 1.4, 1.6, 5.25, -0.4, glass, 0.02, tw);
+  colliders.push({ x: -28, z: -6, hw: 1.2, hd: 1.0 }, { x: -34, z: -6.1, hw: 2.4, hd: 1.2 }, { x: -38.6, z: -6.6, hw: 2.0, hd: 1.3 });
+  colliders.push({ x: -30.4, z: -6.2, hw: 1.3, hd: 0.9 });   // 초가집·공장 사이 틈: 건물 뒤 막다른 골목으로 못 들어가게
+  colliders.push({ x: -25.4, z: -6.2, hw: 1.5, hd: 0.9 });   // 초가집 동쪽 틈(마을 서쪽 벽 x -24까지)도 같은 까닭으로 막는다
+  [['1960년대', -28, hut], ['1980년대', -33.5, fac], ['2020년대', -39.2, tw]].forEach(([lb, x, obj], i) => {
+    sign(lb, x, -3.3);
+    TH['futT' + i] = { id: 'futT' + i, kind: 'fut', fut: true, act: 'time', i, x, z: -0.6, label: lb, verb: '살펴보기', obj, labelY: 2.2, promptY: 1.0 };   // 간판 앞으로 비켜 서고 말풍선은 낮게: 간판 글자를 덮지 않게
+  });
+  // 2) 첨단 기술 타 보기(길 남쪽): 드론 · 자율 주행 차 · 로봇
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.06, 24), tm(0x3d4a5a)); pad.position.set(-28.5, 0.03, 7.2); g.add(pad);
+  const drone = grp(-28.5, 7.2); drone.position.y = 0.12;
+  box(0.55, 0.14, 0.55, 0, 0, 0, tm(0xf2f2f2), 0.012, drone);
+  const rotors = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => { box(0.06, 0.1, 0.06, a * 0.38, 0.04, b * 0.38, tm(0x555555), 0, drone); return box(0.42, 0.02, 0.06, a * 0.38, 0.1, b * 0.38, tm(0x333333), 0, drone); });
+  const car = place('car_sedan', -34.5, 7.4, { h: 1.15, ry: Math.PI / 2, solid: false, occl: false }); g.add(car.g);
+  colliders.push({ x: car.x, z: car.z, hw: car.w * 0.43, hd: car.d * 0.42 });   // 올라서기(top) 없음: 세계 가장자리 밖 소품 규칙(play3d)
+  const rb = grp(-40.5, 6.3);
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.4, 16), tm(0x555c66)); base.position.y = 0.2; addOutline(base, 0.015); rb.add(base);
+  const turret = new THREE.Group(); turret.position.y = 0.4; rb.add(turret);
+  const a1 = new THREE.Group(); turret.add(a1); box(0.24, 1.0, 0.24, 0, 0.5, 0, tm(0xf2a33a), 0.015, a1);
+  const a2 = new THREE.Group(); a2.position.y = 1.0; a1.add(a2); box(0.2, 0.8, 0.2, 0, 0.4, 0, tm(0xf2a33a), 0.015, a2); box(0.34, 0.1, 0.34, 0, 0.85, 0, tm(0x555c66), 0.012, a2);
+  a1.rotation.z = 0.3; a2.rotation.z = -1.1;
+  box(0.4, 0.8, 0.4, -39.6, 0.4, 7.7, tm(0x6b7480), 0.015, g);   // 버튼대: 꼬꼬 오른쪽 앞, 바닥과 구별되는 진한 회색
+  const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 16), toon(0xe8402c).clone()); btn.position.set(-39.6, 0.84, 7.7); addOutline(btn, 0.01); g.add(btn);
+  colliders.push({ x: -39.6, z: 7.7, hw: 0.25, hd: 0.25 }, { x: -40.5, z: 6.3, hw: 0.5, hd: 0.5 });
+  Object.assign(FUT, { drone, rotors, car, robot: { turret, a1, a2, btn } });
+  TH.futDrone = { id: 'futDrone', kind: 'fut', fut: true, act: 'drone', x: -28.5, z: 5.4, label: '드론', verb: '드론 날리기' };
+  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: -34.5, z: 5.5, label: '자율 주행 차', verb: '자율 주행 차 타기' };
+  TH.futRobot = { id: 'futRobot', kind: 'fut', fut: true, act: 'robot', x: -41.7, z: 8.4, label: '로봇', verb: '로봇 버튼 누르기' };
+  // 3) 초성 암호 상자(길 끝): 앞면이 마을 쪽(+x)을 보게
+  const chest = grp(-44.3, 2.2); chest.rotation.y = Math.PI / 2;
+  box(1.0, 0.55, 0.7, 0, 0.28, 0, tm(0x9a6236), 0.02, chest);
+  const lid = new THREE.Group(); lid.position.set(0, 0.55, -0.35); chest.add(lid); box(1.04, 0.22, 0.74, 0, 0.11, 0.35, tm(0xb07440), 0.02, lid);
+  box(0.16, 0.2, 0.05, 0, 0.5, 0.37, tm(0xf2c230), 0.01, chest);
+  colliders.push({ x: -44.3, z: 2.2, hw: 0.45, hd: 0.6 });
+  sign('초성 암호 상자', -44.3, 0.4, 2.4, 66);
+  FUT.lid = lid;
+  TH.futBox = { id: 'futBox', kind: 'fut', fut: true, act: 'box', x: -43.1, z: 2.2, label: '초성 암호 상자', verb: '암호 풀기' };
+  // 구역 둘레(보이지 않는 벽). 마을 서쪽 끝(x -23)의 길목 FUT.col은 열릴 때 끈다
+  colliders.push({ x: -47, z: 2, hw: 1, hd: 12 }, { x: -35, z: -9.6, hw: 12, hd: 1 }, { x: -35, z: 12.4, hw: 12, hd: 1 });
+  FUT.col = { x: -23, z: 2.2, hw: 1, hd: 1.6 }; colliders.push(FUT.col);
+}
+function openFuture() {
+  if (FUT.open) return;
+  FUT.open = true; FUT.g.visible = true; FUT.col.off = true;
+  const t = $('fut-toast'); t.textContent = '새 길이 열렸어요 · 마을 왼쪽 끝'; t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+  setTimeout(() => sfx.gate(), 300);
+}
+function futAct(t) {
+  if (t.act === 'box') { if (FUT.done) talk([{ who: 'note', text: '상자는 이미 열려 있어요. 암호 넷을 모두 풀었어요!' }]); else openCipher(); return; }
+  S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
+  FUT.timeTalk = t.act === 'time';   // 시간 여행 칸 대사 동안 꼬꼬 이름표가 뒤 간판 글자를 덮지 않게 숨긴다
+  S.x = t.x; S.z = t.z; S.face = t.act === 'time' ? Math.PI : t.act === 'robot' ? Math.atan2(-40.5 - t.x, 6.3 - t.z) : 0;   // 로봇 칸은 꼬꼬가 로봇 왼쪽 앞에 비켜 서서 로봇을 본다(카메라와 로봇 사이를 가리지 않게)
+  sfx.blip();
+  const lines = t.act === 'time' ? [FUT_LINE.time[t.i]].concat(t.i === 2 ? [FUT_LINE.grow] : []) : [FUT_LINE.tech];
+  const R = FUT.robot, D = FUT.drone, C = FUT.car.g, c0 = { x: C.position.x, z: C.position.z, ry: C.rotation.y };
+  const step = {
+    time(k) { const s = 1 + 0.12 * Math.sin(Math.PI * k); t.obj.scale.set(s, s, s); if (k > 0.2 && !t.puffed) { t.puffed = true; puff(t.obj.position.x, t.obj.position.z + 1.4, 8); sfx.open(); } },
+    drone(k) {
+      // 받침 둘레를 높이 돈다: 꼬꼬 자리(z 5.4)를 지나지 않고, 카메라와 꼬꼬 사이 시선보다 높게
+      const a = Math.PI * 2 * span(k, 0.25, 0.8), r = 1.1 * span(k, 0.25, 0.35) * (1 - span(k, 0.7, 0.8));
+      D.position.set(-28.5 + Math.sin(a) * r, 0.12 + 3.5 * span(k, 0, 0.25) * (1 - span(k, 0.8, 1)), 7.2 - Math.cos(a) * r);
+      D.rotation.y = a; FUT.rotors.forEach((m, i) => { m.rotation.y = k * 90 + i; });
+    },
+    car(k) {
+      const on = span(k, 0, 0.15), off = span(k, 0.85, 1), a = Math.PI * 2 * span(k, 0.15, 0.85), r = 1.6;
+      C.position.set(c0.x + Math.sin(a) * r, 0, c0.z - r + Math.cos(a) * r); C.rotation.y = c0.ry + a;
+      const m = on * (1 - off);
+      S.x = t.x + (C.position.x - t.x) * m; S.z = t.z + (C.position.z - t.z) * m;
+      FUT.lift = Math.sin(Math.PI * (k < 0.5 ? on : off)) * 0.9; hero.root.visible = m < 0.8;   // 폴짝 뛰어 차 안으로 들어간다(지붕에 앉지 않게 잠깐 숨김)
+      if (m > 0.5) S.face = c0.ry + a;
+    },
+    robot(k) {
+      R.btn.position.y = 0.84 - (k < 0.15 ? 0.05 : 0); R.btn.material.color.setHex(k < 0.95 ? 0x5ad05a : 0xe8402c);
+      R.turret.rotation.y = Math.sin(Math.PI * 2 * k) * 1.3; R.a1.rotation.z = 0.3 + 0.5 * Math.sin(Math.PI * k); R.a2.rotation.z = -1.1 + 0.7 * Math.sin(Math.PI * 2 * k);
+    },
+  }[t.act];
+  t.puffed = false;
+  FUT.anim = { act: t.act, t0: performance.now(), ms: t.act === 'car' ? 2400 : t.act === 'time' ? 1200 : 1800, step, done: () => {
+    FUT.lift = 0; hero.root.visible = true; if (t.act === 'car') { S.x = t.x; S.z = t.z; S.face = 0; }
+    talk(lines.map((text) => ({ who: 'note', text })));
+  } };
+}
+function updateFuture(dt) {
+  if (!FUT.open) return;
+  if (FUT.anim) { const A = FUT.anim, k = Math.min(1, (performance.now() - A.t0) / A.ms); A.step(k); if (k >= 1) { FUT.anim = null; A.done(); } }
+  for (let i = FUT.bits.length - 1; i >= 0; i--) {
+    const b = FUT.bits[i], u = b.userData; u.life -= dt; u.vy -= 9 * dt;
+    b.position.x += u.vx * dt; b.position.y += u.vy * dt; b.position.z += u.vz * dt; b.rotation.x += dt * 8; b.rotation.y += dt * 6;
+    if (u.life <= 0 || b.position.y < 0) { scene.remove(b); b.material.dispose(); FUT.bits.splice(i, 1); }
+  }
+  if (FUT.done && FUT.lid.rotation.x > -1.9) FUT.lid.rotation.x = Math.max(-1.9, FUT.lid.rotation.x - dt * 3);
+}
+// 초성 암호 창: 한 문제씩, 띄어쓰기 무시 비교, 틀리면 칸 흔들림, Esc 닫기. 열린 동안 꼬꼬는 멈춘다(S.mode 'cipher')
+const cipherEl = document.createElement('div'); cipherEl.id = 'cipher'; cipherEl.className = 'hide';
+cipherEl.setAttribute('role', 'dialog'); cipherEl.setAttribute('aria-modal', 'true'); cipherEl.setAttribute('aria-label', '초성 암호 상자');
+cipherEl.innerHTML = '<div class="cp-box"><div class="cp-top"><b>초성 암호 상자</b><span id="cipher-n"></span></div><p id="cipher-q"></p>'
+  + '<input id="cipher-in" autocomplete="off" spellcheck="false" aria-label="암호 답 입력"><div class="cp-key"><span class="kbd">Enter</span> 확인 · <span class="kbd">Esc</span> 닫기</div></div>';
+document.body.appendChild(cipherEl);
+function renderCipher() { $('cipher-n').textContent = (FUT.qi + 1) + ' / ' + CIPHER.length; $('cipher-q').textContent = CIPHER[FUT.qi][0]; $('cipher-in').value = ''; }
+function openCipher() {
+  S.mode = 'cipher'; for (const k in keys) keys[k] = false; landNow();
+  renderCipher(); cipherEl.classList.remove('hide'); setTimeout(() => $('cipher-in').focus(), 0);
+}
+function closeCipher() { cipherEl.classList.add('hide'); $('cipher-in').blur(); for (const k in keys) keys[k] = false; S.mode = 'walk'; }
+function checkCipher() {
+  const inp = $('cipher-in'), v = inp.value.replace(/\s/g, '');
+  if (!v || performance.now() - FUT.lastEnter < 200) return;   // 빈 칸·겹쳐 들어온 Enter는 무시
+  FUT.lastEnter = performance.now();
+  if (v !== CIPHER[FUT.qi][1]) { sfx.nope(); inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad'); return; }
+  sfx.ding(); FUT.qi++;
+  if (FUT.qi < CIPHER.length) { renderCipher(); return; }
+  closeCipher(); FUT.done = true; TH.futBox.verb = '살펴보기'; sfx.gate();
+  const cols = [0xff5a5a, 0xffc93a, 0x5ad05a, 0x4aa8ff, 0xc77dff];
+  for (let i = 0; i < 26; i++) {
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.08), new THREE.MeshBasicMaterial({ color: cols[i % 5], side: THREE.DoubleSide }));
+    const a = Math.random() * Math.PI * 2; b.position.set(-44.3, 0.8, 2.2);
+    b.userData = { life: 1.6, vx: Math.cos(a) * 1.6, vz: Math.sin(a) * 1.6, vy: 4 + Math.random() * 2.5 }; scene.add(b); FUT.bits.push(b);
+  }
+  S.mode = 'scene'; setTimeout(() => talk([{ who: 'note', text: '딸깍! 상자가 열렸어요. 암호 넷을 모두 맞혔어요!' }]), 900);
+}
+$('cipher-in').addEventListener('keydown', (e) => {
+  e.stopPropagation();   // 게임 쪽(main.js 창 키 처리: Esc=수첩, Space=점프)으로 안 넘긴다
+  if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 Enter는 판정하지 않는다
+  if (e.key === 'Escape') { e.preventDefault(); closeCipher(); return; }
+  if (e.key === 'Enter') { e.preventDefault(); if (!e.repeat) checkCipher(); }
+});
+$('cipher-in').addEventListener('animationend', (e) => e.target.classList.remove('bad'));
 function openChapter(c) {
   if (S.roam) return;
   S.mode = 'panel';
@@ -1100,11 +1267,11 @@ function advance() {
   if (S.mode === 'walk' && talkQueue.length) { const q = talkQueue.shift(); talk(q[0], q[1], q[2], q[3]); }
 }
 
-/* ── 판깔기: 로그인 직후 검은 화면에 안내 네 줄 → "성실하게 하겠습니다"를 직접 쳐야 시작 ── */
+/* ── 판깔기: 로그인 직후 검은 화면에 안내 네 줄 → "혼자 생각해서 쓰겠습니다"를 직접 쳐야 시작 (11/24 2반 피드백: 답 공유) ── */
 function showPledge(done) {
   S.mode = 'pledge'; for (const k in keys) keys[k] = false;
   const box = $('pledge'), lines = [...box.querySelectorAll('.pl-lines p')], ask = box.querySelector('.pl-ask'), inp = $('pledge-in');
-  const GOAL = '성실하게하겠습니다';
+  const GOAL = '혼자생각해서쓰겠습니다';
   let finished = false;
   lines.forEach((l) => l.classList.remove('on')); ask.classList.remove('on'); inp.value = ''; inp.classList.remove('bad');
   box.classList.remove('hide');
@@ -1242,7 +1409,7 @@ function renderHUD() {
   });
 }
 let zoneShown = '';
-const ZONES = { home: ['', '꼬꼬네 집'], village: ['', '꼬꼬네 마을'], company: ['', '불꽃식품 회사'], mart: ['1장', '동네 마트'], factory: ['2장', '불꽃식품 공장'], meet: ['3장', '회의실'] };
+const ZONES = { future: ['', '미래 마을'], home: ['', '꼬꼬네 집'], village: ['', '꼬꼬네 마을'], company: ['', '불꽃식품 회사'], mart: ['1장', '동네 마트'], factory: ['2장', '불꽃식품 공장'], meet: ['3장', '회의실'] };
 function zoneBanner(z) {
   const [ch, nm] = ZONES[z];
   const b = $('zone-banner'); b.innerHTML = (ch ? '<span class="zb-ch">' + ch + '</span>' : '') + nm;
@@ -1273,11 +1440,12 @@ const nameTags = {};
 function nameTag(id, text, cls) { const el = document.createElement('div'); el.className = 'nametag ' + (cls || ''); el.textContent = text; $('labels').appendChild(el); nameTags[id] = el; return el; }
 function updateNameTags() {
   const show = S.mode === 'walk' || S.mode === 'talk';
+  if (S.mode === 'walk') FUT.timeTalk = false;
   const list = [['__hero', hero.root.position.x, hero.root.position.z, 1.75 + J.z + (S.sit ? 0.42 : 0), '꼬꼬(나)', 'me', true]]
     .concat(NPCS.map((n) => [n.id, n.x, n.z, (n.labelY || 2) - 0.25, WHO[n.who].name, '', sameRoom(n)]));
   for (const [id, x, z, y, text, cls, same] of list) {
     const el = nameTags[id] || nameTag(id, text, cls);
-    const far = !same || Math.hypot(x - S.x, z - S.z) > 14 || !show || !!S.cam;
+    const far = !same || Math.hypot(x - S.x, z - S.z) > 14 || !show || !!S.cam || (id === '__hero' && (FUT.timeTalk || (S.mode === 'walk' && promptFor && promptFor.act === 'time')));
     if (far) { el.style.display = 'none'; continue; }
     const [sx, sy, sz] = toScreen(x, y, z);
     el.style.display = sz < 1 ? '' : 'none'; el.style.left = sx + 'px'; el.style.top = sy + 'px';
@@ -1378,10 +1546,10 @@ function updateNav(dt) {
   // 말 걸기 말풍선
   const t = S.mode === 'walk' ? nearestThing() : null; promptFor = t;
   if (t) {
-    const ty = t.kind === 'npc' ? (t.labelY || 2) - 0.2 : t.kind === 'door' ? 2.2 : t.kind === 'exit' ? 1.5 : (t.labelY || 1.4) - 0.6;
+    const ty = t.promptY !== undefined ? t.promptY : t.kind === 'npc' ? (t.labelY || 2) - 0.2 : t.kind === 'door' ? 2.2 : t.kind === 'exit' ? 1.5 : (t.labelY || 1.4) - 0.6;
     const [px, py] = toScreen(t.x, ty, t.z);
     prompt.textContent = t.kind === 'npc' ? 'Space 말 걸기' : t.kind === 'door' ? (doorOpen(t) ? 'Space 들어가기' : '🔒 Space') : t.kind === 'exit' ? 'Space 나가기'
-      : t.id === 'rollcall' ? 'Space 서기' : t.id === 'seat' ? 'Space 앉기' : 'Space 살펴보기';
+      : t.kind === 'fut' ? 'Space ' + t.verb : t.id === 'rollcall' ? 'Space 서기' : t.id === 'seat' ? 'Space 앉기' : 'Space 살펴보기';
     prompt.style.left = px + 'px'; prompt.style.top = py + 'px'; prompt.style.display = '';
   } else prompt.style.display = 'none';
   // 목적지 문 바로 앞에 서면 말풍선이 길 안내를 대신한다: 목적지 이름표·3D 화살표가 건물 간판을 덮지 않게 숨긴다
@@ -1423,7 +1591,7 @@ function flap() {
 }
 addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
-  if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge') return;   // 시험 화면·판깔기는 따로 처리
+  if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge' || S.mode === 'cipher') return;   // 시험 화면·판깔기·암호 창은 따로 처리
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   audioUnlock();
   if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
@@ -1486,7 +1654,7 @@ function loop() {
   let dy = S.face - hero.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   hero.root.rotation.y += dy * Math.min(1, dt * 12);
   const pose = updateVerb() || {};
-  hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy: sy * (pose.sy || 1), lift: J.z + (S.sit ? 0.42 : 0), spin: J.spin * Math.PI * 2,
+  hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy: sy * (pose.sy || 1), lift: J.z + (S.sit ? 0.42 : 0) + FUT.lift, spin: J.spin * Math.PI * 2,
     headX: pose.headX, lean: pose.lean, wing: pose.wing });
   // 날기: 날갯짓 직후엔 크게 퍼덕이고, 내려올 때는 날개를 펴고 살랑
   if (J.fly && J.on) {
@@ -1511,7 +1679,7 @@ function loop() {
   if (beltTex) { beltTex.offset.x -= dt * 0.55; for (const p of beltPacks) { p.position.x += dt * 0.72; if (p.position.x > 46.6) p.position.x -= 13.2; } }
   for (const l of lamps) l.material.emissiveIntensity = Math.sin(navT * 6) > 0 ? 1.4 : 0.2;
   // 구역 배너
-  const zk = S.room || (S.x < GATE_X ? 'village' : 'company');
+  const zk = S.room || (S.x < -23.4 ? 'future' : S.x < GATE_X ? 'village' : 'company');
   if (zk !== zoneShown && (S.mode === 'walk' || S.mode === 'talk')) { zoneShown = zk; zoneBanner(zk); }
   // 해·카메라
   sun.position.set(camLook.x + 9, 16, camLook.z + 7); sun.target.position.set(camLook.x, 0, camLook.z);
@@ -1545,6 +1713,7 @@ function loop() {
   }
   updateOccluders(dt);
   updateSmoke(dt);
+  updateFuture(dt);
   updateNav(dt);
   updateNameTags();
   tidyLabels();
@@ -1572,7 +1741,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, S, J, FLY_TOP, flyTop, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
+window.__kk = { get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, FUT, S, J, FLY_TOP, flyTop, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {
@@ -1622,6 +1791,7 @@ window.addEventListener('unhandledrejection', (ev) => { if (S.mode === 'loading'
       for (const k in keys) keys[k] = false;
       $('kbd-nb').textContent = 'Space 연타 날기 · Esc 내 답 보기';
       S.cam = null; S.sit = false; zoneShown = ''; S.mode = 'walk';
+      openFuture();   // 제출한 학생만: 마을 왼쪽 끝에 미래 마을 길이 열린다
     },
     getFlags: () => S.flags,
     onEnd: () => { S.mode = 'end'; },

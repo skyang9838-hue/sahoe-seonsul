@@ -7,8 +7,8 @@
 <!-- 글꼴은 직접 둔다(assets/fonts, 필요한 글자만 뽑은 woff2) — 늦게 받아지거나 막혀서 패널 글자가 넘치지 않게 -->
 <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=11">
-<link rel="stylesheet" href="exam.css?v=22">
+<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="exam.css?v=24">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -30,6 +30,7 @@
   </div>
   <div id="quest-bar" style="display:none"><span class="qb-pin">📍</span><b></b></div>
   <div id="zone-banner"></div>
+  <div id="fut-toast"></div>
 
   <div id="cutin" class="hide"><div class="ci-band"></div><img id="ci-img" alt=""></div>
   <img id="dlg-big" class="hide" alt="">
@@ -114,6 +115,10 @@
         <div class="ask-box"><div id="ex-ask-msg"></div>
           <div class="ask-btns"><button id="ex-ask-no" class="btn">돌아가기</button><button id="ex-ask-yes" class="btn primary">네</button></div></div>
       </div>
+      <div id="ex-warn" class="hide" role="alertdialog" aria-modal="true" aria-labelledby="warn-t">
+        <div class="warn-lines"><p id="warn-t">이것은 평가입니다.</p><p>정말 최선을 다해 적었나요?</p></div>
+        <button id="ex-warn-go" class="btn primary big">2번 문항 다시 보기</button>
+      </div>
       <div id="ex-banner" class="hide"><span id="ex-banner-msg"></span><button id="ex-banner-retry" class="btn">다시 저장</button></div>
       <div id="ex-toast" class="hide"></div>
     </div>
@@ -121,14 +126,14 @@
 
   <div id="pledge" class="hide" role="dialog" aria-modal="true" aria-label="시작 전 안내">
     <div class="pl-lines">
-      <p>이것은 게임이 아닙니다.</p>
       <p>사회과 서·논술형 수행평가입니다.</p>
-      <p>선생님이 직접 준비했고, 모든 답안을 직접 읽습니다.</p>
-      <p>같은 문항이 종이 평가지로도 있습니다. 성실하게 임해 주세요.</p>
+      <p>게임처럼 보여도 성적에 들어갑니다.</p>
+      <p>친구와 답을 나누지 마세요.</p>
+      <p>선생님이 모든 답을 직접 읽고, 같은 답은 따로 확인합니다.</p>
     </div>
     <div class="pl-ask">
-      <div class="pl-guide">아래에 똑같이 입력하면 시작합니다: <b>성실하게 하겠습니다</b></div>
-      <input id="pledge-in" autocomplete="off" spellcheck="false" aria-label="성실하게 하겠습니다 입력">
+      <div class="pl-guide">아래에 똑같이 입력하면 시작합니다: <b>혼자 생각해서 쓰겠습니다</b></div>
+      <input id="pledge-in" autocomplete="off" spellcheck="false" aria-label="혼자 생각해서 쓰겠습니다 입력">
       <div class="pl-key">입력하고 <span class="kbd">Enter</span></div>
     </div>
   </div>
@@ -148,6 +153,6 @@
   setTimeout(fail, 150000);
 })();
 </script>
-<script type="module" src="src/main.js?v=27"></script>
+<script type="module" src="src/main.js?v=31"></script>
 </body>
 </html>

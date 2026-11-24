@@ -140,7 +140,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.click('#btn-start'); await p.waitForTimeout(200);
   check(await p.evaluate(() => document.getElementById('start-msg').textContent.includes('반과 번호')), '빈칸으로 출근하기 → 반·번호 안내');
   await login();
-  // 판깔기: 처음 시작하는 학생에게만. 검은 화면에 네 줄이 하나씩 → "성실하게 하겠습니다"를 쳐야 오프닝
+  // 판깔기: 처음 시작하는 학생에게만. 검은 화면에 네 줄이 하나씩 → "혼자 생각해서 쓰겠습니다"를 쳐야 오프닝
   check(await waitMode('pledge', 5000), '출근하기 → 판깔기 화면');
   check(await p.evaluate(() => !document.getElementById('ex-root').classList.contains('on-poster') && document.getElementById('ex-root').classList.contains('hide')), '판깔기로 넘어가면 포스터·시작 화면 닫힘');
   await p.waitForTimeout(1500);
@@ -153,7 +153,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s0.focus === 'pledge-in', '판깔기 입력 칸에 자동 포커스 (' + s0.focus + ')');
   await p.waitForTimeout(700); await snap('pledge');
   // 붙여넣기·끌어 놓기 막힘
-  s0 = await p.evaluate(() => { const i = document.getElementById('pledge-in'); const dt = new DataTransfer(); dt.setData('text/plain', '성실하게 하겠습니다');
+  s0 = await p.evaluate(() => { const i = document.getElementById('pledge-in'); const dt = new DataTransfer(); dt.setData('text/plain', '혼자 생각해서 쓰겠습니다');
     const pe = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }); i.dispatchEvent(pe);
     const de = new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }); i.dispatchEvent(de); return [pe.defaultPrevented, de.defaultPrevented, i.value]; });
   check(s0[0] && s0[1] && s0[2] === '', '판깔기 칸 붙여넣기·끌어 놓기 막힘 (' + s0.join(',') + ')');
@@ -167,7 +167,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s0[0] === 'pledge' && s0[1] && !s0[2], '틀린 문장 + Enter → 통과 안 됨, 칸 흔들림 (' + s0.join(',') + ')');
   await snap('pledge-wrong');
   // 맞는 문장(띄어쓰기는 무시) → 오프닝
-  await p.fill('#pledge-in', ''); await p.keyboard.type('성실하게  하겠 습니다'); await p.keyboard.press('Enter');
+  await p.fill('#pledge-in', ''); await p.keyboard.type('혼자  생각해서 쓰겠 습니다'); await p.keyboard.press('Enter');
   check(await waitMode('comic', 5000), '맞는 문장(띄어쓰기 무시) + Enter → 오프닝 컷신');
   check(await p.evaluate(() => document.getElementById('pledge').classList.contains('hide')), '판깔기 화면 닫힘');
   await p.waitForTimeout(900); await snap('comic1');
@@ -251,6 +251,10 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     check(ok, tag + ' 2단 점프로도 못 넘음 (x ' + mnx + '~' + mx + ', z ' + mz + '~' + Mz + ')');
   }
   check((await st()).quest === 'mom', '넘으려 해 봐도 퀘스트는 그대로 (' + (await st()).quest + ')');
+  // 미래 마을(제출한 학생만): 제출 전에는 물체가 안 보이고 서쪽 끝 길목이 막혀 있음(위 '서쪽 끝' 점프로도 못 넘음), 안내에도 없음
+  s0 = await p.evaluate(() => ({ open: __kk.FUT.open, vis: __kk.FUT.g.visible, col: !__kk.FUT.col.off, n: Object.values(__kk.TH).filter((t) => t.fut).length, txt: document.body.innerText.includes('미래') }));
+  check(!s0.open && !s0.vis && s0.col && s0.n === 7 && !s0.txt, '제출 전 미래 마을: 안 보이고 길목 막힘, 화면 글에 없음 (' + JSON.stringify(s0) + ')');
+
   // 엄마 닭
   await near('mom', -1.0, 0.2); await p.waitForTimeout(300); await labelsBelowTop('엄마 닭 옆'); await space(); check((await st()).mode === 'talk', '엄마 닭 말 걸기'); await p.waitForTimeout(700); await snap('talk-mom'); await p.waitForTimeout(600);
   s0 = await p.evaluate(() => { const c = __kk.camera, V = c.position.constructor, m = __kk.NPCS.find((n) => n.id === 'mom'), y = (x, h, z) => Math.round((-new V(x, h, z).project(c).y * 0.5 + 0.5) * innerHeight);
@@ -344,7 +348,23 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s0[0] === '가)/나)' && s0[1] === 2 && s0[2], '2번 패널: 조건 원문 + 가)·나) 칸 두 개 (' + s0.join(' | ') + ')');
   check(await act() === 'p-a4', '2번 패널 첫 칸(가))에 커서');
   await fill('#p-a4', '테스트 답 가'); await fill('#p-a5', '테스트 답 나');
-  await p.click('#ex-done'); await p.waitForTimeout(900); check((await st()).prog === 2, '2장 도장'); await finishTalk();
+  // 2번 문항 첫 [다 썼어요]: 검은 주의 화면 → [2번 문항 다시 보기](1.5초 뒤 켜짐) → 2번 패널 그대로 → 다시 [다 썼어요]로 나감
+  await p.click('#ex-done'); await p.waitForTimeout(300);
+  s0 = await p.evaluate(() => ({ ex: window.__ex.mode, vis: !document.getElementById('ex-warn').classList.contains('hide'), dis: document.getElementById('ex-warn-go').disabled, ask: !document.getElementById('ex-ask').classList.contains('hide'), bg: getComputedStyle(document.getElementById('ex-warn')).backgroundColor }));
+  check(s0.ex === 'warn' && s0.vis && s0.dis && !s0.ask && s0.bg === 'rgb(0, 0, 0)', '2번 패널 첫 [다 썼어요] → 검은 주의 화면, 버튼은 잠시 꺼짐 (' + JSON.stringify(s0) + ')');
+  check((await st()).prog === 1, '주의 화면 동안 2장 도장 아직 안 찍힘');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  check((await st()).ex === 'warn', '패널 주의 화면에서 Esc로 안 닫힘');
+  await p.waitForTimeout(1500); await snap('warn-panel');
+  check(await p.evaluate(() => !document.getElementById('ex-warn-go').disabled && document.activeElement.id === 'ex-warn-go'), '1.5초 뒤 [2번 문항 다시 보기] 켜짐·포커스');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+  s0 = await p.evaluate(() => ({ ex: window.__ex.mode, warn: document.getElementById('ex-warn').classList.contains('hide'), panel: !document.getElementById('ex-panel').classList.contains('hide'), tags: [...document.querySelectorAll('#ex-qs .field-tag')].map((e) => e.textContent).join('/'), f: document.activeElement && document.activeElement.id, a4: document.getElementById('p-a4').value, a5: document.getElementById('p-a5').value }));
+  check(s0.ex === 'panel' && s0.warn && s0.panel && s0.tags === '가)/나)' && s0.f === 'p-a4' && s0.a4 === '테스트 답 가' && s0.a5 === '테스트 답 나', 'Enter → 2번 패널 그대로(답 그대로), 가) 칸 포커스 (' + JSON.stringify(s0) + ')');
+  check((await st()).prog === 1, '돌아와도 아직 2장 도장 안 찍힘');
+  await snap('warn-panel-back');
+  await p.click('#ex-done'); await p.waitForTimeout(900);
+  check(await p.evaluate(() => document.getElementById('ex-warn').classList.contains('hide')), '다시 [다 썼어요] → 주의 화면 다시 안 나옴');
+  check((await st()).prog === 2, '2장 도장'); await finishTalk();
   check(await p.evaluate(() => __kk.POLL.on && __kk.POLL.pipe.visible), '2장을 마치면 강가에 배수관·더러운 물');
   await near('exit_factory', 0, -0.4); await space(); await p.waitForTimeout(900);
   check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('(0/3)')), '3장 퀘스트: 세 곳 (0/3)');
@@ -416,7 +436,21 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s.ex === 'game' && s.mode === 'walk', 'Esc로 수첩 닫힘 (' + s.ex + '/' + s.mode + ')');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300); s = await st();
   check(s.ex === 'notebook', 'Esc로 수첩 다시 열림 (' + s.ex + ')');
-  await p.click('#nb-submit'); await p.waitForTimeout(300); await p.click('#ex-ask-yes'); await p.waitForTimeout(800);
+  // 첫 제출: 검은 주의 화면 → [2번 문항 다시 보기](1.5초 뒤 켜짐) → 수첩 2번 → 다시 [제출하기] → 확인 창
+  await p.click('#nb-submit'); await p.waitForTimeout(300);
+  s0 = await p.evaluate(() => ({ ex: window.__ex.mode, vis: !document.getElementById('ex-warn').classList.contains('hide'), dis: document.getElementById('ex-warn-go').disabled, ask: !document.getElementById('ex-ask').classList.contains('hide'), bg: getComputedStyle(document.getElementById('ex-warn')).backgroundColor }));
+  check(s0.ex === 'warn' && s0.vis && s0.dis && !s0.ask && s0.bg === 'rgb(0, 0, 0)', '첫 제출 → 검은 주의 화면, 버튼은 잠시 꺼짐 (' + JSON.stringify(s0) + ')');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  check((await st()).ex === 'warn', '주의 화면에서 Esc로 안 닫힘');
+  await p.waitForTimeout(1500); await snap('warn');
+  check(await p.evaluate(() => !document.getElementById('ex-warn-go').disabled && document.activeElement.id === 'ex-warn-go'), '1.5초 뒤 [2번 문항 다시 보기] 켜짐·포커스');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+  s0 = await p.evaluate(() => ({ ex: window.__ex.mode, tab: (document.querySelector('#nb-tabs button.on') || {}).textContent, note: document.getElementById('nb-note').textContent, f: document.activeElement && document.activeElement.id, warn: document.getElementById('ex-warn').classList.contains('hide') }));
+  check(s0.ex === 'notebook' && s0.tab === '2번' && s0.warn && /2번 답/.test(s0.note) && s0.f === 'n-a4', 'Enter → 수첩 2번 탭, 안내 문구, 2번 첫 칸 포커스 (' + JSON.stringify(s0) + ')');
+  await snap('warn-q2');
+  await p.click('#nb-submit'); await p.waitForTimeout(300);
+  check(await p.evaluate(() => !document.getElementById('ex-ask').classList.contains('hide') && document.getElementById('ex-warn').classList.contains('hide')), '두 번째 [제출하기] → 확인 창 (주의 화면 다시 안 나옴)');
+  await p.click('#ex-ask-yes'); await p.waitForTimeout(800);
   s = await st(); check(s.sub && s.ex === 'end', '제출 → 끝 화면'); await snap('end');
   s0 = await srvRow(); check(s0 && s0.submitted && s0.answers[8] === '테스트 답 마', '서버(스텁)에 제출 표시·9칸 (' + (s0 && s0.submittedAt) + ')');
   check(await p.evaluate(() => !/[◎○△]|점수|판정|정답/.test(document.getElementById('ex-root').innerText)), '학생 화면에 채점 결과(◎○△·점수·판정) 없음');
@@ -436,6 +470,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     check(await p.evaluate(() => document.getElementById('ex-root').classList.contains('hide')), tag + ' 평가 화면 닫힘');
     check(s.quest === null && await p.evaluate(() => document.getElementById('quest-bar').style.display === 'none' && !__kk.arrow.visible && __kk.markers.every((m) => !m.g.visible)), tag + ' 퀘스트 안내·화살표·반짝이 숨김');
     check(await p.evaluate(() => __kk.gates.every((g) => g.open)), tag + ' 울타리 문 모두 열림');
+    check(await p.evaluate(() => __kk.FUT.open && __kk.FUT.g.visible && __kk.FUT.col.off), tag + ' 미래 마을 길 열림·구역 보임');
     check(await p.evaluate(() => [...document.querySelectorAll('#labels .edge-arrow,#labels .tlabel')].every((e) => e.style.display === 'none')), tag + ' 목적지 이름표·가장자리 화살표 숨김');
   };
   await p.keyboard.press('Enter'); await p.waitForTimeout(600);
@@ -489,6 +524,86 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   // 회사 쪽에서 마을까지 문을 지나 걸어가기(막힘 없음)
   await tp(26, 2.2); await holdUntil('ArrowLeft', async () => (await st()).x < 18, 15000);
   s = await st(); check(s.x < 18 && s.mode === 'walk', '회사 → 마을 걸어서 돌아옴 (x=' + s.x.toFixed(1) + ')');
+  // ── 미래 마을(제출 뒤만): 마을 왼쪽 끝 새 길 → 시간 여행 거리 세 칸 · 첨단 기술 셋 · 초성 암호 상자 ──
+  await tp(-20.5, 2.2); await p.waitForTimeout(300);
+  await holdUntil('ArrowLeft', async () => (await st()).x < -26, 9000);
+  s = await st(); check(s.x < -26 && s.mode === 'walk', '마을 왼쪽 끝 새 길로 걸어 들어감 (x=' + s.x.toFixed(1) + ')');
+  await p.waitForTimeout(500);
+  check(await p.evaluate(() => document.getElementById('zone-banner').textContent.includes('미래 마을')), '들어가면 구역 띠 "미래 마을"');
+  await p.evaluate(() => __kk.shot([-35.5, 13, 17], [-35.5, 0.5, 0.5])); await p.waitForTimeout(600); await snap('future-wide');
+  await p.evaluate(() => { __kk.S.cam = null; });
+  // 한 곳: Space → 연출(scene) → 한 줄(talk) → 다시 걷기. mid: 연출 중간에 재는 값
+  const futSpot = async (id, tag, mid) => {
+    await near(id, 0, 0); await p.waitForTimeout(350);
+    const pr = await p.evaluate(() => { const e = document.querySelector('#labels .prompt'); return e.style.display === 'none' ? '' : e.textContent; });
+    await space(); const a = await st();
+    const ms = await p.evaluate(() => __kk.FUT.anim ? __kk.FUT.anim.ms : 0);
+    await p.waitForTimeout(ms * 0.45); const m = mid ? await p.evaluate(mid) : null; await snap('future-' + tag);
+    const ok = await waitMode('talk', ms + 4000); await p.waitForTimeout(500);
+    const lines = []; for (let i = 0; i < 20 && (await st()).mode === 'talk'; i++) { const t = await p.evaluate(() => document.getElementById('dlg-text').textContent); if (lines[lines.length - 1] !== t) lines.push(t); await space(); }
+    const txt = lines.join(' / '); await p.waitForTimeout(200); const b2 = await st();
+    const back = await p.evaluate(() => ({ lift: __kk.FUT.lift, anim: !!__kk.FUT.anim, jz: __kk.J.z }));
+    check(pr.includes('Space') && a.mode === 'scene' && ms >= 1000 && ms <= 2500 && ok && b2.mode === 'walk' && !back.anim && back.lift === 0 && back.jz === 0,
+      tag + ': Space → 연출 ' + ms + 'ms → 한 줄 → 다시 걷기 (말풍선 "' + pr + '", ' + a.mode + '→' + (ok ? 'talk' : '?') + '→' + b2.mode + ', "' + txt.slice(0, 22) + '…")');
+    return { txt, m, b2 };
+  };
+  let fr = await futSpot('futT0', 'time-1960'); check(fr.txt.includes('1960') && fr.txt.includes('120달러'), '1960년대 칸: 약 120달러');
+  fr = await futSpot('futT1', 'time-1980'); check(fr.txt.includes('1980') && fr.txt.includes('1,870달러'), '1980년대 칸: 약 1,870달러');
+  fr = await futSpot('futT2', 'time-2020'); check(fr.txt.includes('35,490달러') && fr.txt.includes('경제성장이라고 해요'), '2020년대 칸: 35,490달러 다음 경제성장 뜻 한 줄');
+  fr = await futSpot('futDrone', 'drone', () => __kk.FUT.drone.position.y);
+  check(fr.m > 1.5 && fr.txt.includes('첨단 기술'), '드론: 떠올라 한 바퀴 (높이 ' + (+fr.m).toFixed(2) + '), 끝나면 첨단 기술 한 줄');
+  check(await p.evaluate(() => __kk.FUT.drone.position.y < 0.2), '드론 다시 내려앉음');
+  fr = await futSpot('futCar', 'car', () => ({ inCar: !__kk.hero.root.visible, d: Math.hypot(__kk.S.x - __kk.FUT.car.g.position.x, __kk.S.z - __kk.FUT.car.g.position.z) }));
+  check(fr.m.inCar && fr.m.d < 0.3, '자율 주행 차: 꼬꼬가 차 안에 타고 돎 (숨김 ' + fr.m.inCar + ', 차와 거리 ' + fr.m.d.toFixed(2) + ')');
+  check(await p.evaluate(() => __kk.hero.root.visible), '차에서 내리면 꼬꼬 다시 보임');
+  s0 = await p.evaluate(() => ({ x: __kk.S.x, z: __kk.S.z, t: __kk.TH.futCar, cx: __kk.FUT.car.g.position.x, cz: __kk.FUT.car.g.position.z }));
+  check(Math.abs(s0.x - s0.t.x) < 0.01 && Math.abs(s0.z - s0.t.z) < 0.01 && Math.abs(s0.cx - s0.t.x) < 0.05, '차에서 내려 제자리, 차도 제자리로');
+  fr = await futSpot('futRobot', 'robot', () => Math.abs(__kk.FUT.robot.turret.rotation.y) + Math.abs(__kk.FUT.robot.a2.rotation.z + 1.1));
+  check(fr.m > 0.3, '로봇: 버튼 누르면 팔이 움직임 (' + (+fr.m).toFixed(2) + ')');
+  // 미래 마을에서도 수첩(Esc)·날기 그대로
+  await tp(-35, 2.2); await p.waitForTimeout(300);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(500); s = await st();
+  check(s.ex === 'notebook', '미래 마을에서 Esc → 내 답 수첩 (' + s.ex + ')');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400); s = await st();
+  check(s.ex === 'game' && s.mode === 'walk', '수첩 Esc → 다시 미래 마을');
+  air = await airRun(8, 150); airL = await airLand(15000);
+  check(air.max > 2 && air.fly >= 1 && airL.done && airL.mode === 'walk', '미래 마을에서도 Space 연타 날기 (최고 ' + air.max + ')');
+  // 초성 암호 상자
+  await near('futBox', 0, 0); await p.waitForTimeout(350);
+  const prB = await p.evaluate(() => document.querySelector('#labels .prompt').textContent);
+  await space(); await p.waitForTimeout(400);
+  s0 = await p.evaluate(() => ({ mode: __kk.S.mode, vis: !document.getElementById('cipher').classList.contains('hide'), f: document.activeElement && document.activeElement.id, v: document.getElementById('cipher-in').value, n: document.getElementById('cipher-n').textContent }));
+  check(prB.includes('암호') && s0.mode === 'cipher' && s0.vis && s0.f === 'cipher-in' && s0.v === '' && s0.n === '1 / 4', '암호 상자 Space → 창 열림, 입력 칸 포커스·빈 칸 (' + JSON.stringify(s0) + ')');
+  const cx0 = await p.evaluate(() => __kk.S.x);
+  await p.keyboard.down('ArrowRight'); await p.waitForTimeout(500); await p.keyboard.up('ArrowRight');
+  check(await p.evaluate((x) => Math.abs(__kk.S.x - x) < 0.001 && __kk.S.mode === 'cipher', cx0), '창이 열린 동안 꼬꼬 안 움직임');
+  // 한글 조합 중 Enter(isComposing)는 판정하지 않음
+  await p.fill('#cipher-in', '경제발전');
+  await p.evaluate(() => document.getElementById('cipher-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, bubbles: true })));
+  check(await p.evaluate(() => !document.getElementById('cipher-in').classList.contains('bad') && __kk.FUT.qi === 0), '조합 중 Enter는 판정 안 함');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(120);
+  s0 = await p.evaluate(() => ({ bad: document.getElementById('cipher-in').classList.contains('bad'), qi: __kk.FUT.qi }));
+  check(s0.bad && s0.qi === 0, '틀린 답 → 칸 흔들림, 같은 문제 (' + JSON.stringify(s0) + ')');
+  await p.waitForTimeout(150); await snap('future-cipher');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(400);
+  s0 = await p.evaluate(() => ({ mode: __kk.S.mode, ex: __ex.mode, hid: document.getElementById('cipher').classList.contains('hide') }));
+  check(s0.mode === 'walk' && s0.ex === 'game' && s0.hid, 'Esc → 암호 창만 닫힘(수첩 안 열림) (' + JSON.stringify(s0) + ')');
+  await space(); await p.waitForTimeout(400);
+  let cOk = true;
+  for (const [i, a] of ['경제 성장', '한강의기적', ' 삶의 질 ', '빈부격차'].entries()) {
+    await p.fill('#cipher-in', a); await p.keyboard.press('Enter'); await p.waitForTimeout(350);
+    const q = await p.evaluate(() => __kk.FUT.qi); if (q !== i + 1) { cOk = false; console.log('    암호', i + 1, '판정 실패', q); }
+  }
+  check(cOk, '암호 넷 다 맞힘(띄어쓰기 무시)');
+  await p.waitForTimeout(300);
+  s0 = await p.evaluate(() => ({ hid: document.getElementById('cipher').classList.contains('hide'), done: __kk.FUT.done, bits: __kk.FUT.bits.length }));
+  check(s0.hid && s0.done && s0.bits > 0, '넷 다 맞히면 창 닫힘·상자 열림·축하 조각 (' + JSON.stringify(s0) + ')');
+  await p.evaluate(() => __kk.shot([-41.2, 2.6, 5.4], [-44.2, 0.6, 2.2])); await p.waitForTimeout(500); await snap('future-box-open');
+  await p.evaluate(() => { __kk.S.cam = null; });
+  check(await waitMode('talk', 3000) && await p.evaluate(() => __kk.FUT.lid.rotation.x < -1.5 && document.getElementById('dlg-text').textContent.length > 0), '상자 뚜껑 열림 + 한 줄');
+  await finishTalk(); s = await st();
+  check(s.mode === 'walk', '상자 뒤 다시 걷기');
+  check(JSON.stringify((await st()).ans) === ansAtSubmit && !JSON.stringify(await srvRow()).includes('경제'), '암호를 풀어도 답안·서버(스텁) 그대로');
   // 내 답 보기: Esc → 제출한 답은 읽기 전용, [답 고치기]만 보임, 글자·기호 안 바뀜
   const roRead = () => p.evaluate(() => [...document.querySelectorAll('#nb-qs input[data-i],#nb-qs textarea[data-i]')].every((e) => e.readOnly) && [...document.querySelectorAll('#nb-qs .sym')].every((e) => e.getAttribute('aria-disabled') === 'true'));
   await p.keyboard.press('Escape'); await p.waitForTimeout(500); s = await st();

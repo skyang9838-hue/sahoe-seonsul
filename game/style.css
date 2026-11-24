@@ -66,3 +66,16 @@ body.debug #fps{display:block}
   .pl-lines p{transform:none;transition:opacity .2s}
   #pledge-in.bad{animation:none}
 }
+/* 미래 마을(제출 뒤): 길 열림 알림 · 초성 암호 창 */
+#fut-toast{position:absolute;left:50%;top:182px;transform:translate(-50%,-30px);opacity:0;background:rgba(44,62,122,.9);color:#fff;font-size:22px;padding:8px 22px;border-radius:999px;border:3px solid #fff3d6;box-shadow:0 5px 0 rgba(0,0,0,.25);white-space:nowrap;pointer-events:none}
+#fut-toast.show{animation:banner 4s ease-out forwards}
+#cipher{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(20,14,8,.45)}
+#cipher .cp-box{width:min(600px,92vw);background:linear-gradient(#fffdf8,#fff1dc);border:4px solid var(--ink);border-radius:22px;padding:18px 24px 16px;box-shadow:0 7px 0 rgba(0,0,0,.25)}
+#cipher .cp-top{display:flex;justify-content:space-between;align-items:center;font-size:22px}
+#cipher .cp-top span{font-size:17px;opacity:.75}
+#cipher-q{font-family:"Gowun Dodum","Malgun Gothic",sans-serif;font-weight:700;font-size:20px;line-height:1.6;margin:12px 0 14px;word-break:keep-all}
+#cipher-in{width:100%;box-sizing:border-box;font:inherit;font-size:24px;padding:8px 12px;border:3px solid var(--ink);border-radius:12px;background:#fff;outline:none}
+#cipher-in:focus{box-shadow:0 0 0 4px rgba(255,201,58,.6)}
+#cipher-in.bad{animation:cpShake .4s;border-color:#c0392b}
+#cipher .cp-key{font-size:14px;opacity:.7;margin-top:8px;text-align:right}
+@keyframes cpShake{20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}

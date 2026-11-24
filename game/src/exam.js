@@ -181,7 +181,7 @@ function qHTML(c, prefix) {
   return h;
 }
 let toastT = 0;
-function toast(msg) { const t = $("ex-toast"); t.textContent = msg; show("ex-toast"); clearTimeout(toastT); toastT = setTimeout(() => hide("ex-toast"), 2600); }
+function toast(msg, low) { const t = $("ex-toast"); t.textContent = msg; t.classList.toggle("low", !!low); show("ex-toast"); clearTimeout(toastT); toastT = setTimeout(() => hide("ex-toast"), 2600); }
 function bindInputs(root) {
   root.querySelectorAll("input[data-i],textarea[data-i]").forEach((el) => {
     const i = +el.getAttribute("data-i"); el.value = S.answers[i] || "";
@@ -241,6 +241,7 @@ export function openPanel(c, onClose) {
   else { focusAfter = null; waitSpaceUp = false; if (target) target.focus(); }
 }
 function closePanel() {
+  if (curC === 1 && canEdit() && !S.submitted && !warned.panel) { showWarn("panel"); return; }   // 2번 문항: 주의 화면 먼저
   const leave = () => {
     hide("ex-panel"); hide("ex-root"); mode = "game"; document.activeElement && document.activeElement.blur();
     if (S.dirty && !S.saving) save(false);
@@ -309,8 +310,32 @@ function lockInputs() {
   document.querySelectorAll("#ex-root input[data-i],#ex-root textarea[data-i]").forEach((el) => { el.readOnly = ro; });
   document.querySelectorAll("#ex-root .sym").forEach((el) => { el.setAttribute("aria-disabled", ro ? "true" : "false"); el.classList.toggle("ro", ro); });
 }
+// 검은 주의 화면 두 번 (11/24 2반 피드백·사용자 결재): ① 2번 문항 패널을 처음 [다 썼어요]로 나갈 때 → 2번 패널로 돌아감
+// ② 처음 [제출하기]를 누를 때 → 수첩 2번 탭으로 돌아감. 돌아간 뒤 같은 버튼을 다시 눌러야 넘어간다. 제출한 뒤에는 안 뜸.
+const warned = { panel: false, submit: false };
+let warnFrom = "";
+function showWarn(from) {
+  warnFrom = from; mode = "warn"; show("ex-warn");
+  const go = $("ex-warn-go"); go.disabled = true;
+  setTimeout(() => { go.disabled = false; go.focus(); }, 1500);   // Enter 연타로 바로 넘어가지 않게
+}
+function warnGo() {
+  if (mode !== "warn" || $("ex-warn-go").disabled) return;
+  warned[warnFrom] = true; hide("ex-warn");
+  if (warnFrom === "panel") {
+    mode = "panel";
+    const first = $("ex-qs").querySelector("textarea"); first && first.focus();
+    toast("2번 답을 한 번 더 읽어 보세요. 다 됐으면 [다 썼어요]를 눌러요.", true);
+    return;
+  }
+  mode = "notebook";
+  renderNotebook(1);
+  $("nb-note").textContent = "2번 답을 한 번 더 읽어 보세요. 다 됐으면 [제출하기]를 눌러 주세요.";
+  const first = $("nb-qs").querySelector("textarea"); first && first.focus();
+}
 function submitFinal() {
   if (!canEdit()) return;
+  if (!S.submitted && !warned.submit) { showWarn("submit"); return; }
   const blanks = S.answers.map((a, k) => (isBlank(a) ? ANSWER_LABELS[k] : null)).filter(Boolean);
   const again = S.submitted;
   ask((blanks.length ? "비어 있는 칸: " + blanks.join(", ") + "\n\n" : "") + (again ? "고친 답으로 다시 제출할까요?" : "제출할까요?\n선생님이 마감하기 전까지는 수첩에서 다시 고칠 수 있어요."), () => {
@@ -398,6 +423,10 @@ addEventListener("keydown", (e) => {
     if (e.key === "Tab") { e.preventDefault(); (document.activeElement === $("ex-ask-no") ? $("ex-ask-yes") : $("ex-ask-no")).focus(); }
     return;
   }
+  if (mode === "warn") {   // 주의 화면: 버튼(Enter·Space)만 통함, Esc·Tab 막음
+    if (e.key !== "Enter" && e.code !== "Space") e.preventDefault();
+    e.stopImmediatePropagation(); return;
+  }
   // 여기서 처리한 키는 main.js(게임 쪽)에 넘기지 않는다 — 수첩을 Esc로 닫자마자 같은 Esc로 다시 열리던 문제
   if (mode === "panel" && waitSpaceUp && e.code === "Space") { e.preventDefault(); e.stopImmediatePropagation(); return; }
   if (mode === "notebook" && e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); closeNotebook(); return; }
@@ -449,6 +478,7 @@ export function init(hooks) {
   $("nb-close").addEventListener("click", closeNotebook);
   $("nb-submit").addEventListener("click", submitFinal);
   $("nb-edit").addEventListener("click", startEdit);
+  $("ex-warn-go").addEventListener("click", warnGo);
   $("ex-ask-yes").addEventListener("click", () => closeAsk(true));
   $("ex-ask-no").addEventListener("click", () => closeAsk(false));
   $("ex-banner-retry").addEventListener("click", () => save(false));
