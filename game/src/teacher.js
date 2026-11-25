@@ -1,8 +1,8 @@
 // 교사 화면: 로그인 → 반 고르기 → 반 표 / 1·2·3번 문항 탭에서 판정 확정 → 반 마감 · 답안집
 // 채점은 scorer.js(teacher-core.js를 거쳐) 그대로. 인정 단어는 로그인 뒤 서버 keywords()로만 받는다.
 import { T, ITEMS, esc, judge, needsCheck, loadKeywords, loadClass, syncAuto, prepItems, prepTotal,
-  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=5';
-import { Q1, Q2, Q3, FIELD_NAME, symShow } from './items.js?v=1';
+  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=6';
+import { Q1, Q2, Q3, FIELD_NAME, symShow } from './items.js?v=2';
 
 const $ = (id) => document.getElementById(id);
 const PROMPT = { 1: Q1.prompt, 2: Q2.prompt, 3: Q3.prompt };

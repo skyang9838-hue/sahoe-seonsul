@@ -28,7 +28,7 @@ const CHAPTERS = [
   ]}
 ];
 const Q1 = { prompt: "1. <자료 1>을 읽고 가계와 기업의 역할에 대해 물음에 답하시오.",
-             sub1: "(1) 가계와 기업이 하는 경제활동을 <보기>에서 모두 골라 기호를 쓰시오.",
+             sub1: "(1) 가계와 기업이 하는 경제활동을 <보기>에서 두 개씩 골라 기호를 쓰시오.",
              boxTitle: "<보기>",
              options: ["㉠ 공장에서 일하고 월급을 받는다.", "㉡ 근로자를 고용하여 라면을 만든다.",
                        "㉢ 가격과 품질을 비교하며 필요한 물건을 산다.", "㉣ 완성된 라면을 마트에 판매한다."],
@@ -68,6 +68,10 @@ const isBlank = (v) => !String(v || "").replace(/\s/g, "");
 const who = () => "6학년 " + S.ban + "반 " + S.num + "번";
 // 지금 답을 고칠 수 있나: 마감 전, 제출 중이 아님, (제출했으면 [답 고치기]를 누른 뒤)
 const canEdit = () => !S.closed && !S.finalizing && (!S.submitted || S.editing);
+// 1번 (1)은 줄마다 기호 두 개(사용자 결정 11/25). 0~1개면 빈칸처럼 센다
+const symCount = (v) => SYM.filter((k) => String(v || "").indexOf(k) >= 0).length;
+const needFill = (k) => (k < 2 ? symCount(S.answers[k]) < 2 : isBlank(S.answers[k]));
+const blankLabel = (k) => ANSWER_LABELS[k] + (k < 2 ? "(두 개 골라요)" : "");
 export function setSfx(s) { sfx = s || {}; }
 export function setProgress(p) { S.progress = Math.max(S.progress, p); lsSave(); save(false); }
 export function fit() {
@@ -127,7 +131,7 @@ function showBanner(msg) { $("ex-banner-msg").textContent = msg || "답을 서�
 function setClosed() {
   const was = S.closed;
   S.closed = true; S.editing = false; S.saving = false; S.failed = false; S.dirty = false;
-  hide("ex-banner"); renderSaveState(); lockInputs(); lsSave();
+  hide("ex-banner"); renderSaveState(); lockInputs(); lsSave(); updBand();
   if (mode === "notebook") renderNotebook(nbTab);
   if (!was) toast("선생님이 마감했어요. 이제 답을 고칠 수 없어요.");
 }
@@ -180,6 +184,15 @@ function qHTML(c, prefix) {
   }
   return h;
 }
+// "이것은 평가입니다" 띠(index.html #eval-band): 게임을 시작한 뒤 제출 전까지, 그리고 제출 뒤 [답 고치기] 중에 보인다.
+// 시작 화면·검은 주의 화면·끝 화면·제출 뒤 돌아다니기에서는 숨긴다. 평가 화면이 열려 있으면 맨 위로(over-exam)
+function updBand() {
+  const b = $("eval-band"); if (!b) return;
+  const on = !!S.row && mode !== "start" && mode !== "end" && mode !== "warn" && (!S.submitted || S.editing);
+  const exam = !$("ex-root").classList.contains("hide");
+  b.classList.toggle("hide", !on); b.classList.toggle("over-exam", on && exam);
+  document.body.classList.toggle("band-on", on);
+}
 let toastT = 0;
 function toast(msg, low) { const t = $("ex-toast"); t.textContent = msg; t.classList.toggle("low", !!low); show("ex-toast"); clearTimeout(toastT); toastT = setTimeout(() => hide("ex-toast"), 2600); }
 function bindInputs(root) {
@@ -197,8 +210,12 @@ function bindInputs(root) {
     const toggle = () => {
       if (!canEdit()) { if (S.closed) toast("선생님이 마감했어요."); return; }
       const i = +el.dataset.i, k = el.dataset.k, cur = String(S.answers[i] || "");
+      if (cur.indexOf(k) < 0) {   // 켜기만 막는다(끄기는 언제나 됨)
+        if (symCount(cur) >= 2) { toast("두 개만 고를 수 있어요", true); return; }
+        if (String(S.answers[1 - i] || "").indexOf(k) >= 0) { toast("이미 다른 줄에 고른 기호예요", true); return; }
+      }
       const next = SYM.filter((s) => (s === k ? cur.indexOf(s) < 0 : cur.indexOf(s) >= 0)).join("");
-      setAnswer(i, next); paintSyms(root, i);
+      setAnswer(i, next); paintSyms(root);
     };
     el.addEventListener("click", () => { el.focus(); toggle(); });
     el.addEventListener("keydown", (e) => {
@@ -214,14 +231,22 @@ function bindInputs(root) {
     });
     el.addEventListener("focus", () => { root.querySelectorAll('.sym[data-i="' + el.dataset.i + '"]').forEach((s) => { s.tabIndex = s === el ? 0 : -1; }); });
   });
+  if (root.querySelector(".sym")) paintSyms(root);
   lockInputs();
 }
-function paintSyms(root, i) {
-  const v = String(S.answers[i] || "");
-  root.querySelectorAll('.sym[data-i="' + i + '"]').forEach((s) => { const on = v.indexOf(s.dataset.k) >= 0; s.classList.toggle("on", on); s.setAttribute("aria-checked", on); });
-  const val = root.querySelector('.sym-val[data-v="' + i + '"]'); if (val) val.textContent = symShow(v);
+// 두 줄을 같이 칠한다: 켠 기호(on), 다른 줄에서 고른 기호·두 개 찬 줄의 남은 기호(taken, 흐리게)
+function paintSyms(root) {
+  [0, 1].forEach((i) => {
+    const v = String(S.answers[i] || ""), other = String(S.answers[1 - i] || ""), full = symCount(v) >= 2;
+    root.querySelectorAll('.sym[data-i="' + i + '"]').forEach((s) => {
+      const on = v.indexOf(s.dataset.k) >= 0;
+      s.classList.toggle("on", on); s.setAttribute("aria-checked", on);
+      s.classList.toggle("taken", !on && (full || other.indexOf(s.dataset.k) >= 0));
+    });
+    const val = root.querySelector('.sym-val[data-v="' + i + '"]'); if (val) val.textContent = symShow(v);
+  });
 }
-const chapterBlank = (c) => CH_FIELDS[c].filter((i) => isBlank(S.answers[i])).length;
+const chapterBlank = (c) => CH_FIELDS[c].filter(needFill).length;
 
 let panelDone = null, curC = 0, waitSpaceUp = false, focusAfter = null;
 export function openPanel(c, onClose) {
@@ -232,7 +257,7 @@ export function openPanel(c, onClose) {
   $("ex-chapter").textContent = CHAPTERS[c].title; $("ex-text").innerHTML = chapterHTML(c);
   $("ex-panel").dataset.c = c;
   $("ex-qs").innerHTML = qHTML(c, "p-"); bindInputs($("ex-qs"));
-  show("ex-root"); show("ex-panel");
+  show("ex-root"); show("ex-panel"); updBand();
   const first = $("ex-qs").querySelector('input,textarea,.sym[tabindex="0"]');
   // 대사를 넘긴 Space를 아직 누르고 있을 때만 뗄 때까지 기다린다(안 그러면 그 Space가 첫 칸에 들어감).
   // 이미 뗐으면 바로 첫 칸에 커서를 둔다.
@@ -243,7 +268,7 @@ export function openPanel(c, onClose) {
 function closePanel() {
   if (curC === 1 && canEdit() && !S.submitted && !warned.panel) { showWarn("panel"); return; }   // 2번 문항: 주의 화면 먼저
   const leave = () => {
-    hide("ex-panel"); hide("ex-root"); mode = "game"; document.activeElement && document.activeElement.blur();
+    hide("ex-panel"); hide("ex-root"); mode = "game"; updBand(); document.activeElement && document.activeElement.blur();
     if (S.dirty && !S.saving) save(false);
     const cb = panelDone; panelDone = null; cb && cb();
   };
@@ -271,7 +296,7 @@ function renderNotebook(tab) {
   $("nb-text").innerHTML = visited ? chapterHTML(tab) : "<p>아직 들르지 않은 곳이에요.</p>";
   $("ex-notebook").dataset.c = tab;
   $("nb-qs").innerHTML = visited ? qHTML(tab, "n-") : ""; if (visited) bindInputs($("nb-qs"));
-  const blanks = S.answers.filter(isBlank).length;
+  const blanks = S.answers.filter((v, k) => needFill(k)).length;
   $("nb-blank").textContent = canEdit() ? (blanks ? "빈칸 " + blanks + "개" : "빈칸 없음") : "";
   const showSubmit = canEdit() || S.finalizing, showEdit = S.submitted && !S.editing && !S.closed && !S.finalizing;
   $("nb-submit").classList.toggle("hide", !showSubmit);
@@ -282,6 +307,7 @@ function renderNotebook(tab) {
     : S.editing ? "고친 답은 저절로 저장돼요. 다 고쳤으면 다시 제출해 주세요."
     : S.submitted ? "제출했어요." + (S.submittedAt ? " (" + S.submittedAt + ")" : "") + " 선생님이 마감하기 전까지 고칠 수 있어요."
     : (S.progress < 3 ? "세 곳을 모두 들러야 제출할 수 있어요." : "");
+  updBand();
 }
 function closeNotebook() {
   if (S.finalizing) return;
@@ -290,7 +316,7 @@ function closeNotebook() {
     hide("ex-notebook"); document.activeElement && document.activeElement.blur();
     if (S.dirty && !S.saving && !S.closed) save(false);
     if (S.submitted && !roaming) { showEnd(); return; }   // 돌아다니는 중이면 끝 화면 말고 마을로
-    hide("ex-root"); mode = "game"; const cb = nbClose; nbClose = null; cb && cb();
+    hide("ex-root"); mode = "game"; updBand(); const cb = nbClose; nbClose = null; cb && cb();
   };
   if (S.editing && !S.closed) ask("아직 다시 제출하지 않았어요.\n고친 답은 저장돼요. 수첩을 닫을까요?", leave); else leave();
 }
@@ -317,26 +343,28 @@ let warnFrom = "";
 function showWarn(from) {
   warnFrom = from; mode = "warn"; show("ex-warn");
   const go = $("ex-warn-go"); go.disabled = true;
+  go.textContent = from === "submit" ? "내 답 다시 보기" : "2번 문항 다시 보기";
+  updBand();
   setTimeout(() => { go.disabled = false; go.focus(); }, 1500);   // Enter 연타로 바로 넘어가지 않게
 }
 function warnGo() {
   if (mode !== "warn" || $("ex-warn-go").disabled) return;
   warned[warnFrom] = true; hide("ex-warn");
   if (warnFrom === "panel") {
-    mode = "panel";
+    mode = "panel"; updBand();
     const first = $("ex-qs").querySelector("textarea"); first && first.focus();
     toast("2번 답을 한 번 더 읽어 보세요. 다 됐으면 [다 썼어요]를 눌러요.", true);
     return;
   }
   mode = "notebook";
-  renderNotebook(1);
-  $("nb-note").textContent = "2번 답을 한 번 더 읽어 보세요. 다 됐으면 [제출하기]를 눌러 주세요.";
-  const first = $("nb-qs").querySelector("textarea"); first && first.focus();
+  renderNotebook(0);   // 제출 앞 주의: 1번부터 답 전체를 다시 읽게
+  $("nb-note").textContent = "1번부터 답을 한 번 더 읽어 보세요. 다 됐으면 [제출하기]를 눌러 주세요.";
+  const first = $("nb-qs").querySelector('input,textarea,.sym[tabindex="0"]'); first && first.focus();
 }
 function submitFinal() {
   if (!canEdit()) return;
   if (!S.submitted && !warned.submit) { showWarn("submit"); return; }
-  const blanks = S.answers.map((a, k) => (isBlank(a) ? ANSWER_LABELS[k] : null)).filter(Boolean);
+  const blanks = S.answers.map((a, k) => (needFill(k) ? blankLabel(k) : null)).filter(Boolean);
   const again = S.submitted;
   ask((blanks.length ? "비어 있는 칸: " + blanks.join(", ") + "\n\n" : "") + (again ? "고친 답으로 다시 제출할까요?" : "제출할까요?\n선생님이 마감하기 전까지는 수첩에서 다시 고칠 수 있어요."), () => {
     $("nb-submit").disabled = true; S.finalizing = true; lockInputs();
@@ -391,7 +419,7 @@ function start() {
     // 이미 제출한 학생(새로고침 등): 끝 화면 말고 바로 마을 돌아다니기 — Esc 수첩에서 답 보기·고치기
     if (S.submitted) { startRoam(); toast(S.closed ? "제출한 답이 있어요. 선생님이 마감해서 볼 수만 있어요." : "제출한 답이 있어요. Esc를 눌러 수첩에서 고칠 수 있어요."); return; }
     const fresh = S.progress === 0 && !S.answers.join("").replace(/\s/g, "");
-    mode = "game";
+    mode = "game"; updBand();
     H.onStart({ progress: S.progress, flags: S.flags, fresh, who: who() });
   }, () => { $("btn-start").disabled = false; $("start-msg").textContent = "서버와 연결하지 못했어요. 다시 눌러 주세요."; });
 }
@@ -399,13 +427,13 @@ function showEnd() {
   mode = "end"; show("ex-root"); hide("ex-panel"); hide("ex-notebook"); show("ex-end");
   $("end-time").textContent = S.submittedAt ? "제출 시각 " + S.submittedAt : "";
   $("end-sub").textContent = S.closed ? "선생님이 마감했어요." : "선생님이 마감하기 전까지는 Esc를 눌러 수첩에서 답을 고칠 수 있어요.";
-  roaming = false;
+  roaming = false; updBand();
   H.onEnd && H.onEnd();
   setTimeout(() => { if (mode === "end") $("end-roam").focus(); }, 60);
 }
 // 제출 뒤 자유롭게 돌아다니기: 평가 패널은 다시 안 열린다(main.js가 막음). Esc 수첩 = 내 답 보기·[답 고치기]
 function startRoam() {
-  roaming = true; mode = "game"; hide("ex-end"); hide("ex-root");
+  roaming = true; mode = "game"; hide("ex-end"); hide("ex-root"); updBand();
   document.activeElement && document.activeElement.blur();
   H.onRoam && H.onRoam({ progress: Math.max(S.progress, 3), flags: S.flags, who: who() });
 }

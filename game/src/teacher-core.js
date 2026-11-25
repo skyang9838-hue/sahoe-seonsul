@@ -4,7 +4,7 @@
 import { API_URL } from './config.js?v=12';
 import { teacherSrv } from './srv.js?v=3';
 import { gradeAnswers, totalFrom, FIELDS } from './scorer.js?v=4';
-import { ITEM_FIELDS } from './items.js?v=1';
+import { ITEM_FIELDS } from './items.js?v=2';
 
 export const T = teacherSrv(API_URL);
 export const ITEMS = ['1', '2', '3'];

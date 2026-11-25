@@ -8,7 +8,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toon, toonify, addOutline, GRAD_ENV } from './toon.js?v=7';
 import { buildChicken, buildCritter } from './chars.js?v=13';
 import { WHO, DIALOGUE, OPENING, QUEST_TEXT } from './story.js?v=14';
-import * as EXAM from './exam.js?v=21';
+import * as EXAM from './exam.js?v=22';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1454,10 +1454,10 @@ function updateNameTags() {
 const tmpV = new THREE.Vector3(), M4 = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), V1 = new THREE.Vector3();
 function toScreen(x, y, z) { tmpV.set(x, y, z).project(camera); return [(tmpV.x * 0.5 + 0.5) * innerWidth, (-tmpV.y * 0.5 + 0.5) * innerHeight, tmpV.z]; }
 let navT = 0, lastQuest = '', promptFor = null;
-// 화면 위쪽 가림막(HUD + 퀘스트 띠)의 아래 끝
+// 화면 위쪽 가림막(HUD + 퀘스트 띠 + 평가 띠)의 아래 끝
 function topSafe() {
   let b = 0;
-  for (const el of [$('hud'), qbar]) { if (el.offsetParent === null || el.style.display === 'none' || el.classList.contains('hide')) continue; b = Math.max(b, el.getBoundingClientRect().bottom); }
+  for (const el of [$('hud'), qbar, $('eval-band')]) { if (el.offsetParent === null || el.style.display === 'none' || el.classList.contains('hide')) continue; b = Math.max(b, el.getBoundingClientRect().bottom); }
   return b + 6;
 }
 const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;

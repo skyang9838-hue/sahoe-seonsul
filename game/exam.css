@@ -250,3 +250,17 @@
 /* 시작 화면 오른쪽 아래 작은 교사 관리 버튼 */
 #teacher-link{position:absolute;right:12px;bottom:10px;font:12px/1 "Gowun Dodum",sans-serif;color:rgba(255,255,255,.7);background:rgba(0,0,0,.28);padding:6px 10px;border-radius:999px;text-decoration:none;z-index:3}
 #teacher-link:hover{color:#fff;background:rgba(0,0,0,.45)}
+
+/* 11/25 "이것은 평가입니다" 띠: 걸을 때는 HUD 아래 가운데에 매달린 작은 탭(퀘스트 띠·구역 배너를 그만큼만 내림),
+   평가 화면(문항 창·수첩) 위에서는 화면 맨 위 테두리 자리에 같은 탭으로. z-index 36 = 평가 화면(35) 위, 판깔기(45)·만화(40) 아래.
+   검은 주의 화면·시작 화면·끝 화면·제출 뒤 돌아다니기에서는 exam.js가 숨긴다 */
+#eval-band{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:36;pointer-events:none;white-space:nowrap;
+  background:#7a1f12;color:#fff;border:2px solid #ffd9a8;border-top:0;border-radius:0 0 12px 12px;padding:1px 14px 2px;
+  font:700 13px/1.35 "Gowun Dodum","Malgun Gothic",sans-serif;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+#eval-band.over-exam{top:0}
+#app:has(#ex-warn:not(.hide)) #eval-band{display:none}
+body.band-on #quest-bar{top:78px}
+body.band-on #zone-banner{top:140px!important}
+/* 1번 (1): 다른 줄에서 고른 기호·두 개 찬 줄의 남은 기호는 흐리게(누르면 안내만 뜸) */
+.sym.taken{opacity:.35;border-style:dashed;cursor:not-allowed}
+.sym.taken:hover{border-color:#e6d6c0}
