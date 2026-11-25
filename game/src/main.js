@@ -404,7 +404,7 @@ function buildRoom(id, cx, cz, w, d, { floor, wall, trim }) {
   const mat = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.9), new THREE.MeshToonMaterial({ color: 0x8a5a36, gradientMap: GRAD_ENV })); mat.rotation.x = -Math.PI / 2; mat.position.set(cx, 0.015, cz + d / 2 - 0.35); scene.add(mat);
   const sg = signPlane('나가기', 1.3, 0.42, { size: 150, fg: '#3b2a1e', bg: '#ffe9a8' }); sg.position.set(cx, 1.15, cz + d / 2 + 0.3); scene.add(sg);
   TH['exit_' + id] = { id: 'exit_' + id, kind: 'exit', x: cx, z: cz + d / 2 - 0.35, label: '나가기', room: id };
-  // 들어온 자리는 출구(상호작용 반경 1.7)보다 멀리: 문 앞에서 Space를 연달아 눌러도 바로 나가지 않게
+  // 들어온 자리는 출구(상호작용 반경 1.7)보다 멀리: 문 앞에서 E를 연달아 눌러도 바로 나가지 않게
   return (ROOMS[id] = { id, cx, cz, w, d, entry: { x: cx, z: cz + d / 2 - 2.2 } });
 }
 function addMarker(id, x, z) {
@@ -977,14 +977,150 @@ const FUT_LINE = {
 };
 // 시간 여행 거리: 건물마다 읽고, **굵은 낱말**을 따라 쓴다(교과서 6-2 사회 「경제성장과 우리 생활」 표현). 상자 암호 답과 같은 낱말
 const FUT_READ = [
-  { era: '1960년대', text: ['1960년 우리나라 1인당 GNI(국민 한 사람 몫)는 약 120달러였어요. (세계 은행 자료)',
-    '나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 **경제성장**이라고 해요.'], words: ['경제성장'] },
-  { era: '1980년대', text: ['1980년에는 약 1,870달러가 되었어요. (세계 은행 자료)',
-    '전쟁 뒤 빠르게 이룬 우리나라 경제성장을 세계는 \'**한강의 기적**\'이라고 불렀어요.'], words: ['한강의 기적'] },
-  { era: '2020년대', text: ['2023년에는 약 35,490달러가 되었어요. (세계 은행 자료)',
-    '교육과 의료가 좋아져 사람들의 **삶의 질**이 높아졌어요.',
-    '하지만 잘사는 사람과 어렵게 사는 사람의 차이가 커지는 **빈부 격차**가 나타나기도 해요.'], words: ['삶의 질', '빈부 격차'] },
-];
+ {
+  "era": "1960년대",
+  "words": [
+   "경제성장"
+  ],
+  "cards": [
+   {
+    "head": "1인당 GNI 120달러에서 출발",
+    "date": "1960년대 초",
+    "photo": "assets/news/n60_1.jpg",
+    "caption": "1960년대 태창방직 공장에서 기계가 천을 짜는 모습",
+    "credit": "한국정책방송원(KTV) · 공유마당 (공공누리 1유형)",
+    "text": [
+     "1962년 우리나라 1인당 GNI(국민 한 사람이 한 해 동안 번 돈을 평균한 값)는 약 120달러였어요. (세계 은행 자료)",
+     "1960년대에 수출품은 쌀·김 같은 농수산물에서 합판, 가발, 신발처럼 사람 손이 많이 가는 가벼운 공업 제품으로 바뀌었어요.",
+     "1960년대에는 실로 천을 짜서 만드는 섬유 제품이 전체 수출의 40%를 차지하는 주요 수출품이 되었어요.",
+     "1962년 12월, 정부는 수출진흥위원회를 만들어 수출을 늘리는 데 힘을 모았어요."
+    ]
+   },
+   {
+    "head": "수출 1억 달러 돌파! 첫 '수출의 날'",
+    "date": "1964년 12월",
+    "photo": "assets/news/n60_2.jpg",
+    "caption": "1964년 12월 5일 서울에서 열린 제1회 수출의 날 기념식",
+    "credit": "한국정책방송원(KTV) · 공유마당 (공공누리 1유형)",
+    "text": [
+     "1964년, 우리나라의 한 해 수출이 처음으로 1억 달러를 넘었어요.",
+     "수출은 우리나라에서 만든 물건을 다른 나라로 내보내는 일이에요.",
+     "이 일을 기념해 11월 30일을 '수출의 날'로 정했어요.",
+     "그리고 12월 5일, 서울에서 제1회 수출의 날 기념식이 열렸어요."
+    ]
+   },
+   {
+    "head": "서울에서 대전까지 고속도로가 이어지다",
+    "date": "1969년 12월",
+    "photo": "assets/news/n60_3.jpg",
+    "caption": "1969년 12월 10일 경부고속도로 서울~대전 구간 개통식 무렵의 고속도로",
+    "credit": "한국정책방송원(KTV) · 공유마당 (공공누리 1유형)",
+    "text": [
+     "1968년 2월 1일, 서울과 부산을 잇는 경부고속도로 공사가 시작됐어요.",
+     "1969년 12월 10일 천안~대전 구간이 열리면서 서울에서 대전까지 고속도로로 달릴 수 있게 됐어요.",
+     "1970년 7월 7일에는 서울~부산 428km 전 구간이 개통됐어요.",
+     "이렇게 나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 **경제성장**이라고 해요."
+    ]
+   }
+  ]
+ },
+ {
+  "era": "1980년대",
+  "words": [
+   "한강의 기적"
+  ],
+  "cards": [
+   {
+    "head": "1970년대에 세운 조선소, 1980년대 수출을 이끌다",
+    "date": "1974년 6월",
+    "photo": "assets/news/n80_1.jpg",
+    "caption": "1970년대 울산 현대조선소. 배 앞머리에 '애틀랜틱 배런'이라는 이름이 보여요",
+    "credit": "한국정책방송원(KTV) · 공유마당 (공공누리 1유형)",
+    "text": [
+     "1972년 3월 23일, 울산 바닷가에서 큰 조선소를 짓는 공사가 시작됐어요.",
+     "1974년 6월 28일 조선소가 완성되었고, 같은 날 아주 큰 유조선 두 척에 이름을 붙이는 행사가 열렸어요.",
+     "그해 11월, 그중 1호선 '애틀랜틱 배런'을 그리스의 해운 회사에 넘겨주며 배를 수출했어요.",
+     "1980년대에는 전기·전자, 자동차, 조선, 기계 같은 중화학 공업 제품이 수출의 50~60%를 차지했어요."
+    ]
+   },
+   {
+    "head": "1인당 GNI 1,910달러, 빌딩 사이로 뻗은 큰길",
+    "date": "1980년대",
+    "photo": "assets/news/n80_2.jpg",
+    "caption": "1984년 10월 15일 서울 숭례문 일대. 위쪽으로 세종대로가 뻗어 있어요",
+    "credit": "서울역사박물관 · 위키미디어 공용 (공공누리 1유형)",
+    "text": [
+     "1980년 우리나라 1인당 GNI는 약 1,910달러가 되었어요. (세계 은행 자료)",
+     "1962년의 약 120달러와 견주면 15배가 넘게 늘어난 거예요.",
+     "1980년대에는 특히 전기·전자 제품 수출이 빠르게 늘어 전체 수출의 30%를 차지했어요.",
+     "사진은 1984년 10월 서울 숭례문 앞으로, 세종대로를 따라 버스와 승용차가 오가고 양옆에 높은 빌딩이 서 있어요."
+    ]
+   },
+   {
+    "head": "올림픽을 연 나라, '한강의 기적'",
+    "date": "1984년 9월",
+    "photo": "assets/news/n80_3.jpg",
+    "caption": "1984년 9월 29일 서울 잠실 종합운동장 주경기장 개장식",
+    "credit": "서울역사박물관 · 위키미디어 공용 (공공누리 1유형)",
+    "text": [
+     "1984년 9월 29일, 서울 잠실에 올림픽 주경기장이 문을 열었어요.",
+     "앉는 자리 7만 5천 개와 서서 보는 자리 2만 5천 개를 갖춘 큰 경기장이에요.",
+     "1988년 9월 17일부터 10월 2일까지 서울 올림픽이 열렸고, 160여 개 나라의 선수단이 참가했어요.",
+     "전쟁 뒤 빠르게 이룬 우리나라 경제성장을 세계는 '**한강의 기적**'이라고 불렀어요."
+    ]
+   }
+  ]
+ },
+ {
+  "era": "2020년대",
+  "words": [
+   "삶의 질",
+   "빈부 격차"
+  ],
+  "cards": [
+   {
+    "head": "1인당 GNI 3만 8천 달러 시대",
+    "date": "2023년",
+    "photo": "assets/news/n20_1.jpg",
+    "caption": "2022년 2월 청담대교 위에서 한강 너머로 본 롯데월드타워",
+    "credit": "Ox1997cow · 위키미디어 공용 (CC BY 3.0)",
+    "text": [
+     "2023년 우리나라 1인당 GNI는 약 38,020달러가 되었어요. (세계 은행 자료)",
+     "1962년의 약 120달러와 견주면 300배가 넘어요. 물론 그동안 물건값도 많이 올랐어요.",
+     "사진 속 롯데월드타워는 높이 555m, 123층으로 우리나라에서 가장 높은 건물이에요.",
+     "이 건물은 2017년 4월 3일 문을 열었어요."
+    ]
+   },
+   {
+    "head": "더 오래, 더 건강하게",
+    "date": "2024년",
+    "photo": "assets/news/n20_2.jpg",
+    "caption": "2018년 4월 서울 여의도 한강공원을 걷는 사람들",
+    "credit": "Sangj park · 위키미디어 공용 (CC BY-SA 4.0)",
+    "text": [
+     "기대수명은 갓 태어난 아기가 앞으로 평균 몇 년을 살지 예상한 값이에요.",
+     "1970년 우리나라의 기대수명은 62.3년이었어요.",
+     "2024년에는 83.7년이 되어 약 21년이나 늘었어요.",
+     "교육과 의료가 좋아져 사람들의 **삶의 질**이 높아졌어요."
+    ]
+   },
+   {
+    "head": "높은 빌딩 옆 판잣집 마을",
+    "date": "2022년 4월",
+    "photo": "assets/news/n20_3.jpg",
+    "caption": "2022년 4월 서울 강남구 개포동 구룡마을. 뒤로 높은 빌딩이 보인다",
+    "credit": "Aaaatu · 위키미디어 공용 (CC BY-SA 4.0)",
+    "text": [
+     "서울 강남구 개포동에는 구룡마을이라는 동네가 있어요.",
+     "1980년대 말부터 도시 개발로 살 곳을 잃은 사람들이 모여 낡은 판잣집과 비닐하우스를 지으며 생긴 마을이에요.",
+     "지금은 많은 사람이 이사를 나갔고, 새 아파트 단지를 짓는 공사가 준비되고 있어요.",
+     "사진 뒤쪽으로는 강남의 높은 건물들이 보여요.",
+     "경제가 성장하면서 잘사는 사람과 어렵게 사는 사람의 차이가 커지는 **빈부 격차**가 나타나기도 해요."
+    ]
+   }
+  ]
+ }
+];   // 11/25 저녁 기사 카드. 사진·글 출처는 assets/news/출처.md (공공누리 1유형·CC BY·CC BY-SA, 화면에 사진 출처 표기)
 const CIPHER = [
   ['나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 ㄱㅈㅅㅈ(이)라고 해요.', '경제성장'],
   ['전쟁 뒤 빠르게 이룬 우리나라 경제성장을 세계는 \'ㅎㄱㅇ ㄱㅈ\'이라고 불렀어요.', '한강의기적'],
@@ -1038,8 +1174,9 @@ function buildFuture() {
   const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 16), toon(0xe8402c).clone()); btn.position.set(-39.6, 0.84, 7.7); addOutline(btn, 0.01); g.add(btn);
   colliders.push({ x: -39.6, z: 7.7, hw: 0.25, hd: 0.25 }, { x: -40.5, z: 6.3, hw: 0.5, hd: 0.5 });
   Object.assign(FUT, { drone, rotors, car, robot: { turret, a1, a2, btn } });
-  TH.futDrone = { id: 'futDrone', kind: 'fut', fut: true, act: 'drone', x: -28.5, z: 5.4, label: '드론', verb: '드론 날리기' };
-  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: -34.5, z: 5.5, label: '자율 주행 차', verb: '자율 주행 차 살펴보기', promptY: 1.8 };   // 열쇠를 받으면 '타기'
+  // 11/25 저녁: 꼬꼬가 드론·차의 카메라 쪽(남쪽)·옆에 서게 옮김 — 전에는 꼬꼬가 북쪽에 서서 차가 꼬꼬 발치를 가리고, 드론은 카메라 바로 앞에서 떠 화면 밖으로 나갔다
+  TH.futDrone = { id: 'futDrone', kind: 'fut', fut: true, act: 'drone', x: -29.9, z: 8.7, label: '드론', verb: '드론 날리기' };
+  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: +(car.x + car.w * 0.5 + 0.6).toFixed(2), z: car.z, label: '자율 주행 차', verb: '자율 주행 차 살펴보기', promptY: 1.8 };   // 차 동쪽 끝 옆. 열쇠를 받으면 '타기'
   // 자율 주행 한 바퀴 길: 차 자리 → 미래 마을 길 → 마을 큰길(z 2.2) → 울타리 문 → 회사 마당(공장 앞)에서 크게 돌아 → 같은 길로 → 차 자리.
   // 건물·가로등·벤치를 피하는 지점만 골라 잇는다(마을 큰길은 가로등 z 0.5와 벤치 z 2.9 사이: 가는 길 z 1.85, 오는 길 z 1.55). play3d가 길 위 여러 점에서 충돌을 잰다
   const c0 = car.g.position;
@@ -1082,7 +1219,7 @@ function futAct(t) {
   if (t.act === 'time' && t.i > FUT.read) { talk([{ who: 'note', text: FUT_READ[FUT.read].era + '부터 차례로 읽어요.' }]); return; }
   S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
   FUT.timeTalk = t.act === 'time';   // 시간 여행 칸 대사 동안 꼬꼬 이름표가 뒤 간판 글자를 덮지 않게 숨긴다
-  S.x = t.x; S.z = t.z; S.face = t.act === 'time' ? Math.PI : t.act === 'robot' ? Math.atan2(-40.5 - t.x, 6.3 - t.z) : 0;   // 로봇 칸은 꼬꼬가 로봇 왼쪽 앞에 비켜 서서 로봇을 본다(카메라와 로봇 사이를 가리지 않게)
+  S.x = t.x; S.z = t.z; S.face = t.act === 'time' ? Math.PI : t.act === 'robot' ? Math.atan2(-40.5 - t.x, 6.3 - t.z) : t.act === 'drone' ? Math.atan2(-28.5 - t.x, 7.2 - t.z) : 0;   // 로봇 칸은 꼬꼬가 로봇 왼쪽 앞에 비켜 서서 로봇을 본다(카메라와 로봇 사이를 가리지 않게)
   sfx.blip();
   const lines = [FUT_LINE.tech];
   const R = FUT.robot, D = FUT.drone;
@@ -1114,12 +1251,12 @@ exitBtn.innerHTML = '내리기 <span class="kbd">Esc</span>'; document.body.appe
 exitBtn.addEventListener('click', () => { exitBtn.blur(); stopDrive(); });
 function startDrive(t) {
   S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
-  S.x = t.x; S.z = t.z; S.face = 0; sfx.blip();
+  S.x = t.x; S.z = t.z; S.face = Math.atan2(FUT.car.g.position.x - t.x, FUT.car.g.position.z - t.z); sfx.blip();
   const C = FUT.car.g, c0 = { x: C.position.x, z: C.position.z, ry: C.rotation.y }, curve = FUT.route, L = curve.getLength();
   const { hop, run, ramp } = DRIVE, vmax = L / (run - ramp);
   // 지나간 길이(0~L): 처음·끝 ramp초는 고르게 빨라지고 느려진다
   const dist = (s) => s < ramp ? vmax * s * s / (2 * ramp) : s > run - ramp ? L - vmax * (run - s) * (run - s) / (2 * ramp) : vmax * (s - ramp / 2);
-  FUT.drive = true; exitBtn.classList.remove('hide');
+  FUT.drive = true; exitBtn.classList.remove('hide'); document.body.classList.add('driving');   // 주행 중: HUD 키 안내·퀘스트 띠 숨김, 구역 띠는 아래로(style.css)
   FUT.anim = { act: 'drive', t0: performance.now(), ms: (hop + run) * 1000, c0, inCar: false, step(k) {
     const s = k * (hop + run);
     if (s < hop) {   // 폴짝 뛰어 차 안으로(지붕에 앉지 않게 끝에는 숨김)
@@ -1138,7 +1275,7 @@ function startDrive(t) {
 // 내리기: 차는 제자리, 꼬꼬는 차 옆(살펴보기 자리)에 서서 다시 걷기. early(Esc·[내리기])면 잠깐 어두워졌다가 옮긴다
 function endDrive(early) {
   const t = TH.futCar, A = FUT.anim, c0 = A && A.c0;
-  FUT.anim = null; FUT.drive = false; FUT.lift = 0; exitBtn.classList.add('hide');
+  FUT.anim = null; FUT.drive = false; FUT.lift = 0; exitBtn.classList.add('hide'); document.body.classList.remove('driving');
   const park = () => {
     if (c0) { FUT.car.g.position.set(c0.x, 0, c0.z); FUT.car.g.rotation.y = c0.ry; }
     hero.root.visible = true; teleport(t.x, t.z, 0); puff(t.x, t.z, 6);
@@ -1203,36 +1340,58 @@ $('cipher-in').addEventListener('keydown', (e) => {
 });
 $('cipher-in').addEventListener('animationend', (e) => e.target.classList.remove('bad'));
 
-// 시간 여행 읽기 창: 시대 제목 + 글(따라 쓸 낱말 굵게) + 따라 쓰기 칸. 암호 창과 같은 모양(CSS 공유), 열린 동안 S.mode 'read'
+// 시간 여행 읽기 창 (11/25 저녁 사용자 "읽을거리가 너무 적다, 사진과 사례 기사 느낌"): 시대마다 기사 카드 2~3장(실제 사진·제목·짧은 기사)을
+// 넘겨 가며 읽는다. 따라 쓸 낱말(**굵게**)이 든 카드에서는 그 낱말을 따라 써야 다음 카드로 간다. 열린 동안 S.mode 'read'
 // 붙여넣기·끌어 놓기는 막는다(직접 써 보게). 다 쓰면 FUT.read가 늘고, Esc로 중간에 닫으면 그 건물은 안 끝난 걸로 둔다
 const readEl = document.createElement('div'); readEl.id = 'futread'; readEl.className = 'hide';
 readEl.setAttribute('role', 'dialog'); readEl.setAttribute('aria-modal', 'true'); readEl.setAttribute('aria-label', '시간 여행 거리 읽기');
-readEl.innerHTML = '<div class="cp-box"><div class="cp-top"><b id="futread-era"></b><span id="futread-n"></span></div><div id="futread-text"></div>'
-  + '<p id="futread-ask"></p><input id="futread-in" autocomplete="off" spellcheck="false" aria-label="따라 쓰기 입력">'
-  + '<button id="futread-done" class="hide" type="button">다 읽었어요</button><p id="futread-warn"></p>'
-  + '<div class="cp-key"><span class="kbd">Enter</span> 확인 · <span class="kbd">Esc</span> 닫기</div></div>';
+readEl.innerHTML = '<div class="cp-box news"><div class="cp-top"><b id="futread-era"></b><span id="futread-n"></span></div>'
+  + '<article id="futread-card"><figure id="futread-fig"><img id="futread-img" alt=""><figcaption><span id="futread-cap"></span><small id="futread-credit"></small></figcaption></figure>'
+  + '<div class="nw-body"><p id="futread-date"></p><h3 id="futread-head"></h3><div id="futread-text"></div></div></article>'
+  + '<div class="nw-foot"><button id="futread-prev" type="button">◀ 앞 기사</button>'
+  + '<div class="nw-ask"><p id="futread-ask"></p><input id="futread-in" autocomplete="off" spellcheck="false" aria-label="따라 쓰기 입력"></div>'
+  + '<button id="futread-next" type="button">다음 기사 ▶</button><button id="futread-done" class="hide" type="button">다 읽었어요</button></div>'
+  + '<p id="futread-warn"></p><div class="cp-key"><span class="kbd">Enter</span> 확인·다음 · <span class="kbd">Esc</span> 닫기</div></div>';
 document.body.appendChild(readEl);
+// 카드에 든 따라 쓸 낱말(나오는 차례대로)
+const cardWords = (card) => card.text.join(' ').split('**').filter((_, k) => k % 2);
 function renderRead() {
-  const R = FUT_READ[FUT.rd.i], w = FUT.rd.w, all = w >= R.words.length;
-  $('futread-era').textContent = R.era;
-  $('futread-n').textContent = all ? '따라 쓰기 끝' : '따라 쓰기 ' + (w + 1) + ' / ' + R.words.length;
+  const R = FUT_READ[FUT.rd.i], c = FUT.rd.c, C = R.cards[c], w = FUT.rd.w, allW = w >= R.words.length;
+  // 이 카드에서 아직 안 쓴 낱말이 있으면 따라 쓰기 칸, 없으면 다음·끝 버튼
+  const ask = !allW && cardWords(C).includes(R.words[w]) ? R.words[w] : null;
+  const last = c >= R.cards.length - 1;
+  $('futread-era').textContent = R.era + ' 꼬꼬 신문';
+  $('futread-n').textContent = '기사 ' + (c + 1) + ' / ' + R.cards.length + (allW ? '' : ' · 따라 쓰기 ' + w + ' / ' + R.words.length);
+  const img = $('futread-img'); img.src = C.photo; img.alt = C.caption;
+  $('futread-cap').textContent = C.caption; $('futread-credit').textContent = '사진: ' + C.credit;
+  $('futread-date').textContent = C.date; $('futread-head').textContent = C.head;
   const box = $('futread-text'); box.textContent = '';
-  R.text.forEach((line) => {
+  C.text.forEach((line) => {
     const p = document.createElement('p');
     line.split('**').forEach((part, k) => { if (!part) return; const n = k % 2 ? document.createElement('b') : document.createTextNode(part); if (k % 2) n.textContent = part; p.appendChild(n); });
     box.appendChild(p);
   });
-  $('futread-ask').textContent = all ? '' : '따라 써 보세요: ' + R.words[w];
-  $('futread-in').classList.toggle('hide', all); $('futread-ask').classList.toggle('hide', all);
-  $('futread-done').classList.toggle('hide', !all); $('futread-in').value = ''; $('futread-warn').textContent = '';
-  setTimeout(() => (all ? $('futread-done') : $('futread-in')).focus(), 0);
+  $('futread-ask').textContent = ask ? '따라 써 보세요: ' + ask : '';
+  readEl.querySelector('.nw-ask').classList.toggle('hide', !ask);
+  $('futread-prev').classList.toggle('hide', c === 0);
+  $('futread-next').classList.toggle('hide', !!ask || last);
+  $('futread-done').classList.toggle('hide', !!ask || !last || !allW);
+  $('futread-in').value = ''; $('futread-warn').textContent = '';
+  const f = ask ? $('futread-in') : last ? $('futread-done') : $('futread-next');
+  setTimeout(() => f.focus(), 0);
 }
 function openRead(i) {
   S.mode = 'read'; for (const k in keys) keys[k] = false; landNow();
-  FUT.rd = { i, w: i < FUT.read ? FUT_READ[i].words.length : 0 };   // 이미 끝낸 건물은 다시 읽기만(따라 쓰기 없이)
+  FUT.rd = { i, c: 0, w: i < FUT.read ? FUT_READ[i].words.length : 0 };   // 이미 끝낸 건물은 다시 읽기만(따라 쓰기 없이)
   renderRead(); readEl.classList.remove('hide');
 }
-function closeRead() { readEl.classList.add('hide'); $('futread-in').blur(); $('futread-done').blur(); FUT.rd = null; for (const k in keys) keys[k] = false; S.mode = 'walk'; }
+function closeRead() { readEl.classList.add('hide'); for (const id of ['futread-in', 'futread-done', 'futread-next', 'futread-prev']) $(id).blur(); FUT.rd = null; for (const k in keys) keys[k] = false; S.mode = 'walk'; }
+function moveCard(d) {
+  const R = FUT_READ[FUT.rd.i], c = FUT.rd.c + d;
+  if (c < 0 || c >= R.cards.length) return;
+  if (d > 0) { const C = R.cards[FUT.rd.c]; if (FUT.rd.w < R.words.length && cardWords(C).includes(R.words[FUT.rd.w])) return; }   // 따라 쓰기를 마쳐야 넘어감
+  FUT.rd.c = c; sfx.blip(); renderRead();
+}
 function checkRead() {
   const inp = $('futread-in'), v = inp.value.replace(/\s/g, ''), R = FUT_READ[FUT.rd.i];
   if (!v || performance.now() - FUT.lastEnter < 200) return;
@@ -1243,11 +1402,21 @@ function checkRead() {
   renderRead();
 }
 readEl.addEventListener('keydown', (e) => {
-  e.stopPropagation();   // 게임 쪽(Esc=수첩, Space=점프)으로 안 넘긴다
+  e.stopPropagation();   // 게임 쪽(Esc=수첩, Space=점프, E=말 걸기)으로 안 넘긴다
   if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 Enter는 판정하지 않는다
   if (e.key === 'Escape') { e.preventDefault(); closeRead(); return; }
-  if (e.key === 'Enter') { e.preventDefault(); if (e.repeat) return; if (e.target.id === 'futread-in') checkRead(); else if (FUT.rd && FUT.rd.w >= FUT_READ[FUT.rd.i].words.length) closeRead(); }
+  const typing = e.target.id === 'futread-in';
+  if (!typing && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) { e.preventDefault(); moveCard(e.key === 'ArrowRight' ? 1 : -1); return; }
+  if (e.key === 'Enter') {
+    e.preventDefault(); if (e.repeat) return;
+    if (typing) checkRead();
+    else if (e.target.id === 'futread-prev') moveCard(-1);
+    else if (e.target.id === 'futread-done') closeRead();
+    else moveCard(1);
+  }
 });
+$('futread-next').addEventListener('click', () => moveCard(1));
+$('futread-prev').addEventListener('click', () => moveCard(-1));
 $('futread-done').addEventListener('click', () => closeRead());
 $('futread-in').addEventListener('animationend', (e) => e.target.classList.remove('bad'));
 const noPaste = (e) => { e.preventDefault(); $('futread-warn').textContent = '붙여넣기는 안 돼요. 한 글자씩 직접 써 보세요.'; };
@@ -1490,7 +1659,7 @@ function playOpening(done) {
     i++; if (i < OPENING.length) { show(); return; }
     removeEventListener('keydown', onKey, true); box.classList.add('hide'); cbox.classList.remove('emph', 'shake'); done();
   }
-  function onKey(e) { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) { e.preventDefault(); e.stopPropagation(); audioUnlock(); next(); } }
+  function onKey(e) { if ((e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') && !e.repeat) { e.preventDefault(); e.stopPropagation(); audioUnlock(); next(); } }
   addEventListener('keydown', onKey, true);
   // 건너뛰기: 아직 안 본 원문 컷이 남았으면 그 컷으로 가고(원문 줄은 누구나 보게), 없으면 끝
   $('comic-skip').onclick = () => {
@@ -1721,8 +1890,8 @@ function updateNav(dt) {
   if (t) {
     const ty = t.promptY !== undefined ? t.promptY : t.kind === 'npc' ? (t.labelY || 2) - 0.2 : t.kind === 'door' ? 2.2 : t.kind === 'exit' ? 1.5 : (t.labelY || 1.4) - 0.6;
     const [px, py] = toScreen(t.x, ty, t.z);
-    prompt.textContent = t.kind === 'npc' ? 'Space 말 걸기' : t.kind === 'door' ? (doorOpen(t) ? 'Space 들어가기' : '🔒 Space') : t.kind === 'exit' ? 'Space 나가기'
-      : t.kind === 'fut' ? 'Space ' + t.verb : t.id === 'rollcall' ? 'Space 서기' : t.id === 'seat' ? 'Space 앉기' : 'Space 살펴보기';
+    prompt.textContent = t.kind === 'npc' ? 'E 말 걸기' : t.kind === 'door' ? (doorOpen(t) ? 'E 들어가기' : '🔒 E') : t.kind === 'exit' ? 'E 나가기'
+      : t.kind === 'fut' ? 'E ' + t.verb : t.id === 'rollcall' ? 'E 서기' : t.id === 'seat' ? 'E 앉기' : 'E 살펴보기';
     prompt.style.left = px + 'px'; prompt.style.top = py + 'px'; prompt.style.display = '';
   } else prompt.style.display = 'none';
   // 목적지 문 바로 앞에 서면 말풍선이 길 안내를 대신한다: 목적지 이름표·3D 화살표가 건물 간판을 덮지 않게 숨긴다
@@ -1767,11 +1936,13 @@ addEventListener('keydown', (e) => {
   if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge' || S.mode === 'cipher' || S.mode === 'read') return;   // 시험 화면·판깔기·암호 창·읽기 창은 따로 처리
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   audioUnlock();
-  if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
+  if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter' || e.code === 'KeyE') && !e.repeat) advance(); return; }
   if (S.mode === 'scene' && FUT.drive && e.code === 'Escape' && !e.repeat) { stopDrive(); return; }   // 자율 주행 중 Esc = 내리기(수첩은 안 열림)
   if (S.mode !== 'walk') return;
   if (e.code === 'Escape') { openNotebook(); return; }
-  if (e.code === 'Space' && !e.repeat) { const t = nearestThing(); if (t && !(S.roam && J.on && J.z > 2.3)) interact(t); else jump(); return; }   // 높이 나는 중에는 말 걸기 대신 날갯짓
+  // 11/25 사용자: 말 걸기·문·살펴보기 = E, Space = 점프만
+  if (e.code === 'KeyE') { if (!e.repeat) { const t = nearestThing(); if (t && !(S.roam && J.on && J.z > 2.3)) interact(t); } return; }   // 높이 나는 중에는 말 걸기 안 됨
+  if (e.code === 'Space') { if (!e.repeat) jump(); return; }
   keys[e.code] = true;
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });
@@ -1917,7 +2088,7 @@ function hitGate(c) {
   gateCool = 1.4; sfx.nope(); talk(DIALOGUE[g.lockedDlg]);
 }
 
-window.__kk = { get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, FUT, S, J, FLY_TOP, flyTop, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
+window.__kk = { FUT_READ, get verb() { return VERB ? { spot: Object.keys(VERBS).find((k) => VERBS[k] === VERB.v), t: performance.now() - VERB.t0, ended: VERB.ended } : null; }, VERB_MS, VP, verbLog, FUT, S, J, FLY_TOP, flyTop, arrow, markers, colliders, groundAt, blocked, NPCS, TH, gates, occluders, questCur, spotsLeft, SPOT_IDS, ROOMS, teleport, hero, fps: 0, camera, failedModels, CAMS, POLL, ROOM_CAM, OUT_CAM, composer,
   shot(p, l) { S.cam = { p: new THREE.Vector3(...p), l: new THREE.Vector3(...l) }; camPos.copy(S.cam.p); camLook.copy(S.cam.l); } };
 // 간판 글자는 캔버스에 한 번만 그리므로, 글꼴이 받아진 뒤에 세계를 짓는다(최대 3초 기다림)
 function waitFonts() {

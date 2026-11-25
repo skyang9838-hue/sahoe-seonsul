@@ -254,13 +254,21 @@
 /* 11/25 "이것은 평가입니다" 띠: 걸을 때는 HUD 아래 가운데에 매달린 작은 탭(퀘스트 띠·구역 배너를 그만큼만 내림),
    평가 화면(문항 창·수첩) 위에서는 화면 맨 위 테두리 자리에 같은 탭으로. z-index 36 = 평가 화면(35) 위, 판깔기(45)·만화(40) 아래.
    검은 주의 화면·시작 화면·끝 화면·제출 뒤 돌아다니기에서는 exam.js가 숨긴다 */
-#eval-band{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:36;pointer-events:none;white-space:nowrap;
-  background:#7a1f12;color:#fff;border:2px solid #ffd9a8;border-top:0;border-radius:0 0 12px 12px;padding:1px 14px 2px;
-  font:700 13px/1.35 "Gowun Dodum","Malgun Gothic",sans-serif;box-shadow:0 2px 0 rgba(0,0,0,.25)}
-#eval-band.over-exam{top:0}
+/* 11/25 저녁 사용자 "너무 작다" → HUD 바로 아래 가로 꽉 찬 빨간 띠, 글씨 2배쯤(13→26px) */
+#eval-band{position:absolute;left:0;right:0;top:52px;z-index:36;pointer-events:none;white-space:nowrap;text-align:center;
+  background:#c0261a;color:#fff;border-bottom:3px solid #6e140b;padding:4px 12px 5px;
+  font:700 26px/1.3 "Gowun Dodum","Malgun Gothic",sans-serif;letter-spacing:.02em;text-shadow:0 2px 0 rgba(0,0,0,.25);box-shadow:0 3px 0 rgba(0,0,0,.18)}
+/* 문항 창·수첩 위에서는 맨 위에 붙이고 조금 낮게(18px): 창이 그만큼 내려가도 스크롤이 안 생기게 답 칸 높이를 살짝 줄인다 */
+#eval-band.over-exam{top:0;font-size:18px;padding:2px 12px 3px}
+#app:has(#eval-band.over-exam:not(.hide)) :is(#ex-panel,#ex-notebook){top:36px}
+#app:has(#eval-band.over-exam:not(.hide)) :is(#ex-left,#ex-right,#nb-left,#nb-right){padding-top:5px;padding-bottom:5px}
+#app:has(#eval-band.over-exam:not(.hide)) .q{margin-bottom:8px}
+#app:has(#eval-band.over-exam:not(.hide)) #ex-panel .q .field textarea{min-height:56px}
+#app:has(#eval-band.over-exam:not(.hide)) #nb-right .q .field textarea{min-height:50px}
+#app:has(#eval-band.over-exam:not(.hide)) .nb-head{padding-top:3px;padding-bottom:3px}
 #app:has(#ex-warn:not(.hide)) #eval-band{display:none}
-body.band-on #quest-bar{top:78px}
-body.band-on #zone-banner{top:140px!important}
+body.band-on #quest-bar{top:102px;font-size:20px!important;padding:6px 20px 6px 12px!important}   /* 띠가 커진 만큼 퀘스트 띠를 조금 줄여 문 앞 간판(1024·1280)과 안 겹치게 */
+body.band-on #zone-banner{top:166px!important}
 /* 1번 (1): 다른 줄에서 고른 기호·두 개 찬 줄의 남은 기호는 흐리게(누르면 안내만 뜸) */
 .sym.taken{opacity:.35;border-style:dashed;cursor:not-allowed}
 .sym.taken:hover{border-color:#e6d6c0}

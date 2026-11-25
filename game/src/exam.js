@@ -198,7 +198,7 @@ function toast(msg, low) { const t = $("ex-toast"); t.textContent = msg; t.class
 function bindInputs(root) {
   root.querySelectorAll("input[data-i],textarea[data-i]").forEach((el) => {
     const i = +el.getAttribute("data-i"); el.value = S.answers[i] || "";
-    const grow = () => { if (el.tagName === "TEXTAREA") { el.style.height = "auto"; el.style.height = Math.max(el.scrollHeight + 4, parseFloat(getComputedStyle(el).minHeight) || 58) + "px"; } };
+    const grow = () => { if (el.tagName === "TEXTAREA") { el.style.height = "0px"; el.style.height = Math.max(el.scrollHeight + 4, parseFloat(getComputedStyle(el).minHeight) || 58) + "px"; } };
     setTimeout(grow, 0);
     el.addEventListener("input", () => { if (!canEdit()) { el.value = S.answers[i] || ""; return; } setAnswer(i, el.value); grow(); });
     el.addEventListener("paste", (e) => { e.preventDefault(); toast("붙여넣기는 할 수 없어요. 직접 써 주세요."); });
@@ -456,13 +456,13 @@ addEventListener("keydown", (e) => {
     e.stopImmediatePropagation(); return;
   }
   // 여기서 처리한 키는 main.js(게임 쪽)에 넘기지 않는다 — 수첩을 Esc로 닫자마자 같은 Esc로 다시 열리던 문제
-  if (mode === "panel" && waitSpaceUp && e.code === "Space") { e.preventDefault(); e.stopImmediatePropagation(); return; }
+  if (mode === "panel" && waitSpaceUp && (e.code === "Space" || e.code === "KeyE")) { e.preventDefault(); e.stopImmediatePropagation(); return; }
   if (mode === "notebook" && e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); closeNotebook(); return; }
   if (mode === "panel" && e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); return; }
   if (mode === "end" && e.code === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); endToNotebook(); return; }
 }, true);
 addEventListener("keyup", (e) => {
-  if (e.code === "Space" && waitSpaceUp) {
+  if ((e.code === "Space" || e.code === "KeyE") && waitSpaceUp) {
     waitSpaceUp = false;
     // 이미 입력 칸에 커서가 있으면(학생이 클릭한 칸) 옮기지 않는다
     if (focusAfter && !typing()) focusAfter.focus();
@@ -471,8 +471,9 @@ addEventListener("keyup", (e) => {
 });
 // Space를 지금 누르고 있는지(패널이 열릴 때 판단용). 다른 처리보다 먼저 듣는다.
 let spaceDown = false;
-addEventListener("keydown", (e) => { if (e.code === "Space") spaceDown = true; }, true);
-addEventListener("keyup", (e) => { if (e.code === "Space") spaceDown = false; }, true);
+// 11/25부터 대사·말 걸기를 E로도 넘기므로 E도 같은 식으로 본다(누른 E가 첫 칸에 "e"로 들어가지 않게)
+addEventListener("keydown", (e) => { if (e.code === "Space" || e.code === "KeyE") spaceDown = true; }, true);
+addEventListener("keyup", (e) => { if (e.code === "Space" || e.code === "KeyE") spaceDown = false; }, true);
 addEventListener("blur", () => { spaceDown = false; });
 // 패널 안을 클릭하거나 칸에 커서가 들어가면 기다리던 포커스 옮기기를 지운다
 ["mousedown", "focusin"].forEach((ev) => addEventListener(ev, (e) => {
