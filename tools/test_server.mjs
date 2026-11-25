@@ -471,5 +471,35 @@ section('로컬 스텁과 약속 대조');
   globalThis.fetch = realFetch;
 }
 
+/* ── 반·번호 정렬 (11/26) ───────────────── */
+section('반·번호 정렬');
+{
+  const g = makeGas();
+  const order = [['3', '5'], ['1', '10'], ['2', '3'], ['1', '2'], ['3', '1'], ['1', '1']];
+  order.forEach(([b, n]) => check(g.post({ action: 'register', ban: b, num: n }).ok, '등록 ' + b + '반 ' + n));
+  check(g.post({ action: 'save', ban: '3', num: '5', answers: A9((i) => (i === 0 ? '=1+1' : i === 1 ? '-빼기' : '줄\n바꿈')), progress: 2 }).ok, '3반 5번 저장');
+  check(g.post({ action: 'register', ban: '2', num: '1' }).ok, '나중에 2반 1번 등록');
+  const sh = g.ss.getSheetByName('답안');
+  const seq = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().map((r) => r[0] + '-' + r[1]).join(' ');
+  check(seq === '1-1 1-2 1-10 2-1 2-3 3-1 3-5', '답안 탭 반→번호(숫자) 순 [' + seq + ']');
+  const r35 = sh.getRange(8, 3, 1, 3).getValues()[0];
+  check(r35[0] === '=1+1' && r35[1] === '-빼기' && r35[2] === '줄\n바꿈', '정렬 뒤에도 =·- 글이 수식이 안 됨 [' + JSON.stringify(r35) + ']');
+  check(g.post({ action: 'submit', ban: '1', num: '2', answers: A9('답'), progress: 3 }).ok, '정렬 뒤 1반 2번 제출 (줄을 다시 찾음)');
+  check(sh.getRange(3, 1, 1, 12).getValues()[0][11] === '제출완료' && String(sh.getRange(3, 2).getValue()) === '2', '1반 2번 줄에 제출이 들어감');
+  const tok = g.post({ action: 'login', pw: 'teacher' }).token;
+  check(g.post({ action: 'grade', token: tok, ban: '3', num: '5', item: '1', value: '◎' }).ok, '3반 5번 판정');
+  check(g.post({ action: 'grade', token: tok, ban: '1', num: '10', item: '1', value: '○' }).ok, '1반 10번 판정');
+  check(g.post({ action: 'gradeBulk', token: tok, ban: '2', list: [{ num: '3', auto: { 1: '△' } }] }).ok, '2반 3번 일괄 판정');
+  const gs = g.ss.getSheetByName('채점');
+  const gseq = gs.getRange(2, 1, gs.getLastRow() - 1, 2).getValues().map((r) => r[0] + '-' + r[1]).join(' ');
+  check(gseq === '1-10 2-3 3-5', '채점 탭도 반→번호 순 [' + gseq + ']');
+  const li = g.post({ action: 'list', token: tok, ban: '3' });
+  check(li.students.find((s) => s.num === '5').grade.final['1'] === '◎', '정렬 뒤 list 판정 그대로');
+  check(g.post({ action: 'sortSheets' }).auth === false, 'sortSheets는 토큰 없으면 거부');
+  const ss = g.post({ action: 'sortSheets', token: tok });
+  check(ss.ok && ss.answers === false && ss.grades === false, '이미 정렬돼 있으면 안 씀');
+  check(g.violations.length === 0, '락 없이 쓴 곳 없음 ' + g.violations.join(','));
+}
+
 console.log(`\n서버 시험: 통과 ${pass} · 실패 ${fails.length}`);
 if (fails.length) { fails.forEach((f) => console.log('  ✗ ' + f)); process.exit(1); }

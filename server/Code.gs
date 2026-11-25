@@ -76,11 +76,13 @@ function route_(b) {
       case 'grade':
       case 'gradeBulk':
       case 'close':
+      case 'sortSheets':
         if (!checkToken_(b.token)) return { ok: false, auth: false, msg: '다시 로그인해 주세요.' };
         if (b.action === 'list') return list_(b.ban);
         if (b.action === 'keywords') return keywords_();
         if (b.action === 'grade') return grade_(b.ban, b.num, b.item, b.value);
         if (b.action === 'gradeBulk') return gradeBulk_(b.ban, b.list);
+        if (b.action === 'sortSheets') return sortSheets_();
         return close_(b.ban, b.on);
       default: return { ok: false, msg: '알 수 없는 요청이에요.' };
     }
@@ -156,6 +158,34 @@ function rows_(sh, ncol) {
   var last = sh.getLastRow();
   return last >= 2 ? sh.getRange(2, 1, last - 1, ncol).getValues() : [];
 }
+/**
+ * 데이터 행을 반 → 번호 순(숫자로)으로 줄 통째로 다시 놓는다. 이미 그 순서면 아무것도 안 쓴다.
+ * 락 안에서만 부른다(모든 쓰기가 매번 findRow_로 줄을 새로 찾으므로 줄 위치가 바뀌어도 안전).
+ * 다시 쓸 때 safe_로 =,+,-,@ 앞에 ' 를 붙여 학생 글이 수식이 되지 않게 한다. (11/26 사용자: 시트를 1반·2반·3반, 반 안에서 번호순으로)
+ */
+function sortByBanNum_(sh, ncol) {
+  var last = sh.getLastRow();
+  if (last < 3) return false;
+  var rng = sh.getRange(2, 1, last - 1, ncol);
+  var vals = rng.getValues();
+  var key = function (v) { var d = digits_(v); return d === '' ? 1e9 : Number(d); };
+  var idx = vals.map(function (r, i) { return i; });
+  idx.sort(function (a, b) { return (key(vals[a][0]) - key(vals[b][0])) || (key(vals[a][1]) - key(vals[b][1])) || (a - b); });
+  var moved = idx.some(function (v, i) { return v !== i; });
+  if (!moved) return false;
+  rng.setValues(idx.map(function (i) { return vals[i].map(function (v) { return safe_(txt_(v)); }); }));
+  return true;
+}
+/** 교사 화면·운영용: 답안·채점 두 탭을 반·번호 순으로. */
+function sortSheets_() {
+  var lock = lock_(30000);
+  if (!lock) return { ok: false, msg: '잠시 뒤 다시 눌러 주세요.' };
+  try {
+    var a = sortByBanNum_(ansSheet_(), A_LAST), g = sortByBanNum_(gradeSheet_(), G_LAST);
+    return { ok: true, answers: a, grades: g };
+  } finally { lock.releaseLock(); }
+}
+
 /** 반·번호가 같은 행 번호(시트 기준). 없으면 0. */
 function findRow_(rows, ban, num) {
   for (var i = 0; i < rows.length; i++) if (digits_(rows[i][0]) === ban && digits_(rows[i][1]) === num) return i + 2;
@@ -210,6 +240,7 @@ function register_(ban, num) {
     row = rows.length + 2;
     var line = [ban, num].concat(blank_()).concat([ST_WORK, 0, '', '', now_()]);
     sh.getRange(row, 1, 1, A_LAST).setValues([line]);
+    sortByBanNum_(sh, A_LAST);   // 새 학생 줄을 반·번호 자리로 (row는 게임에서 '등록됨' 표시로만 씀)
     return { ok: true, row: row, answers: blank_(), submitted: false, submittedAt: '', progress: 0, closed: closed };
   } finally {
     lock.releaseLock();
@@ -413,6 +444,7 @@ function grade_(ban, num, item, value) {
     if (item === '종합') g.line[G_DIRECT - 1] = value ? 'Y' : '';
     g.line[G_AT - 1] = now_();
     sh.getRange(g.row, 1, 1, G_LAST).setValues([g.line]);
+    sortByBanNum_(sh, G_LAST);
     return { ok: true, grade: gradeObj_(g.line) };
   } finally { lock.releaseLock(); }
 }
@@ -456,6 +488,7 @@ function gradeBulk_(ban, list) {
     Object.keys(touched).map(Number).sort(function (a, b) { return a - b; }).forEach(function (row) {
       sh.getRange(row, 1, 1, G_LAST).setValues([rows[row - 2]]);
     });
+    sortByBanNum_(sh, G_LAST);
     return { ok: true, count: list.length };
   } finally { lock.releaseLock(); }
 }
