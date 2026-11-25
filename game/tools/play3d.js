@@ -600,9 +600,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
       tag + ': Space → 연출 ' + ms + 'ms → 한 줄 → 다시 걷기 (말풍선 "' + pr + '", ' + a.mode + '→' + (ok ? 'talk' : '?') + '→' + b2.mode + ', "' + txt.slice(0, 22) + '…")');
     return { txt, m, b2 };
   };
-  let fr = await futSpot('futT0', 'time-1960'); check(fr.txt.includes('1960') && fr.txt.includes('120달러'), '1960년대 칸: 약 120달러');
-  fr = await futSpot('futT1', 'time-1980'); check(fr.txt.includes('1980') && fr.txt.includes('1,870달러'), '1980년대 칸: 약 1,870달러');
-  fr = await futSpot('futT2', 'time-2020'); check(fr.txt.includes('35,490달러') && fr.txt.includes('경제성장이라고 해요'), '2020년대 칸: 35,490달러 다음 경제성장 뜻 한 줄');
+  let fr;
   fr = await futSpot('futDrone', 'drone', () => __kk.FUT.drone.position.y);
   check(fr.m > 1.5 && fr.txt.includes('첨단 기술'), '드론: 떠올라 한 바퀴 (높이 ' + (+fr.m).toFixed(2) + '), 끝나면 첨단 기술 한 줄');
   check(await p.evaluate(() => __kk.FUT.drone.position.y < 0.2), '드론 다시 내려앉음');
@@ -611,7 +609,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(await p.evaluate(() => __kk.hero.root.visible), '차에서 내리면 꼬꼬 다시 보임');
   s0 = await p.evaluate(() => ({ x: __kk.S.x, z: __kk.S.z, t: __kk.TH.futCar, cx: __kk.FUT.car.g.position.x, cz: __kk.FUT.car.g.position.z }));
   check(Math.abs(s0.x - s0.t.x) < 0.01 && Math.abs(s0.z - s0.t.z) < 0.01 && Math.abs(s0.cx - s0.t.x) < 0.05, '차에서 내려 제자리, 차도 제자리로');
-  fr = await futSpot('futRobot', 'robot', () => Math.abs(__kk.FUT.robot.turret.rotation.y) + Math.abs(__kk.FUT.robot.a2.rotation.z + 1.1));
+  fr = await futSpot('futRobot', 'robot', () => Math.abs(__kk.FUT.robot.turret.rotation.y) + Math.abs(__kk.FUT.robot.a2.rotation.z + 1.1) + Math.abs(__kk.FUT.robot.a1.rotation.z - 0.3));   // a1(아래팔)은 연출 한가운데서 가장 크게 — 잰 때가 한가운데여도 0이 안 되게
   check(fr.m > 0.3, '로봇: 버튼 누르면 팔이 움직임 (' + (+fr.m).toFixed(2) + ')');
   // 미래 마을에서도 수첩(Esc)·날기 그대로
   await tp(-35, 2.2); await p.waitForTimeout(300);
@@ -621,26 +619,105 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s.ex === 'game' && s.mode === 'walk', '수첩 Esc → 다시 미래 마을');
   air = await airRun(8, 150); airL = await airLand(15000);
   check(air.max > 2 && air.fly >= 1 && airL.done && airL.mode === 'walk', '미래 마을에서도 Space 연타 날기 (최고 ' + air.max + ')');
-  // 초성 암호 상자
+  // ── 시간 여행 거리 = 읽고 따라 쓰기(1960 → 1980 → 2020 차례) · 초성 암호 상자(틀리면 1960으로) ──
+  const dlg = () => p.evaluate(() => document.getElementById('dlg-text').textContent);
+  // 잠긴 곳: Space → 연출 없이 바로 대사 한 줄
+  const lockTalk = async (id) => {
+    await near(id, 0, 0); await p.waitForTimeout(350); await space(); await p.waitForTimeout(1200);
+    const r = { mode: (await st()).mode, anim: await p.evaluate(() => !!__kk.FUT.anim), t: await dlg(), read: await p.evaluate(() => __kk.FUT.read), cp: await p.evaluate(() => !document.getElementById('cipher').classList.contains('hide')) };
+    await finishTalk(); await p.waitForTimeout(200); return r;
+  };
+  const rdState = () => p.evaluate(() => ({ mode: __kk.S.mode, vis: !document.getElementById('futread').classList.contains('hide'), era: document.getElementById('futread-era').textContent,
+    ask: document.getElementById('futread-ask').textContent, f: document.activeElement && document.activeElement.id, rd: __kk.FUT.rd && { ...__kk.FUT.rd }, read: __kk.FUT.read,
+    b: [...document.querySelectorAll('#futread-text b')].map((e) => e.textContent), txt: document.getElementById('futread-text').textContent,
+    done: !document.getElementById('futread-done').classList.contains('hide') }));
+  // 건물 하나 열기: Space → 커지는 연출(1.2초) → 읽기 창
+  const openSpot = async (i) => {
+    await near('futT' + i, 0, 0); await p.waitForTimeout(350); await space();
+    const a = await st(), ms = await p.evaluate(() => __kk.FUT.anim ? __kk.FUT.anim.ms : 0);
+    const ok = await waitMode('read', ms + 3000); await p.waitForTimeout(250);
+    return { a, ms, ok };
+  };
+  const WORDS = [['경제 성장'], ['한강의기적'], [' 삶의 질 ', '빈부격차']];
+  const ASK = [['경제성장'], ['한강의 기적'], ['삶의 질', '빈부 격차']];
+  const ERA = ['1960년대', '1980년대', '2020년대'];
+  const MONEY = ['120달러', '1,870달러', '35,490달러'];
+  const readSpot = async (i, tag, opt = {}) => {
+    const o = await openSpot(i); const r0 = await rdState();
+    check(o.a.mode === 'scene' && o.ms === 1200 && o.ok && r0.vis && r0.era === ERA[i] && r0.txt.includes(MONEY[i]) && r0.f === 'futread-in' && r0.ask === '따라 써 보세요: ' + ASK[i][0] && r0.rd.w === 0 && r0.b.join('|') === ASK[i].join('|'),
+      tag + ' ' + ERA[i] + ': Space → 연출 ' + o.ms + 'ms → 읽기 창(' + MONEY[i] + ', "' + r0.ask + '", 굵은 낱말 ' + r0.b.join('·') + ', 칸 포커스)');
+    if (opt.shot) await snap('future-read-' + i);
+    if (opt.wrong) {
+      await p.fill('#futread-in', '경제발전');
+      await p.evaluate(() => document.getElementById('futread-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, bubbles: true })));
+      check(await p.evaluate(() => !document.getElementById('futread-in').classList.contains('bad') && __kk.FUT.rd.w === 0), tag + ' 조합 중 Enter는 판정 안 함');
+      await p.keyboard.press('Enter'); await p.waitForTimeout(120);
+      const r = await rdState(), bad = await p.evaluate(() => document.getElementById('futread-in').classList.contains('bad'));
+      check(bad && r.rd.w === 0 && r.read === i && r.vis, tag + ' 틀리게 쓰면 칸 흔들림, 안 넘어감 (' + JSON.stringify({ bad, w: r.rd.w, read: r.read }) + ')');
+      await p.waitForTimeout(350);
+      await p.fill('#futread-in', '');
+      const pv = await p.evaluate(() => { const el = document.getElementById('futread-in'); const e = new Event('paste', { bubbles: true, cancelable: true }); el.dispatchEvent(e); const d = new Event('drop', { bubbles: true, cancelable: true }); el.dispatchEvent(d); return { pd: e.defaultPrevented, dd: d.defaultPrevented, warn: document.getElementById('futread-warn').textContent, v: el.value }; });
+      check(pv.pd && pv.dd && pv.warn.includes('붙여넣기') && pv.v === '', tag + ' 붙여넣기·끌어 놓기 막음 + 안내 (' + pv.warn + ')');
+      const cx = await p.evaluate(() => __kk.S.x);
+      await p.keyboard.down('ArrowRight'); await p.waitForTimeout(400); await p.keyboard.up('ArrowRight');
+      check(await p.evaluate((x) => Math.abs(__kk.S.x - x) < 0.001 && __kk.S.mode === 'read', cx), tag + ' 읽기 창이 열린 동안 꼬꼬 안 움직임');
+    }
+    for (const w of WORDS[i]) { await p.fill('#futread-in', w); await p.keyboard.press('Enter'); await p.waitForTimeout(320); }
+    const r1 = await rdState();
+    check(r1.read === i + 1 && r1.done && r1.f === 'futread-done' && r1.vis, tag + ' 따라 쓰기 ' + WORDS[i].length + '개 맞힘(띄어쓰기 무시) → FUT.read ' + r1.read + ', [다 읽었어요] 포커스');
+    await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+    const r2 = await rdState();
+    check(!r2.vis && r2.mode === 'walk' && r2.rd === null, tag + ' [다 읽었어요] Enter → 창 닫히고 다시 걷기');
+  };
+  // 1) 1980을 먼저 누르면 잠김, 상자를 먼저 눌러도 잠김
+  let lk = await lockTalk('futT1');
+  check(lk.mode === 'talk' && !lk.anim && lk.t.includes('1960년대부터 차례로') && lk.read === 0, '1980년대 먼저 → 대사만 "' + lk.t + '"');
+  lk = await lockTalk('futBox');
+  check(lk.mode === 'talk' && !lk.cp && lk.t.includes('아직 읽지 않은 곳') && lk.t.includes('1960년대'), '상자 먼저 → 대사만 "' + lk.t + '"');
+  // 2) 세 건물 차례로 읽고 따라 쓰기(첫 건물에서 틀린 입력·붙여넣기 확인)
+  await readSpot(0, '1차', { wrong: true, shot: true });
+  lk = await lockTalk('futBox');
+  check(lk.t.includes('1980년대') && !lk.cp, '1960만 읽고 상자 → "' + lk.t + '"');
+  lk = await lockTalk('futT2');
+  check(lk.t.includes('1980년대부터') && !lk.anim, '1960만 읽고 2020 → "' + lk.t + '"');
+  await readSpot(1, '1차'); await readSpot(2, '1차');
+  // 다 읽은 건물은 다시 읽기만(따라 쓰기 칸 없이)
+  await openSpot(0); s0 = await rdState();
+  check(s0.vis && s0.done && s0.f === 'futread-done' && s0.read === 3, '다 읽은 1960년대 다시 → 읽기만, [다 읽었어요] (' + JSON.stringify({ done: s0.done, read: s0.read }) + ')');
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  check(await p.evaluate(() => document.getElementById('futread').classList.contains('hide') && __kk.S.mode === 'walk' && __ex.mode === 'game' && __kk.FUT.read === 3), 'Esc → 읽기 창만 닫힘(수첩 안 열림)');
+  // 3) 상자에서 일부러 틀림 → 창 닫히고 1960년대 앞으로, 읽은 기록 0
   await near('futBox', 0, 0); await p.waitForTimeout(350);
   const prB = await p.evaluate(() => document.querySelector('#labels .prompt').textContent);
   await space(); await p.waitForTimeout(400);
-  s0 = await p.evaluate(() => ({ mode: __kk.S.mode, vis: !document.getElementById('cipher').classList.contains('hide'), f: document.activeElement && document.activeElement.id, v: document.getElementById('cipher-in').value, n: document.getElementById('cipher-n').textContent }));
-  check(prB.includes('암호') && s0.mode === 'cipher' && s0.vis && s0.f === 'cipher-in' && s0.v === '' && s0.n === '1 / 4', '암호 상자 Space → 창 열림, 입력 칸 포커스·빈 칸 (' + JSON.stringify(s0) + ')');
+  s0 = await p.evaluate(() => ({ mode: __kk.S.mode, vis: !document.getElementById('cipher').classList.contains('hide'), f: document.activeElement && document.activeElement.id, v: document.getElementById('cipher-in').value, n: document.getElementById('cipher-n').textContent, rule: document.querySelector('#cipher .cp-rule').textContent }));
+  check(prB.includes('암호') && s0.mode === 'cipher' && s0.vis && s0.f === 'cipher-in' && s0.v === '' && s0.n === '1 / 4' && s0.rule.includes('친구에게 묻지 말고'), '셋 다 읽고 상자 Space → 창 열림, 칸 포커스, "친구에게 묻지 말고" 한 줄 (' + JSON.stringify(s0) + ')');
+  await p.fill('#cipher-in', '경제성장'); await p.keyboard.press('Enter'); await p.waitForTimeout(350);
+  check(await p.evaluate(() => __kk.FUT.qi === 1), '암호 1 맞힘 → 2번째 문제');
+  await p.fill('#cipher-in', '경제발전'); await p.keyboard.press('Enter'); await p.waitForTimeout(1300);
+  s0 = await p.evaluate(() => ({ hid: document.getElementById('cipher').classList.contains('hide'), read: __kk.FUT.read, qi: __kk.FUT.qi, x: __kk.S.x, z: __kk.S.z, face: __kk.S.face, t0: { x: __kk.TH.futT0.x, z: __kk.TH.futT0.z }, cx: __kk.camera.position.x, mode: __kk.S.mode, t: document.getElementById('dlg-text').textContent }));
+  check(s0.hid && s0.read === 0 && s0.qi === 0, '상자에서 틀림 → 창 닫힘, FUT.read·qi 0 (' + JSON.stringify({ read: s0.read, qi: s0.qi }) + ')');
+  check(Math.abs(s0.x - s0.t0.x) < 0.01 && Math.abs(s0.z - s0.t0.z) < 0.01 && Math.abs(s0.face - Math.PI) < 0.01 && Math.abs(s0.cx - s0.x) < 4, '꼬꼬가 1960년대 건물 앞(간판 쪽)으로, 카메라도 따라옴 (x ' + s0.x.toFixed(2) + ', z ' + s0.z.toFixed(2) + ', 카메라 x ' + s0.cx.toFixed(2) + ')');
+  check(s0.mode === 'talk' && s0.t.includes('1960년대부터 다시'), '틀린 뒤 대사 "' + s0.t + '"');
+  await snap('future-back-1960'); await finishTalk();
+  lk = await lockTalk('futT1');
+  check(lk.t.includes('1960년대부터') && lk.read === 0, '돌아온 뒤 1980 → 다시 잠김');
+  // 1960 열었다가 Esc → 안 끝난 걸로
+  await openSpot(0); await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  check(await p.evaluate(() => __kk.FUT.read === 0 && __kk.S.mode === 'walk'), '따라 쓰기 중 Esc → 그 건물은 안 끝남 (FUT.read 0)');
+  // 4) 다시 세 건물 → 상자 다 맞힘 → 미래 꼬꼬 변신
+  await readSpot(0, '2차'); await readSpot(1, '2차'); await readSpot(2, '2차');
+  await near('futBox', 0, 0); await p.waitForTimeout(350); await space(); await p.waitForTimeout(400);
+  check(await p.evaluate(() => __kk.S.mode === 'cipher' && __kk.FUT.qi === 0 && document.getElementById('cipher-n').textContent === '1 / 4'), '다시 상자 → 1번 문제부터');
   const cx0 = await p.evaluate(() => __kk.S.x);
   await p.keyboard.down('ArrowRight'); await p.waitForTimeout(500); await p.keyboard.up('ArrowRight');
-  check(await p.evaluate((x) => Math.abs(__kk.S.x - x) < 0.001 && __kk.S.mode === 'cipher', cx0), '창이 열린 동안 꼬꼬 안 움직임');
-  // 한글 조합 중 Enter(isComposing)는 판정하지 않음
+  check(await p.evaluate((x) => Math.abs(__kk.S.x - x) < 0.001 && __kk.S.mode === 'cipher', cx0), '암호 창이 열린 동안 꼬꼬 안 움직임');
   await p.fill('#cipher-in', '경제발전');
   await p.evaluate(() => document.getElementById('cipher-in').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', isComposing: true, bubbles: true })));
-  check(await p.evaluate(() => !document.getElementById('cipher-in').classList.contains('bad') && __kk.FUT.qi === 0), '조합 중 Enter는 판정 안 함');
-  await p.keyboard.press('Enter'); await p.waitForTimeout(120);
-  s0 = await p.evaluate(() => ({ bad: document.getElementById('cipher-in').classList.contains('bad'), qi: __kk.FUT.qi }));
-  check(s0.bad && s0.qi === 0, '틀린 답 → 칸 흔들림, 같은 문제 (' + JSON.stringify(s0) + ')');
-  await p.waitForTimeout(150); await snap('future-cipher');
+  check(await p.evaluate(() => !document.getElementById('cipher').classList.contains('hide') && __kk.FUT.qi === 0 && __kk.FUT.read === 3), '암호 창 조합 중 Enter는 판정 안 함');
   await p.keyboard.press('Escape'); await p.waitForTimeout(400);
-  s0 = await p.evaluate(() => ({ mode: __kk.S.mode, ex: __ex.mode, hid: document.getElementById('cipher').classList.contains('hide') }));
-  check(s0.mode === 'walk' && s0.ex === 'game' && s0.hid, 'Esc → 암호 창만 닫힘(수첩 안 열림) (' + JSON.stringify(s0) + ')');
+  s0 = await p.evaluate(() => ({ mode: __kk.S.mode, ex: __ex.mode, hid: document.getElementById('cipher').classList.contains('hide'), read: __kk.FUT.read }));
+  check(s0.mode === 'walk' && s0.ex === 'game' && s0.hid && s0.read === 3, 'Esc → 암호 창만 닫힘(수첩 안 열림, 읽은 기록 그대로) (' + JSON.stringify(s0) + ')');
   await space(); await p.waitForTimeout(400);
   let cOk = true;
   for (const [i, a] of ['경제 성장', '한강의기적', ' 삶의 질 ', '빈부격차'].entries()) {
@@ -648,14 +725,35 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     const q = await p.evaluate(() => __kk.FUT.qi); if (q !== i + 1) { cOk = false; console.log('    암호', i + 1, '판정 실패', q); }
   }
   check(cOk, '암호 넷 다 맞힘(띄어쓰기 무시)');
-  await p.waitForTimeout(300);
-  s0 = await p.evaluate(() => ({ hid: document.getElementById('cipher').classList.contains('hide'), done: __kk.FUT.done, bits: __kk.FUT.bits.length }));
-  check(s0.hid && s0.done && s0.bits > 0, '넷 다 맞히면 창 닫힘·상자 열림·축하 조각 (' + JSON.stringify(s0) + ')');
-  await p.evaluate(() => __kk.shot([-41.2, 2.6, 5.4], [-44.2, 0.6, 2.2])); await p.waitForTimeout(500); await snap('future-box-open');
-  await p.evaluate(() => { __kk.S.cam = null; });
-  check(await waitMode('talk', 3000) && await p.evaluate(() => __kk.FUT.lid.rotation.x < -1.5 && document.getElementById('dlg-text').textContent.length > 0), '상자 뚜껑 열림 + 한 줄');
+  s0 = await p.evaluate(() => ({ hid: document.getElementById('cipher').classList.contains('hide'), done: __kk.FUT.done, bits: __kk.FUT.bits.length, mode: __kk.S.mode, act: __kk.FUT.anim && __kk.FUT.anim.act }));
+  check(s0.hid && s0.done && s0.bits > 0 && s0.mode === 'scene' && s0.act === 'suit', '넷 다 맞히면 창 닫힘·상자 열림·꽃가루·변신 연출 시작 (' + JSON.stringify(s0) + ')');
+  await p.waitForTimeout(1000);
+  s0 = await p.evaluate(() => { const b = __kk.FUT.beam; return b ? { y: +b.scale.y.toFixed(2), op: +b.material.opacity.toFixed(2), add: b.material.blending } : null; });
+  check(s0 && s0.y > 1 && s0.op > 0.1 && s0.add === 2, '상자에서 빛 기둥(더하기 섞기) (' + JSON.stringify(s0) + ')');
+  await p.waitForTimeout(1300);
+  s0 = await p.evaluate(() => ({ lift: __kk.FUT.lift, spin: __kk.FUT.spin, mode: __kk.S.mode }));
+  await snap('future-suit-spin');
+  check(s0.lift > 0.5 && s0.spin > 0 && s0.mode === 'scene', '꼬꼬가 떠올라 돌기 (높이 ' + s0.lift.toFixed(2) + ', 회전 ' + s0.spin.toFixed(2) + ')');
+  check(await waitMode('talk', 3000), '변신 끝 → 대사');
+  await p.waitForTimeout(800);
+  s0 = await p.evaluate(() => { const U = __kk.FUT.suit; return { t: document.getElementById('dlg-text').textContent, suit: !!U, helm: !!U && U.helmet.parent === __kk.hero.parts.head, pack: !!U && U.pack.parent === __kk.hero.rig, lift: __kk.FUT.lift, spin: __kk.FUT.spin, beam: !!__kk.FUT.beam }; });
+  check(s0.suit && s0.helm && s0.pack && s0.lift === 0 && s0.spin === 0 && !s0.beam && s0.t.includes('미래 꼬꼬'), '변신 뒤 헬멧은 머리, 제트팩은 몸에 붙음, 빛 기둥 치움 + "' + s0.t + '"');
+  await snap('future-suit-after');
   await finishTalk(); s = await st();
-  check(s.mode === 'walk', '상자 뒤 다시 걷기');
+  check(s.mode === 'walk' && await p.evaluate(() => __kk.FUT.lid.rotation.x < -1.5), '변신 뒤 다시 걷기, 상자 뚜껑 열림');
+  // 헬멧이 이름표를 가리지 않게: 헬멧 꼭대기(안테나)가 이름표 높이(1.75)보다 낮아야
+  s0 = await p.evaluate(() => { __kk.hero.root.updateMatrixWorld(true); const v = __kk.FUT.suit.helmet.children[2].getWorldPosition(__kk.camera.position.clone()); return +(v.y - __kk.hero.root.position.y).toFixed(2); });
+  check(s0 < 1.7, '헬멧 꼭대기(' + s0 + ')가 이름표 높이(1.75)보다 낮음');
+  // 점프: 조금 더 높이 + 제트팩 불꽃(점프 중에만)
+  await tp(-35, 2.2); await p.waitForTimeout(400);
+  await p.evaluate(() => { window.__sj = { max: 0, fl: false }; const t0 = performance.now(); const f = () => { __sj.max = Math.max(__sj.max, __kk.J.z); if (__kk.FUT.suit.flames[0].visible) __sj.fl = true; if (performance.now() - t0 < 1600) requestAnimationFrame(f); }; requestAnimationFrame(f); });
+  await p.keyboard.press('Space'); await p.waitForTimeout(1700);
+  s0 = await p.evaluate(() => ({ max: +__sj.max.toFixed(2), fl: __sj.fl, now: __kk.FUT.suit.flames[0].visible, jz: __kk.J.z }));
+  check(s0.max > 1.5 && s0.max < 2.2 && s0.fl && !s0.now && s0.jz === 0, '미래 꼬꼬 점프: 조금 더 높이(' + s0.max + ', 전 ≈1.29), 점프 중에만 제트팩 불꽃 (' + JSON.stringify(s0) + ')');
+  air = await airRun(8, 150); airL = await airLand(15000);
+  check(air.max > 2 && airL.done && airL.mode === 'walk' && air.max <= 25.01, '미래 꼬꼬도 날기·상한 그대로 (최고 ' + air.max + ')');
+  await near('futBox', 0, 0); await p.waitForTimeout(350); await space(); await p.waitForTimeout(1000);
+  check((await st()).mode === 'talk' && (await dlg()).includes('이미 열려'), '연 상자 다시 → "이미 열려 있어요"'); await finishTalk();
   check(JSON.stringify((await st()).ans) === ansAtSubmit && !JSON.stringify(await srvRow()).includes('경제'), '암호를 풀어도 답안·서버(스텁) 그대로');
   // 내 답 보기: Esc → 제출한 답은 읽기 전용, [답 고치기]만 보임, 글자·기호 안 바뀜
   const roRead = () => p.evaluate(() => [...document.querySelectorAll('#nb-qs input[data-i],#nb-qs textarea[data-i]')].every((e) => e.readOnly) && [...document.querySelectorAll('#nb-qs .sym')].every((e) => e.getAttribute('aria-disabled') === 'true'));

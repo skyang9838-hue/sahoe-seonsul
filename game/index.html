@@ -7,7 +7,7 @@
 <!-- 글꼴은 직접 둔다(assets/fonts, 필요한 글자만 뽑은 woff2) — 늦게 받아지거나 막혀서 패널 글자가 넘치지 않게 -->
 <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="style.css?v=13">
+<link rel="stylesheet" href="style.css?v=14">
 <link rel="stylesheet" href="exam.css?v=25">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
@@ -31,6 +31,7 @@
   <div id="quest-bar" style="display:none"><span class="qb-pin">📍</span><b></b></div>
   <div id="zone-banner"></div>
   <div id="fut-toast"></div>
+  <div id="fut-flash"></div>
 
   <div id="cutin" class="hide"><div class="ci-band"></div><img id="ci-img" alt=""></div>
   <img id="dlg-big" class="hide" alt="">
@@ -155,6 +156,6 @@
   setTimeout(fail, 150000);
 })();
 </script>
-<script type="module" src="src/main.js?v=32"></script>
+<script type="module" src="src/main.js?v=33"></script>
 </body>
 </html>
