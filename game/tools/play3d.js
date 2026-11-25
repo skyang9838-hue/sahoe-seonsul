@@ -18,7 +18,8 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.waitForFunction(() => window.__kk && __kk.S.mode === 'start', null, { timeout: 90000 });
   const st = () => p.evaluate(() => ({ mode: __kk.S.mode, x: __kk.S.x, z: __kk.S.z, prog: __kk.S.progress, flags: __kk.S.flags, quest: __kk.questCur(), ex: window.__ex && __ex.mode, ans: window.__ex && __ex.S.answers, sub: window.__ex && __ex.S.submitted }));
   const waitMode = async (m, ms = 6000) => { const t = Date.now(); while (Date.now() - t < ms) { if ((await st()).mode === m) return true; await p.waitForTimeout(100); } return false; };
-  const space = async (k = 1) => { for (let i = 0; i < k; i++) { await p.keyboard.press('Space'); await p.waitForTimeout(160); } };
+  // 말 걸기·살펴보기·대사 넘기기 = E (11/25 사용자: 말 걸기 E, 점프 Space)
+  const space = async (k = 1) => { for (let i = 0; i < k; i++) { await p.keyboard.press('KeyE'); await p.waitForTimeout(160); } };
   const finishTalk = async () => { for (let i = 0; i < 30 && (await st()).mode === 'talk'; i++) await space(); };
   const tp = (x, z) => p.evaluate(([x, z]) => { __kk.S.x = x; __kk.S.z = z; }, [x, z]);
   const near = async (id, dx = 0, dz = 1.0) => { const t = await p.evaluate((id) => { const t = __kk.TH[id]; return { x: t.x, z: t.z }; }, id); await tp(t.x + dx, t.z + dz); await p.waitForTimeout(250); };
@@ -213,7 +214,13 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   // 살펴보기 단서 3곳: 원문 강조 없이 안내 대사
   for (const id of ['clock', 'photo', 'mirror']) {
     await near(id, id === 'mirror' ? -0.5 : 0, id === 'mirror' ? 0 : 0.5); await p.waitForTimeout(300);
-    check(await p.evaluate(() => document.querySelector('#labels .prompt').textContent.includes('살펴보기')), id + ' 앞 → Space 살펴보기');
+    check(await p.evaluate(() => document.querySelector('#labels .prompt').textContent.startsWith('E 살펴보기')), id + ' 앞 → 말풍선 "E 살펴보기"');
+    if (id === 'clock') {   // 무언가 앞에서 Space = 점프만(말 걸기 아님)
+      await p.keyboard.press('Space'); let jz = 0; for (let i = 0; i < 20; i++) { jz = Math.max(jz, await p.evaluate(() => __kk.J.z)); if (jz > 0.4) break; await p.waitForTimeout(50); }
+      check(jz > 0.4 && (await st()).mode === 'walk', '살펴볼 것 앞에서 Space → 점프만, 대사 안 열림 (' + jz.toFixed(2) + ')'); await p.waitForTimeout(1300);
+      await p.evaluate(() => dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyE', key: 'Process', keyCode: 229, bubbles: true })));
+      await p.waitForTimeout(200); check((await st()).mode === 'talk', '한글 입력 상태(keyCode 229)의 E로도 살펴보기 열림'); await finishTalk();
+    }
     if (id === 'clock') await labelsBelowTop('꼬꼬 방');
     await space(); s = await st(); check(s.mode === 'talk', id + ' 살펴보기 대사');
     check(!(await p.evaluate(() => document.getElementById('dialogue').classList.contains('emph'))), id + ' 대사는 강조 없음');
@@ -345,7 +352,8 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.click('#p-a0s0'); await p.waitForTimeout(100); check((await ans())[0] === 'ㄱㄷ', '다시 누르면 켜짐 (' + (await ans())[0] + ')');
   await p.click('#p-a0s1'); await p.waitForTimeout(200);
   await bandCheck('1번 문항 창', true);
-  check((await band()).over, '문항 창 위에서는 띠가 맨 위 테두리 자리(over-exam)');
+  s0 = await p.evaluate(() => { const b = document.getElementById('eval-band').getBoundingClientRect(), pn = document.getElementById('ex-panel').getBoundingClientRect(); return { bt: Math.round(b.top), bb: Math.round(b.bottom), pb: Math.round(pn.bottom), H: innerHeight, fs: parseFloat(getComputedStyle(document.getElementById('eval-band')).fontSize) }; });
+  check(s0.bb === s0.H && s0.pb <= s0.bt && s0.fs >= 18, '문항 창: 평가 띠가 화면 맨 아래 한 줄(글자 ' + s0.fs + 'px), 문항 창이 띠 위에서 끝남 (' + JSON.stringify(s0) + ')');
   await snap('panel1-sym');
   await fill('#p-a2', '월급'); await fill('#p-a3', '라면');
   await p.click('#ex-done'); await p.waitForTimeout(900);

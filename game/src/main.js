@@ -1630,7 +1630,7 @@ let navT = 0, lastQuest = '', promptFor = null;
 // 화면 위쪽 가림막(HUD + 퀘스트 띠 + 평가 띠)의 아래 끝
 function topSafe() {
   let b = 0;
-  for (const el of [$('hud'), qbar, $('eval-band')]) { if (el.offsetParent === null || el.style.display === 'none' || el.classList.contains('hide')) continue; b = Math.max(b, el.getBoundingClientRect().bottom); }
+  for (const el of [$('hud'), qbar]) { if (el.offsetParent === null || el.style.display === 'none' || el.classList.contains('hide')) continue; b = Math.max(b, el.getBoundingClientRect().bottom); }
   return b + 6;
 }
 const overlap = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
@@ -1721,8 +1721,8 @@ function updateNav(dt) {
   if (t) {
     const ty = t.promptY !== undefined ? t.promptY : t.kind === 'npc' ? (t.labelY || 2) - 0.2 : t.kind === 'door' ? 2.2 : t.kind === 'exit' ? 1.5 : (t.labelY || 1.4) - 0.6;
     const [px, py] = toScreen(t.x, ty, t.z);
-    prompt.textContent = t.kind === 'npc' ? 'Space 말 걸기' : t.kind === 'door' ? (doorOpen(t) ? 'Space 들어가기' : '🔒 Space') : t.kind === 'exit' ? 'Space 나가기'
-      : t.kind === 'fut' ? 'Space ' + t.verb : t.id === 'rollcall' ? 'Space 서기' : t.id === 'seat' ? 'Space 앉기' : 'Space 살펴보기';
+    prompt.textContent = t.kind === 'npc' ? 'E 말 걸기' : t.kind === 'door' ? (doorOpen(t) ? 'E 들어가기' : '🔒 E') : t.kind === 'exit' ? 'E 나가기'
+      : t.kind === 'fut' ? 'E ' + t.verb : t.id === 'rollcall' ? 'E 서기' : t.id === 'seat' ? 'E 앉기' : 'E 살펴보기';
     prompt.style.left = px + 'px'; prompt.style.top = py + 'px'; prompt.style.display = '';
   } else prompt.style.display = 'none';
   // 목적지 문 바로 앞에 서면 말풍선이 길 안내를 대신한다: 목적지 이름표·3D 화살표가 건물 간판을 덮지 않게 숨긴다
@@ -1763,15 +1763,18 @@ function flap() {
   sfx.jump2(); puff(S.x, S.z, 3, J.z);
 }
 addEventListener('keydown', (e) => {
-  if (e.isComposing || e.keyCode === 229) return;
+  // E = 말 걸기·살펴보기. 한글 입력 상태면 keyCode 229로 오므로 code로 먼저 잡는다(입력칸이 아닐 때만)
+  const isE = e.code === 'KeyE' && !(e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName));
+  if (!isE && (e.isComposing || e.keyCode === 229)) return;
   if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge' || S.mode === 'cipher' || S.mode === 'read') return;   // 시험 화면·판깔기·암호 창·읽기 창은 따로 처리
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   audioUnlock();
-  if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
+  if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter' || isE) && !e.repeat) { e.preventDefault(); advance(); } return; }
   if (S.mode === 'scene' && FUT.drive && e.code === 'Escape' && !e.repeat) { stopDrive(); return; }   // 자율 주행 중 Esc = 내리기(수첩은 안 열림)
   if (S.mode !== 'walk') return;
   if (e.code === 'Escape') { openNotebook(); return; }
-  if (e.code === 'Space' && !e.repeat) { const t = nearestThing(); if (t && !(S.roam && J.on && J.z > 2.3)) interact(t); else jump(); return; }   // 높이 나는 중에는 말 걸기 대신 날갯짓
+  if (isE) { e.preventDefault(); if (!e.repeat) { const t = nearestThing(); if (t) interact(t); } return; }   // E = 말 걸기·살펴보기
+  if (e.code === 'Space' && !e.repeat) { jump(); return; }   // Space = 점프(제출 뒤엔 날갯짓)
   keys[e.code] = true;
 });
 addEventListener('keyup', (e) => { keys[e.code] = false; });

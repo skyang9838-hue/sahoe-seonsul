@@ -254,13 +254,15 @@
 /* 11/25 "이것은 평가입니다" 띠: 걸을 때는 HUD 아래 가운데에 매달린 작은 탭(퀘스트 띠·구역 배너를 그만큼만 내림),
    평가 화면(문항 창·수첩) 위에서는 화면 맨 위 테두리 자리에 같은 탭으로. z-index 36 = 평가 화면(35) 위, 판깔기(45)·만화(40) 아래.
    검은 주의 화면·시작 화면·끝 화면·제출 뒤 돌아다니기에서는 exam.js가 숨긴다 */
-#eval-band{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:36;pointer-events:none;white-space:nowrap;
-  background:#7a1f12;color:#fff;border:2px solid #ffd9a8;border-top:0;border-radius:0 0 12px 12px;padding:1px 14px 2px;
-  font:700 13px/1.35 "Gowun Dodum","Malgun Gothic",sans-serif;box-shadow:0 2px 0 rgba(0,0,0,.25)}
-#eval-band.over-exam{top:0}
+#eval-band{position:absolute;left:0;right:0;bottom:0;z-index:36;pointer-events:none;white-space:nowrap;text-align:center;
+  background:#c62828;color:#fff;border-top:3px solid #ffd54f;padding:5px 12px 6px;
+  font:800 19px/1.3 "Jua","Gowun Dodum","Malgun Gothic",sans-serif;letter-spacing:.5px;text-shadow:0 1px 0 rgba(0,0,0,.35)}
 #app:has(#ex-warn:not(.hide)) #eval-band{display:none}
-body.band-on #quest-bar{top:78px}
-body.band-on #zone-banner{top:140px!important}
+/* 띠(높이 약 38px)가 아래를 차지하는 동안 아래쪽에 붙은 것들을 그만큼 올린다 */
+body.band-on #dialogue{bottom:58px}
+body.band-on #dlg-big{bottom:132px}
+body.band-on #ex-panel,body.band-on #ex-notebook{bottom:46px}
+body.band-on #ex-toast.low{bottom:52px}
 /* 1번 (1): 다른 줄에서 고른 기호·두 개 찬 줄의 남은 기호는 흐리게(누르면 안내만 뜸) */
 .sym.taken{opacity:.35;border-style:dashed;cursor:not-allowed}
 .sym.taken:hover{border-color:#e6d6c0}
