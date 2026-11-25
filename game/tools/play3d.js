@@ -84,7 +84,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     check(r.nw > 0 && crop < 0.04, msg);
   };
   // 위 가림막(HUD·퀘스트 띠) 아래 끝
-  const safeTop = () => p.evaluate(() => Math.max(...['hud', 'quest-bar'].map((id) => { const e = document.getElementById(id); return e.offsetParent && e.style.display !== 'none' ? e.getBoundingClientRect().bottom : 0; })));
+  const safeTop = () => p.evaluate(() => Math.max(...['hud', 'quest-bar', 'eval-band'].map((id) => { const e = document.getElementById(id); return e.offsetParent && e.style.display !== 'none' ? e.getBoundingClientRect().bottom : 0; })));
   const labelsBelowTop = async (tag) => {
     const r = await p.evaluate(() => [...document.querySelectorAll('#labels > *')].filter((e) => e.style.display !== 'none' && e.offsetParent).map((e) => { const b = e.getBoundingClientRect(); return [e.className + ':' + e.textContent.slice(0, 8), Math.round(b.top), Math.round(b.left), Math.round(b.right), Math.round(b.bottom)]; }));
     const top = await safeTop(), bad = r.filter((x) => x[1] < top - 1);
@@ -128,6 +128,28 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   // 스텁 서버(localStorage)의 0반 0번 기록
   const srvRow = () => p.evaluate(() => { const r = JSON.parse(localStorage.getItem('kkokko3d-v3-server') || '{}'); return r['0/0'] || null; });
   const act = () => p.evaluate(() => document.activeElement && document.activeElement.id);
+  // "이것은 평가입니다" 띠: 보이는지(숨김·덮임 아님), 한 줄인지, 위쪽 다른 요소와 겹치는지
+  const band = () => p.evaluate(() => {
+    const b = document.getElementById('eval-band'), cs = getComputedStyle(b);
+    if (b.classList.contains('hide') || cs.display === 'none') return { vis: false };
+    b.style.pointerEvents = 'auto';   // pointer-events:none이면 elementFromPoint가 건너뛴다 — 잴 때만 잠깐 켠다
+    const r = b.getBoundingClientRect(), top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    b.style.pointerEvents = '';
+    const over = b.classList.contains('over-exam');
+    const lh = parseFloat(cs.lineHeight) || 20, rect = (e) => { const q = e.getBoundingClientRect(); return [q.left, q.top, q.right, q.bottom]; };
+    // 평가 화면이 열려 있으면 그 화면 요소만(HUD는 평가 화면 밑에 깔려 안 보임), 걸을 때는 HUD·퀘스트 띠·구역 배너
+    const hits = (over ? ['ex-inst', 'nb-tabs', 'nb-close', 'nb-blank', 'ex-toast'] : ['hud-prog', 'hud-right', 'hud-who', 'quest-bar', 'zone-banner']).map((id) => document.getElementById(id))
+      .concat(over ? [...document.querySelectorAll('#ex-qs .q-prompt, #nb-qs .q-prompt, #ex-res, #nb-res')] : [])
+      .filter((e) => e && e.offsetParent && getComputedStyle(e).display !== 'none' && e.style.display !== 'none' && !(e.id === 'zone-banner' && +getComputedStyle(e).opacity < 0.05) && e.getClientRects().length)
+      .filter((e) => { const q = rect(e); return q[0] < r.right && r.left < q[2] && q[1] < r.bottom && r.top < q[3]; }).map((e) => e.id || e.className);
+    return { vis: !!top && (top === b || b.contains(top)), oneLine: r.height < lh * 1.6 + 8, h: Math.round(r.height), w: Math.round(r.width), top: Math.round(r.top), cx: Math.round(r.left + r.width / 2), hits, over, txt: b.textContent };
+  });
+  const bandCheck = async (tag, want) => {
+    const r = await band();
+    if (!want) { check(!r.vis, tag + ' 평가 띠 숨김'); return r; }
+    check(r.vis && r.oneLine && r.hits.length === 0 && Math.abs(r.cx - W / 2) < 4, tag + ' 평가 띠 보임·한 줄·가운데·안 겹침 (' + JSON.stringify(r) + ')');
+    return r;
+  };
   const login = async () => { await p.fill('#in-ban', '0'); await p.fill('#in-num', '0'); await p.click('#btn-start'); };
   await p.waitForTimeout(1600); await snap('start-poster');
   // 시작 화면 = 움직이는 포스터: 창 전체를 덮고(cover), 반·번호 카드는 아래쪽
@@ -137,6 +159,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s0.anim === 'kenburns', '포스터 느린 확대 애니메이션 (' + s0.anim + ')');
   check(s0.card[0] > s0.H * 0.6 && s0.card[1] <= s0.H && s0.title[1] < s0.card[0], '반·번호 카드는 화면 아래쪽, 제목과 안 겹침 (카드 ' + s0.card.join('~') + ' / 제목 ' + s0.title.join('~') + ' / 높이 ' + s0.H + ')');
   check(await p.evaluate(() => !document.getElementById('in-name') && !!document.getElementById('in-ban') && !!document.getElementById('in-num')), '시작 화면: 반·번호만(이름 칸 없음)');
+  await bandCheck('시작 화면', false);
   await p.click('#btn-start'); await p.waitForTimeout(200);
   check(await p.evaluate(() => document.getElementById('start-msg').textContent.includes('반과 번호')), '빈칸으로 출근하기 → 반·번호 안내');
   await login();
@@ -151,7 +174,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s0.on === 4 && s0.ask === 'visible', '네 줄이 다 나온 뒤 입력 칸·안내가 보임 (' + s0.on + '줄, ' + s0.ask + ')');
   check(s0.bg === 'rgb(0, 0, 0)', '판깔기 배경은 검은색 (' + s0.bg + ')');
   check(s0.focus === 'pledge-in', '판깔기 입력 칸에 자동 포커스 (' + s0.focus + ')');
-  await p.waitForTimeout(700); await snap('pledge');
+  await p.waitForTimeout(700); await snap('pledge'); await bandCheck('판깔기 화면(덮임)', false);
   // 붙여넣기·끌어 놓기 막힘
   s0 = await p.evaluate(() => { const i = document.getElementById('pledge-in'); const dt = new DataTransfer(); dt.setData('text/plain', '혼자 생각해서 쓰겠습니다');
     const pe = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true }); i.dispatchEvent(pe);
@@ -180,6 +203,8 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.click('#comic-skip'); await p.waitForTimeout(300);
   check(await waitMode('walk', 5000), '컷신 끝 → 꼬꼬 방에서 걷기');
   await p.waitForTimeout(700); await snap('home');
+  s0 = await bandCheck('걷기(집 안)', true); check(s0.txt === '⚠ 이것은 평가입니다 · 친구와 답을 나누지 마세요' && !s0.over, '평가 띠 문구 (' + s0.txt + ')');
+  await snap('band-walk');
   let s = await st(); check(s.quest === 'homeDoor' && (await p.evaluate(() => __kk.S.room)) === 'home', '첫 자리: 꼬꼬네 집 안 (' + s.quest + ')');
   check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('둘러보고')), '집 안 퀘스트 문구');
   check(await p.evaluate(() => getComputedStyle(document.getElementById('fps')).display === 'none'), 'fps 숫자 숨김(?debug 아닐 때)');
@@ -284,8 +309,22 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   s0 = await p.evaluate(() => [__ex.S.answers[0], document.querySelector('#ex-qs .sym-val[data-v="0"]').textContent, document.getElementById('p-a0s2').getAttribute('aria-checked')]);
   check(s0[0] === 'ㄱㄷ' && s0[1] === '㉠, ㉢' && s0[2] === 'true', '가계 줄 Space·→ → 저장값 "ㄱㄷ", 화면 ㉠, ㉢ (' + s0.join(' | ') + ')');
   s1 = await st(); check(s1.x === xz0.x && s1.z === xz0.z && s1.mode === 'panel', '기호 고르는 동안 꼬꼬는 안 움직임(게임 쪽 키 막힘)');
+  // 두 개씩(11/25): 두 개 찬 줄에서 세 번째(㉣)는 안 켜지고 안내, 흐리게
+  await p.keyboard.press('ArrowRight'); await p.keyboard.press('Space'); await p.waitForTimeout(150);
+  s0 = await p.evaluate(() => [__ex.S.answers[0], document.getElementById('p-a0s3').getAttribute('aria-checked'), document.getElementById('p-a0s3').classList.contains('taken'), document.getElementById('ex-toast').textContent, document.getElementById('p-a0s1').classList.contains('taken')]);
+  check(s0[0] === 'ㄱㄷ' && s0[1] === 'false' && s0[2] && s0[3] === '두 개만 고를 수 있어요' && s0[4], '1번 가계 줄 3개째(㉣ Space) → 안 켜짐, "두 개만" 안내, 남은 기호 흐림 (' + s0.join(' | ') + ')');
+  await p.click('#p-a0s1'); await p.waitForTimeout(120);
+  check((await ans())[0] === 'ㄱㄷ', '1번 가계 줄 3개째(㉡ 마우스) → 안 켜짐 (' + (await ans())[0] + ')');
+  await p.focus('#p-a0s2');
   await p.keyboard.press('ArrowDown'); check(await act() === 'p-a1s2', '↓ → 기업 줄 같은 자리(㉢)');
-  await p.keyboard.press('Space'); await p.keyboard.press('Space'); await p.keyboard.press('ArrowLeft'); await p.keyboard.press('Space');
+  // 다른 줄에서 고른 기호(㉢)는 기업 줄에서 안 켜짐·흐림
+  await p.keyboard.press('Space'); await p.waitForTimeout(150);
+  s0 = await p.evaluate(() => [__ex.S.answers[1], document.getElementById('p-a1s2').getAttribute('aria-checked'), document.getElementById('p-a1s2').classList.contains('taken'), document.getElementById('p-a1s0').classList.contains('taken'), document.getElementById('p-a1s1').classList.contains('taken'), document.getElementById('ex-toast').textContent]);
+  check(s0[0] === '' && s0[1] === 'false' && s0[2] && s0[3] && !s0[4] && s0[5] === '이미 다른 줄에 고른 기호예요', '1번 기업 줄: 가계에 고른 ㉢ → 안 켜짐·"이미 다른 줄" 안내, ㉠㉢ 흐림·㉡ 그대로 (' + s0.join(' | ') + ')');
+  await p.click('#p-a1s0'); await p.waitForTimeout(120);
+  check((await ans())[1] === '', '1번 기업 줄: 가계에 고른 ㉠ 마우스 → 안 켜짐');
+  await p.focus('#p-a1s2');
+  await p.keyboard.press('ArrowLeft'); await p.keyboard.press('Space'); await p.keyboard.press('Space'); await p.keyboard.press('Space');
   await p.keyboard.press('ArrowRight'); await p.keyboard.press('ArrowRight'); await p.keyboard.press('Space'); await p.waitForTimeout(150);
   check((await ans())[1] === 'ㄴㄹ', '기업 줄: 켰다 끄기·←→ → "ㄴㄹ" (' + (await ans())[1] + ')');
   await p.keyboard.press('ArrowUp'); check(await act() === 'p-a0s3', '↑ → 가계 줄 같은 자리(㉣)');
@@ -295,8 +334,18 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.keyboard.type('월 급'); await p.waitForTimeout(150);
   check((await ans())[2] === '월 급', '빈칸에 친 글자·띄어쓰기 그대로 (' + (await ans())[2] + ')');
   await p.keyboard.down('Shift'); await p.keyboard.press('Tab'); await p.keyboard.up('Shift'); check(await act() === 'p-a1s3', 'Shift+Tab → 기업 줄로 돌아감');
-  await p.click('#p-a0s1'); await p.waitForTimeout(100); check((await ans())[0] === 'ㄱㄴㄷ', '마우스로 눌러도 켜짐 (' + (await ans())[0] + ')');
-  await p.click('#p-a0s1'); await p.waitForTimeout(100); check((await ans())[0] === 'ㄱㄷ', '다시 누르면 꺼짐 (' + (await ans())[0] + ')');
+  await p.click('#p-a0s0'); await p.waitForTimeout(100); check((await ans())[0] === 'ㄷ', '두 개 찬 줄도 끄기는 됨(마우스) (' + (await ans())[0] + ')');
+  s0 = await p.evaluate(() => [...document.querySelectorAll('#ex-qs .sym.taken')].map((e) => e.id).join(','));
+  check(s0 === 'p-a0s1,p-a0s3,p-a1s0,p-a1s2', '가계 줄 하나 끄면: 가계 줄은 기업이 고른 ㉡㉣만 흐림, 두 개 찬 기업 줄은 남은 ㉠㉢ 흐림 (' + s0 + ')');
+  // 덜 고른 줄은 빈칸으로 센다: [다 썼어요] → 확인 창
+  await fill('#p-a2', '월급'); await fill('#p-a3', '라면');
+  await p.click('#ex-done'); await p.waitForTimeout(300);
+  check(await p.evaluate(() => !document.getElementById('ex-ask').classList.contains('hide') && document.getElementById('ex-ask-msg').textContent.includes('비어 있는 칸')), '가계 줄 1개만 고르고 [다 썼어요] → 빈칸 확인 창');
+  await p.click('#ex-ask-no'); await p.waitForTimeout(200);
+  await p.click('#p-a0s0'); await p.waitForTimeout(100); check((await ans())[0] === 'ㄱㄷ', '다시 누르면 켜짐 (' + (await ans())[0] + ')');
+  await p.click('#p-a0s1'); await p.waitForTimeout(200);
+  await bandCheck('1번 문항 창', true);
+  check((await band()).over, '문항 창 위에서는 띠가 맨 위 테두리 자리(over-exam)');
   await snap('panel1-sym');
   await fill('#p-a2', '월급'); await fill('#p-a3', '라면');
   await p.click('#ex-done'); await p.waitForTimeout(900);
@@ -355,13 +404,14 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check((await st()).prog === 1, '주의 화면 동안 2장 도장 아직 안 찍힘');
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   check((await st()).ex === 'warn', '패널 주의 화면에서 Esc로 안 닫힘');
-  await p.waitForTimeout(1500); await snap('warn-panel');
+  await p.waitForTimeout(1500); await snap('warn-panel'); await bandCheck('2번 패널 주의 화면', false);
+  check(await p.evaluate(() => document.getElementById('ex-warn-go').textContent) === '2번 문항 다시 보기', '패널 주의 화면 버튼 "2번 문항 다시 보기"');
   check(await p.evaluate(() => !document.getElementById('ex-warn-go').disabled && document.activeElement.id === 'ex-warn-go'), '1.5초 뒤 [2번 문항 다시 보기] 켜짐·포커스');
   await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   s0 = await p.evaluate(() => ({ ex: window.__ex.mode, warn: document.getElementById('ex-warn').classList.contains('hide'), panel: !document.getElementById('ex-panel').classList.contains('hide'), tags: [...document.querySelectorAll('#ex-qs .field-tag')].map((e) => e.textContent).join('/'), f: document.activeElement && document.activeElement.id, a4: document.getElementById('p-a4').value, a5: document.getElementById('p-a5').value }));
   check(s0.ex === 'panel' && s0.warn && s0.panel && s0.tags === '가)/나)' && s0.f === 'p-a4' && s0.a4 === '테스트 답 가' && s0.a5 === '테스트 답 나', 'Enter → 2번 패널 그대로(답 그대로), 가) 칸 포커스 (' + JSON.stringify(s0) + ')');
   check((await st()).prog === 1, '돌아와도 아직 2장 도장 안 찍힘');
-  await snap('warn-panel-back');
+  await snap('warn-panel-back'); await bandCheck('주의 화면 뒤 2번 문항 창', true);
   await p.click('#ex-done'); await p.waitForTimeout(900);
   check(await p.evaluate(() => document.getElementById('ex-warn').classList.contains('hide')), '다시 [다 썼어요] → 주의 화면 다시 안 나옴');
   check((await st()).prog === 2, '2장 도장'); await finishTalk();
@@ -428,7 +478,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await fill('#p-a8', '테스트 답 마');
   await p.click('#ex-done'); await p.waitForTimeout(900); check((await st()).prog === 3, '3장 도장');
   await finishTalk(); await p.waitForTimeout(500);
-  check((await st()).ex === 'notebook', '수첩 열림'); await snap('notebook');
+  check((await st()).ex === 'notebook', '수첩 열림'); await snap('notebook'); await bandCheck('수첩', true);
   for (const t of [0, 1, 2]) { await p.click('#nb-tabs button[data-t="' + t + '"]'); await p.waitForTimeout(150); await fitCheck('수첩 ' + (t + 1) + '번', '#nb-left,#nb-right'); }
   s0 = await st(); check(JSON.stringify(s0.ans) === JSON.stringify(['ㄱㄷ', 'ㄴㄹ', '월급', '라면', '테스트 답 가', '테스트 답 나', '테스트 답 다', '테스트 답 라', '테스트 답 마']), '9칸 답 모두 그대로 (' + s0.ans.join('|') + ')');
   check(await p.evaluate(() => document.getElementById('nb-edit').classList.contains('hide') && !document.getElementById('nb-submit').disabled), '제출 전 수첩: [답 고치기] 없음, [제출하기] 켜짐');
@@ -436,22 +486,24 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s.ex === 'game' && s.mode === 'walk', 'Esc로 수첩 닫힘 (' + s.ex + '/' + s.mode + ')');
   await p.keyboard.press('Escape'); await p.waitForTimeout(300); s = await st();
   check(s.ex === 'notebook', 'Esc로 수첩 다시 열림 (' + s.ex + ')');
-  // 첫 제출: 검은 주의 화면 → [2번 문항 다시 보기](1.5초 뒤 켜짐) → 수첩 2번 → 다시 [제출하기] → 확인 창
+  // 첫 제출: 검은 주의 화면 → [내 답 다시 보기](1.5초 뒤 켜짐) → 수첩 1번 → 다시 [제출하기] → 확인 창
   await p.click('#nb-submit'); await p.waitForTimeout(300);
   s0 = await p.evaluate(() => ({ ex: window.__ex.mode, vis: !document.getElementById('ex-warn').classList.contains('hide'), dis: document.getElementById('ex-warn-go').disabled, ask: !document.getElementById('ex-ask').classList.contains('hide'), bg: getComputedStyle(document.getElementById('ex-warn')).backgroundColor }));
   check(s0.ex === 'warn' && s0.vis && s0.dis && !s0.ask && s0.bg === 'rgb(0, 0, 0)', '첫 제출 → 검은 주의 화면, 버튼은 잠시 꺼짐 (' + JSON.stringify(s0) + ')');
   await p.keyboard.press('Escape'); await p.waitForTimeout(200);
   check((await st()).ex === 'warn', '주의 화면에서 Esc로 안 닫힘');
-  await p.waitForTimeout(1500); await snap('warn');
-  check(await p.evaluate(() => !document.getElementById('ex-warn-go').disabled && document.activeElement.id === 'ex-warn-go'), '1.5초 뒤 [2번 문항 다시 보기] 켜짐·포커스');
+  await p.waitForTimeout(1500); await snap('warn'); await bandCheck('제출 주의 화면', false);
+  s0 = await p.evaluate(() => [!document.getElementById('ex-warn-go').disabled && document.activeElement.id === 'ex-warn-go', document.getElementById('ex-warn-go').textContent, document.getElementById('ex-warn').innerText]);
+  check(s0[0] && s0[1] === '내 답 다시 보기' && !/2번 문항/.test(s0[2]), '1.5초 뒤 [내 답 다시 보기] 켜짐·포커스, 검은 화면에 "2번 문항" 없음 (' + s0[1] + ')');
   await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   s0 = await p.evaluate(() => ({ ex: window.__ex.mode, tab: (document.querySelector('#nb-tabs button.on') || {}).textContent, note: document.getElementById('nb-note').textContent, f: document.activeElement && document.activeElement.id, warn: document.getElementById('ex-warn').classList.contains('hide') }));
-  check(s0.ex === 'notebook' && s0.tab === '2번' && s0.warn && /2번 답/.test(s0.note) && s0.f === 'n-a4', 'Enter → 수첩 2번 탭, 안내 문구, 2번 첫 칸 포커스 (' + JSON.stringify(s0) + ')');
-  await snap('warn-q2');
+  check(s0.ex === 'notebook' && s0.tab === '1번' && s0.warn && s0.note === '1번부터 답을 한 번 더 읽어 보세요. 다 됐으면 [제출하기]를 눌러 주세요.' && s0.f === 'n-a0s0', 'Enter → 수첩 1번 탭, 안내 문구, 1번 첫 칸 포커스 (' + JSON.stringify(s0) + ')');
+  await bandCheck('주의 화면 뒤 수첩', true);
+  await snap('warn-q1');
   await p.click('#nb-submit'); await p.waitForTimeout(300);
   check(await p.evaluate(() => !document.getElementById('ex-ask').classList.contains('hide') && document.getElementById('ex-warn').classList.contains('hide')), '두 번째 [제출하기] → 확인 창 (주의 화면 다시 안 나옴)');
   await p.click('#ex-ask-yes'); await p.waitForTimeout(800);
-  s = await st(); check(s.sub && s.ex === 'end', '제출 → 끝 화면'); await snap('end');
+  s = await st(); check(s.sub && s.ex === 'end', '제출 → 끝 화면'); await snap('end'); await bandCheck('끝 화면', false);
   s0 = await srvRow(); check(s0 && s0.submitted && s0.answers[8] === '테스트 답 마', '서버(스텁)에 제출 표시·9칸 (' + (s0 && s0.submittedAt) + ')');
   check(await p.evaluate(() => !/[◎○△]|점수|판정|정답/.test(document.getElementById('ex-root').innerText)), '학생 화면에 채점 결과(◎○△·점수·판정) 없음');
   const sub1At = s0 && s0.submittedAt;
@@ -474,7 +526,8 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
     check(await p.evaluate(() => [...document.querySelectorAll('#labels .edge-arrow,#labels .tlabel')].every((e) => e.style.display === 'none')), tag + ' 목적지 이름표·가장자리 화살표 숨김');
   };
   await p.keyboard.press('Enter'); await p.waitForTimeout(600);
-  await roamChecks('Enter →'); await snap('roam');
+  await roamChecks('Enter →'); await snap('roam'); await bandCheck('제출 뒤 돌아다니기', false);
+  check(await p.evaluate(() => !document.body.classList.contains('band-on')), '돌아다니기: 퀘스트 띠·배너 자리 원래대로(band-on 없음)');
   check(await p.evaluate(() => document.getElementById('kbd-nb').textContent.includes('내 답')), 'HUD 안내: Esc 내 답 보기');
   // 제출 뒤 날기: Space 연타 → 2단 점프보다 높이, 상한(땅 위 25)은 못 넘고, 카메라가 따라가고, 다시 내려앉음
   check(await p.evaluate(() => document.getElementById('kbd-nb').textContent.includes('날기')), 'HUD 안내: Space 연타 날기');
@@ -607,7 +660,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   // 내 답 보기: Esc → 제출한 답은 읽기 전용, [답 고치기]만 보임, 글자·기호 안 바뀜
   const roRead = () => p.evaluate(() => [...document.querySelectorAll('#nb-qs input[data-i],#nb-qs textarea[data-i]')].every((e) => e.readOnly) && [...document.querySelectorAll('#nb-qs .sym')].every((e) => e.getAttribute('aria-disabled') === 'true'));
   await p.keyboard.press('Escape'); await p.waitForTimeout(500); s = await st();
-  check(s.ex === 'notebook', '돌아다니다 Esc → 내 답 수첩 (' + s.ex + ')'); await snap('roam-notebook');
+  check(s.ex === 'notebook', '돌아다니다 Esc → 내 답 수첩 (' + s.ex + ')'); await snap('roam-notebook'); await bandCheck('제출 뒤 수첩(읽기만)', false);
   check(await roRead() && await p.evaluate(() => document.getElementById('nb-submit').classList.contains('hide') && !document.getElementById('nb-edit').classList.contains('hide')), '제출한 답: 읽기 전용, [답 고치기] 보임·제출 버튼 숨김');
   await p.focus('#nb-qs textarea'); await p.keyboard.type('고침'); await p.waitForTimeout(200);
   check(JSON.stringify((await st()).ans) === ansAtSubmit, '읽기 전용 칸에 글자를 쳐도 답 그대로');
@@ -619,20 +672,25 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.keyboard.press('Escape'); await p.waitForTimeout(500);
   await p.click('#nb-edit'); await p.waitForTimeout(600);
   check(await p.evaluate(() => __ex.S.editing && !document.getElementById('nb-submit').classList.contains('hide') && document.getElementById('nb-submit').textContent.includes('다시') && document.getElementById('nb-edit').classList.contains('hide')), '[답 고치기] → 고칠 수 있음, [다시 제출하기] 보임');
+  await bandCheck('[답 고치기] 중', true);
   await p.click('#nb-tabs button[data-t="2"]'); await p.waitForTimeout(150);
   await p.click('#n-a8'); await p.keyboard.type(' 고침'); await p.waitForTimeout(150);
   await p.click('#nb-tabs button[data-t="0"]'); await p.waitForTimeout(150);
   await p.focus('#n-a1s0'); await p.keyboard.press('Space'); await p.waitForTimeout(150);
-  s0 = (await st()).ans; check(s0[8] === '테스트 답 마 고침' && s0[1] === 'ㄱㄴㄹ', '고친 답 반영 (3번 나) 뒤 "' + s0[8] + '", 1번 기업 "' + s0[1] + '")');
-  for (let i = 0; i < 40; i++) { const r = await srvRow(); if (r && r.answers[1] === 'ㄱㄴㄹ') break; await p.waitForTimeout(250); }
-  check((await srvRow()).answers[1] === 'ㄱㄴㄹ', '고치는 중에도 자동 저장(5초 이내)');
+  check((await st()).ans[1] === 'ㄴㄹ', '수첩에서도 다른 줄 기호(㉠)는 안 켜짐 (' + (await st()).ans[1] + ')');
+  await p.focus('#n-a1s3'); await p.keyboard.press('Space'); await p.waitForTimeout(150);
+  s0 = (await st()).ans; check(s0[8] === '테스트 답 마 고침' && s0[1] === 'ㄴ', '고친 답 반영 (3번 나) 뒤 "' + s0[8] + '", 1번 기업 "' + s0[1] + '")');
+  for (let i = 0; i < 40; i++) { const r = await srvRow(); if (r && r.answers[1] === 'ㄴ') break; await p.waitForTimeout(250); }
+  check((await srvRow()).answers[1] === 'ㄴ', '고치는 중에도 자동 저장(5초 이내)');
   await p.waitForTimeout(1100);   // 제출 시각(분 단위)이 달라지는지는 보지 않고, 다시 제출 표시만 본다
   await p.click('#nb-submit'); await p.waitForTimeout(300);
   check(await p.evaluate(() => document.getElementById('ex-ask-msg').textContent.includes('다시 제출')), '다시 제출 확인 창');
+  check(await p.evaluate(() => document.getElementById('ex-ask-msg').textContent.includes('1번 (1) 기업(두 개 골라요)')), '제출 빈칸 목록에 "1번 (1) 기업(두 개 골라요)"');
   await p.click('#ex-ask-yes'); await p.waitForTimeout(800);
   s0 = await srvRow(); s = await st();
   check(s.ex === 'notebook' && s0.submitted && s0.answers[8] === '테스트 답 마 고침' && await p.evaluate(() => !__ex.S.editing) && await roRead(), '다시 제출 → 서버에 고친 답·제출 표시, 수첩은 다시 읽기 전용');
   check(await p.evaluate(() => document.getElementById('ex-toast').textContent.includes('다시 제출')), '"다시 제출했어요" 알림');
+  await bandCheck('다시 제출 뒤 수첩', false);
   const ansAfterEdit = JSON.stringify(s.ans);
   // 고치다가 다시 제출 안 하고 닫기 → 묻고 닫힘(고친 답은 저장)
   await p.click('#nb-edit'); await p.waitForTimeout(600);
