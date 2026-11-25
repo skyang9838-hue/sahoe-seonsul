@@ -1039,7 +1039,7 @@ function buildFuture() {
   colliders.push({ x: -39.6, z: 7.7, hw: 0.25, hd: 0.25 }, { x: -40.5, z: 6.3, hw: 0.5, hd: 0.5 });
   Object.assign(FUT, { drone, rotors, car, robot: { turret, a1, a2, btn } });
   TH.futDrone = { id: 'futDrone', kind: 'fut', fut: true, act: 'drone', x: -28.5, z: 5.4, label: '드론', verb: '드론 날리기' };
-  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: -34.5, z: 5.5, label: '자율 주행 차', verb: '자율 주행 차 살펴보기' };   // 열쇠를 받으면 '타기'
+  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: -34.5, z: 5.5, label: '자율 주행 차', verb: '자율 주행 차 살펴보기', promptY: 1.8 };   // 열쇠를 받으면 '타기'
   // 자율 주행 한 바퀴 길: 차 자리 → 미래 마을 길 → 마을 큰길(z 2.2) → 울타리 문 → 회사 마당(공장 앞)에서 크게 돌아 → 같은 길로 → 차 자리.
   // 건물·가로등·벤치를 피하는 지점만 골라 잇는다(마을 큰길은 가로등 z 0.5와 벤치 z 2.9 사이: 가는 길 z 1.85, 오는 길 z 1.55). play3d가 길 위 여러 점에서 충돌을 잰다
   const c0 = car.g.position;
@@ -1215,7 +1215,7 @@ document.body.appendChild(readEl);
 function renderRead() {
   const R = FUT_READ[FUT.rd.i], w = FUT.rd.w, all = w >= R.words.length;
   $('futread-era').textContent = R.era;
-  $('futread-n').textContent = all ? '다 읽었어요' : '따라 쓰기 ' + (w + 1) + ' / ' + R.words.length;
+  $('futread-n').textContent = all ? '따라 쓰기 끝' : '따라 쓰기 ' + (w + 1) + ' / ' + R.words.length;
   const box = $('futread-text'); box.textContent = '';
   R.text.forEach((line) => {
     const p = document.createElement('p');
@@ -1261,9 +1261,9 @@ function buildSuit() {
   const head = hero.parts.head, rig = hero.rig;
   const glow = new THREE.MeshBasicMaterial({ color: 0x8fdcff, transparent: true, opacity: 0.38, depthWrite: false });
   const helmet = new THREE.Group(); head.add(helmet);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), glow); dome.position.y = 0.16; dome.scale.set(1.08, 1.12, 1.08); helmet.add(dome);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), glow); dome.position.y = 0.16; dome.scale.set(1.08, 1.45, 1.08); helmet.add(dome);   // 높이 1.45배: 꼭대기 0.885가 볏 꼭대기(약 0.85)를 덮게
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.54, 0.035, 8, 32), new THREE.MeshBasicMaterial({ color: 0x4aa8ff })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.16; helmet.add(ring);
-  const ant = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0x9ff0ff })); ant.position.y = 0.76; helmet.add(ant);
+  const ant = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0x9ff0ff })); ant.position.y = 0.9; helmet.add(ant);
   const pack = new THREE.Group(); pack.position.set(0, 0.44, -0.33); rig.add(pack);
   const metal = toon(0xb8c4d4), red = toon(0xe8402c), flames = [];
   box(0.36, 0.3, 0.1, 0, 0, 0.04, metal, 0.012, pack);

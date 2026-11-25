@@ -82,7 +82,7 @@ body.debug #fps{display:block}
 #cipher .cp-key,#futread .cp-key{font-size:14px;opacity:.7;margin-top:8px;text-align:right}
 #cipher .cp-rule{font-size:16px;margin:8px 0 0;color:#8a3a1a}
 #futread-text p{font-family:"Gowun Dodum","Malgun Gothic",sans-serif;font-weight:700;font-size:19px;line-height:1.6;margin:10px 0;word-break:keep-all}
-#futread-text b{background:#ffe08a;padding:0 4px;border-radius:6px}
+#futread-text b{background:#ffe08a;padding:0 4px;border-radius:6px;white-space:nowrap}
 #futread-ask{font-size:20px;margin:14px 0 8px}
 #futread-done{display:block;margin:10px auto 0;font:inherit;font-size:22px;padding:8px 26px;border:3px solid var(--ink);border-radius:999px;background:#ffc93a;cursor:pointer;box-shadow:0 4px 0 rgba(0,0,0,.2)}
 #futread-done:focus{outline:none;box-shadow:0 0 0 4px rgba(74,168,255,.6),0 4px 0 rgba(0,0,0,.2)}
