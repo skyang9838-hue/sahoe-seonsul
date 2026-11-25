@@ -8,7 +8,7 @@
 <link rel="preload" href="assets/fonts/Jua-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="assets/fonts/GowunDodum-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css?v=16">
-<link rel="stylesheet" href="exam.css?v=25">
+<link rel="stylesheet" href="exam.css?v=26">
 <script type="importmap">
 { "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
 </script>
@@ -49,7 +49,7 @@
 
   <div id="fade"></div>
   <!-- 평가 중임을 늘 알리는 띠(11/25 사용자 결정). 보이고 숨기는 것은 exam.js updBand -->
-  <div id="eval-band" class="hide" role="status">⚠ 이것은 평가입니다 · 친구와 답을 나누지 마세요</div>
+  <div id="eval-band" class="hide" role="status">⚠ 이것은 평가입니다 · 떠들면 0점 처리될 수 있습니다</div>
 
   <!-- 평가 화면(960×540 무대를 창에 맞춰 키움) -->
   <div id="ex-root" class="hide">
@@ -110,6 +110,7 @@
           <div class="end-title">제출 완료!</div>
           <div id="end-sub" class="end-sub"></div>
           <div id="end-time" class="end-time"></div>
+          <div class="end-warn">평가가 끝나도 아직 풀고 있는 친구들이 있습니다.<br>말을 하며 남에게 피해 주지 마세요. <b>0점 처리될 수 있습니다.</b></div>
           <div class="end-btns"><button id="end-roam" class="btn primary">마을 돌아다니기</button><button id="end-view" class="btn">내 답 다시 보기</button></div>
         </div>
       </div>
@@ -131,7 +132,7 @@
     <div class="pl-lines">
       <p>사회과 서·논술형 수행평가입니다.</p>
       <p>게임처럼 보여도 성적에 들어갑니다.</p>
-      <p>절대 말을 하면 안 됩니다.</p>
+      <p>떠들면 0점 처리될 수 있습니다.</p>
       <p>선생님이 모든 답을 직접 읽습니다.</p>
       <p>평가이니 최선을 다해 답안을 입력하세요.</p>
     </div>

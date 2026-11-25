@@ -204,7 +204,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   await p.click('#comic-skip'); await p.waitForTimeout(300);
   check(await waitMode('walk', 5000), '컷신 끝 → 꼬꼬 방에서 걷기');
   await p.waitForTimeout(700); await snap('home');
-  s0 = await bandCheck('걷기(집 안)', true); check(s0.txt === '⚠ 이것은 평가입니다 · 친구와 답을 나누지 마세요' && !s0.over, '평가 띠 문구 (' + s0.txt + ')');
+  s0 = await bandCheck('걷기(집 안)', true); check(s0.txt === '⚠ 이것은 평가입니다 · 떠들면 0점 처리될 수 있습니다' && !s0.over, '평가 띠 문구 (' + s0.txt + ')');
   await snap('band-walk');
   let s = await st(); check(s.quest === 'homeDoor' && (await p.evaluate(() => __kk.S.room)) === 'home', '첫 자리: 꼬꼬네 집 안 (' + s.quest + ')');
   check(await p.evaluate(() => document.querySelector('#quest-bar b').textContent.includes('둘러보고')), '집 안 퀘스트 문구');

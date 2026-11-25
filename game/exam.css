@@ -132,6 +132,7 @@
 .end-title{font-size:34px;margin:10px 0 4px}
 .end-sub{color:#7a6555}
 .end-time{color:#7a6555;font-size:13px;margin:8px 0 12px}
+.end-warn{background:#fdecea;border:2px solid #d9443a;color:#a3221a;border-radius:10px;padding:10px 14px;margin:0 0 14px;font-size:15px;line-height:1.55;word-break:keep-all}
 .end-btns{display:flex;gap:10px;justify-content:center}
 .end-stamps{display:flex;gap:10px;justify-content:center}
 .end-stamps .stamp{position:static;width:48px;height:48px}
