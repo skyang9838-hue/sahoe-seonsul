@@ -604,11 +604,17 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   fr = await futSpot('futDrone', 'drone', () => __kk.FUT.drone.position.y);
   check(fr.m > 1.5 && fr.txt.includes('첨단 기술'), '드론: 떠올라 한 바퀴 (높이 ' + (+fr.m).toFixed(2) + '), 끝나면 첨단 기술 한 줄');
   check(await p.evaluate(() => __kk.FUT.drone.position.y < 0.2), '드론 다시 내려앉음');
-  fr = await futSpot('futCar', 'car', () => ({ inCar: !__kk.hero.root.visible, d: Math.hypot(__kk.S.x - __kk.FUT.car.g.position.x, __kk.S.z - __kk.FUT.car.g.position.z) }));
-  check(fr.m.inCar && fr.m.d < 0.3, '자율 주행 차: 꼬꼬가 차 안에 타고 돎 (숨김 ' + fr.m.inCar + ', 차와 거리 ' + fr.m.d.toFixed(2) + ')');
-  check(await p.evaluate(() => __kk.hero.root.visible), '차에서 내리면 꼬꼬 다시 보임');
-  s0 = await p.evaluate(() => ({ x: __kk.S.x, z: __kk.S.z, t: __kk.TH.futCar, cx: __kk.FUT.car.g.position.x, cz: __kk.FUT.car.g.position.z }));
-  check(Math.abs(s0.x - s0.t.x) < 0.01 && Math.abs(s0.z - s0.t.z) < 0.01 && Math.abs(s0.cx - s0.t.x) < 0.05, '차에서 내려 제자리, 차도 제자리로');
+  // 자율 주행 차: 상자를 풀기 전(열쇠 없음)에는 잠김 대사만, 차는 안 움직임
+  {
+    const c0 = await p.evaluate(() => ({ x: __kk.FUT.car.g.position.x, z: __kk.FUT.car.g.position.z, key: __kk.FUT.key }));
+    await near('futCar', 0, 0); await p.waitForTimeout(350);
+    const pr = await p.evaluate(() => { const e = document.querySelector('#labels .prompt'); return e.style.display === 'none' ? '' : e.textContent; });
+    await space(); await p.waitForTimeout(1200);
+    const r = await p.evaluate(() => ({ mode: __kk.S.mode, drive: __kk.FUT.drive, anim: !!__kk.FUT.anim, t: document.getElementById('dlg-text').textContent, cx: __kk.FUT.car.g.position.x, cz: __kk.FUT.car.g.position.z, vis: __kk.hero.root.visible }));
+    await finishTalk(); await p.waitForTimeout(200);
+    check(!c0.key && r.mode === 'talk' && !r.drive && !r.anim && r.t.includes('잠겨') && r.t.includes('열쇠') && r.cx === c0.x && r.cz === c0.z && r.vis && (await st()).mode === 'walk',
+      '상자 전 자율 주행 차 → 잠김 대사, 차 그대로 (말풍선 "' + pr + '", "' + r.t + '")');
+  }
   fr = await futSpot('futRobot', 'robot', () => Math.abs(__kk.FUT.robot.turret.rotation.y) + Math.abs(__kk.FUT.robot.a2.rotation.z + 1.1) + Math.abs(__kk.FUT.robot.a1.rotation.z - 0.3));   // a1(아래팔)은 연출 한가운데서 가장 크게 — 잰 때가 한가운데여도 0이 안 되게
   check(fr.m > 0.3, '로봇: 버튼 누르면 팔이 움직임 (' + (+fr.m).toFixed(2) + ')');
   // 미래 마을에서도 수첩(Esc)·날기 그대로
@@ -739,8 +745,65 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   s0 = await p.evaluate(() => { const U = __kk.FUT.suit; return { t: document.getElementById('dlg-text').textContent, suit: !!U, helm: !!U && U.helmet.parent === __kk.hero.parts.head, pack: !!U && U.pack.parent === __kk.hero.rig, lift: __kk.FUT.lift, spin: __kk.FUT.spin, beam: !!__kk.FUT.beam }; });
   check(s0.suit && s0.helm && s0.pack && s0.lift === 0 && s0.spin === 0 && !s0.beam && s0.t.includes('미래 꼬꼬'), '변신 뒤 헬멧은 머리, 제트팩은 몸에 붙음, 빛 기둥 치움 + "' + s0.t + '"');
   await snap('future-suit-after');
+  await space(); await p.waitForTimeout(1200);
+  s0 = await p.evaluate(() => ({ t: document.getElementById('dlg-text').textContent, key: __kk.FUT.key, verb: __kk.TH.futCar.verb }));
+  check(s0.t.includes('자동차 열쇠') && s0.key === true && s0.verb.includes('타기'), '변신 대사 뒤 "' + s0.t + '", FUT.key ' + s0.key + ', 차 말풍선 "' + s0.verb + '"');
   await finishTalk(); s = await st();
   check(s.mode === 'walk' && await p.evaluate(() => __kk.FUT.lid.rotation.x < -1.5), '변신 뒤 다시 걷기, 상자 뚜껑 열림');
+  // ── 자율 주행 한 바퀴(열쇠 받은 뒤): 길이 건물·소품을 뚫지 않는지 → 타기 → 몇 초 뒤 차가 움직임 → [내리기] → 걷기 ──
+  s0 = await p.evaluate(() => {
+    // 길 위 240점에서 차 크기(옆 ±0.55·앞뒤 ±1.0, 점마다 꼬꼬 반지름 0.36을 더함)로 충돌 상자를 잰다. 세워 둔 이 차 자기 상자는 뺀다
+    const R = __kk.FUT.route, own = __kk.FUT.carCol, hits = []; own.off = true;
+    const zones = { future: 0, village: 0, company: 0 };
+    for (let i = 0; i <= 240; i++) {
+      const u = i / 240, q = R.getPointAt(u), tg = R.getTangentAt(u), nx = -tg.z, nz = tg.x;
+      zones[q.x < -23.4 ? 'future' : q.x < 21 ? 'village' : 'company']++;
+      for (const [a, b] of [[0, 0], [0.55, 1.0], [-0.55, 1.0], [0.55, -1.0], [-0.55, -1.0], [0.55, 0], [-0.55, 0]]) {
+        const x = q.x + nx * a + tg.x * b, z = q.z + nz * a + tg.z * b, c = __kk.blocked(x, z, 0);
+        if (c) { hits.push([+x.toFixed(1), +z.toFixed(1), c.x.toFixed ? +c.x.toFixed(1) : c.x, c.z.toFixed ? +c.z.toFixed(1) : c.z]); break; }
+      }
+    }
+    own.off = false;
+    const a = R.getPointAt(0), b = R.getPointAt(1), c = __kk.FUT.car.g.position;
+    return { len: +R.getLength().toFixed(1), hits: hits.slice(0, 6), nHit: hits.length, zones, maxX: Math.max(...R.getSpacedPoints(200).map((v) => v.x)), loop: Math.hypot(a.x - b.x, a.z - b.z) + Math.hypot(a.x - c.x, a.z - c.z) };
+  });
+  check(s0.nHit === 0, '자율 주행 길 240점 차 크기로 충돌 없음 (길이 ' + s0.len + ', 걸림 ' + s0.nHit + ' ' + JSON.stringify(s0.hits) + ')');
+  check(s0.zones.future > 0 && s0.zones.village > 0 && s0.zones.company > 0 && s0.maxX > 30 && s0.loop < 0.01, '길: 미래 마을 → 꼬꼬네 마을 → 회사 앞(최대 x ' + s0.maxX.toFixed(1) + ') → 차 자리로 돌아옴 (' + JSON.stringify(s0.zones) + ')');
+  const carAt = () => p.evaluate(() => ({ x: __kk.FUT.car.g.position.x, z: __kk.FUT.car.g.position.z, ry: __kk.FUT.car.g.rotation.y }));
+  const parked = await carAt();
+  const rideStart = async () => {
+    await near('futCar', 0, 0); await p.waitForTimeout(350);
+    const pr = await p.evaluate(() => { const e = document.querySelector('#labels .prompt'); return e.style.display === 'none' ? '' : e.textContent; });
+    await space(); await p.waitForTimeout(300);
+    return { pr, ...(await p.evaluate(() => ({ mode: __kk.S.mode, drive: __kk.FUT.drive, ms: __kk.FUT.anim && __kk.FUT.anim.ms, btn: !document.getElementById('fut-exit').classList.contains('hide') }))) };
+  };
+  const afterRide = () => p.evaluate(() => ({ mode: __kk.S.mode, drive: __kk.FUT.drive, anim: !!__kk.FUT.anim, vis: __kk.hero.root.visible, x: __kk.S.x, z: __kk.S.z, t: { x: __kk.TH.futCar.x, z: __kk.TH.futCar.z },
+    btn: !document.getElementById('fut-exit').classList.contains('hide'), ex: window.__ex && __ex.mode, fade: document.getElementById('fade').classList.contains('on') }));
+  const parkedOk = (a, c) => Math.abs(a.x - a.t.x) < 0.01 && Math.abs(a.z - a.t.z) < 0.01 && Math.abs(c.x - parked.x) < 0.01 && Math.abs(c.z - parked.z) < 0.01 && Math.abs(c.ry - parked.ry) < 0.001;
+  let rs = await rideStart();
+  check(rs.mode === 'scene' && rs.drive && rs.btn && rs.ms >= 20000 && rs.ms <= 30000 && rs.pr.includes('타기'), '열쇠 받은 뒤 차 타기 → 자율 주행 시작 (' + rs.ms + 'ms, [내리기] 보임, 말풍선 "' + rs.pr + '")');
+  await p.keyboard.down('ArrowUp'); await p.waitForTimeout(2700); await p.keyboard.up('ArrowUp');   // 도는 동안 방향키는 안 먹는다
+  s0 = await p.evaluate(() => ({ c: { x: __kk.FUT.car.g.position.x, z: __kk.FUT.car.g.position.z }, s: { x: __kk.S.x, z: __kk.S.z }, vis: __kk.hero.root.visible, mode: __kk.S.mode, cl: { x: __kk.camera.position.x, z: __kk.camera.position.z } }));
+  const moved = Math.hypot(s0.c.x - parked.x, s0.c.z - parked.z);
+  check(moved > 3 && !s0.vis && s0.mode === 'scene' && Math.hypot(s0.s.x - s0.c.x, s0.s.z - s0.c.z) < 0.01 && Math.abs(s0.cl.x - s0.c.x) < 6,
+    '3초 뒤 차가 움직임 (' + moved.toFixed(1) + '칸, 꼬꼬는 차 안·숨김, 카메라 x ' + s0.cl.x.toFixed(1) + ' / 차 x ' + s0.c.x.toFixed(1) + ')');
+  await p.waitForTimeout(2500);
+  s0 = await p.evaluate(() => ({ x: __kk.FUT.car.g.position.x, b: document.getElementById('zone-banner').textContent }));
+  await snap('future-drive');
+  check(s0.x > -23.4, '5초쯤엔 꼬꼬네 마을로 들어섬 (차 x ' + s0.x.toFixed(1) + ', 구역 띠 "' + s0.b + '")');
+  await p.click('#fut-exit'); await p.waitForTimeout(900);
+  let ar = await afterRide(), ca = await carAt();
+  check(ar.mode === 'walk' && !ar.drive && !ar.anim && ar.vis && !ar.btn && !ar.fade && parkedOk(ar, ca), '[내리기] → 차 자리에서 내려 걷기, 차도 제자리 (' + JSON.stringify({ mode: ar.mode, x: +ar.x.toFixed(2), z: +ar.z.toFixed(2) }) + ')');
+  rs = await rideStart(); await p.waitForTimeout(1500);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(900);
+  ar = await afterRide(); ca = await carAt();
+  check(rs.drive && ar.mode === 'walk' && ar.ex === 'game' && !ar.drive && ar.vis && parkedOk(ar, ca), '주행 중 Esc → 내리기(수첩 안 열림) (' + ar.mode + '/' + ar.ex + ')');
+  // 끝까지 돈 경우: 시간을 앞당겨 마지막 0.6초만 남기고 → 차 자리에 서고 저절로 내림
+  rs = await rideStart(); await p.waitForTimeout(400);
+  await p.evaluate(() => { const A = __kk.FUT.anim; A.t0 -= A.ms - 600; });
+  await p.waitForTimeout(1200);
+  ar = await afterRide(); ca = await carAt();
+  check(rs.drive && ar.mode === 'walk' && !ar.drive && ar.vis && !ar.btn && parkedOk(ar, ca), '한 바퀴 끝 → 차 자리에 서고 꼬꼬 내려 걷기 (' + JSON.stringify({ mode: ar.mode, ry: +ca.ry.toFixed(3) }) + ')');
   // 헬멧이 이름표를 가리지 않게: 헬멧 꼭대기(안테나)가 이름표 높이(1.75)보다 낮아야
   s0 = await p.evaluate(() => { __kk.hero.root.updateMatrixWorld(true); const v = __kk.FUT.suit.helmet.children[2].getWorldPosition(__kk.camera.position.clone()); return +(v.y - __kk.hero.root.position.y).toFixed(2); });
   check(s0 < 1.7, '헬멧 꼭대기(' + s0 + ')가 이름표 높이(1.75)보다 낮음');

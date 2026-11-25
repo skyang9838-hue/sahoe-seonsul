@@ -69,6 +69,8 @@ body.debug #fps{display:block}
 /* 미래 마을(제출 뒤): 길 열림 알림 · 초성 암호 창 */
 #fut-toast{position:absolute;left:50%;top:182px;transform:translate(-50%,-30px);opacity:0;background:rgba(44,62,122,.9);color:#fff;font-size:22px;padding:8px 22px;border-radius:999px;border:3px solid #fff3d6;box-shadow:0 5px 0 rgba(0,0,0,.25);white-space:nowrap;pointer-events:none}
 #fut-toast.show{animation:banner 4s ease-out forwards}
+#fut-exit{position:absolute;right:24px;bottom:24px;z-index:35;font:inherit;font-size:22px;color:var(--ink);padding:9px 22px;background:#fff3d6;border:3px solid var(--ink);border-radius:999px;box-shadow:0 5px 0 rgba(0,0,0,.25);cursor:pointer}
+#fut-exit:hover,#fut-exit:focus-visible{background:#ffe08a;outline:none}
 #cipher,#futread{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(20,14,8,.45)}
 #cipher .cp-box,#futread .cp-box{width:min(600px,92vw);background:linear-gradient(#fffdf8,#fff1dc);border:4px solid var(--ink);border-radius:22px;padding:18px 24px 16px;box-shadow:0 7px 0 rgba(0,0,0,.25)}
 #cipher .cp-top,#futread .cp-top{display:flex;justify-content:space-between;align-items:center;font-size:22px}

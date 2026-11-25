@@ -970,7 +970,8 @@ function lookAt(t) {
 /* ── 미래 마을: 제출한 학생만(S.roam) 마을 왼쪽 끝 새 길로 들어가는 작은 구역 (6-2 사회 「경제성장과 우리 생활」 78~92쪽) ──
    제출 전에는 묶음(FUT.g)이 안 보이고 길목(FUT.col)이 막혀 있다. 평가 답과 무관 — 서버로 아무것도 보내지 않는다. */
 // read: 차례로 다 읽은(따라 쓴) 건물 수 0~3 · rd: 지금 열린 읽기 창 { i: 건물, w: 따라 쓸 낱말 차례 } · suit: 미래 꼬꼬 옷(헬멧·제트팩) · spin: 변신 회전
-const FUT = { open: false, g: null, col: null, anim: null, lift: 0, spin: 0, qi: 0, done: false, bits: [], lastEnter: 0, read: 0, rd: null, suit: null };
+// key: 상자를 다 풀면 받는 자동차 열쇠 · drive: 자율 주행 한 바퀴 중이면 true · route: 한 바퀴 길(곡선) · carCol: 세워 둔 차의 충돌 상자
+const FUT = { open: false, g: null, col: null, anim: null, lift: 0, spin: 0, qi: 0, done: false, bits: [], lastEnter: 0, read: 0, rd: null, suit: null, key: false, drive: false, route: null, carCol: null };
 const FUT_LINE = {
   tech: '경제성장에 따라 첨단 기술이 빠르게 발전하면서 물건을 만드는 속도가 빨라지고 생산량이 늘어났어요.',
 };
@@ -1026,7 +1027,7 @@ function buildFuture() {
   box(0.55, 0.14, 0.55, 0, 0, 0, tm(0xf2f2f2), 0.012, drone);
   const rotors = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([a, b]) => { box(0.06, 0.1, 0.06, a * 0.38, 0.04, b * 0.38, tm(0x555555), 0, drone); return box(0.42, 0.02, 0.06, a * 0.38, 0.1, b * 0.38, tm(0x333333), 0, drone); });
   const car = place('car_sedan', -34.5, 7.4, { h: 1.15, ry: Math.PI / 2, solid: false, occl: false }); g.add(car.g);
-  colliders.push({ x: car.x, z: car.z, hw: car.w * 0.43, hd: car.d * 0.42 });   // 올라서기(top) 없음: 세계 가장자리 밖 소품 규칙(play3d)
+  FUT.carCol = { x: car.x, z: car.z, hw: car.w * 0.43, hd: car.d * 0.42 }; colliders.push(FUT.carCol);   // 올라서기(top) 없음: 세계 가장자리 밖 소품 규칙(play3d)
   const rb = grp(-40.5, 6.3);
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 0.4, 16), tm(0x555c66)); base.position.y = 0.2; addOutline(base, 0.015); rb.add(base);
   const turret = new THREE.Group(); turret.position.y = 0.4; rb.add(turret);
@@ -1038,7 +1039,13 @@ function buildFuture() {
   colliders.push({ x: -39.6, z: 7.7, hw: 0.25, hd: 0.25 }, { x: -40.5, z: 6.3, hw: 0.5, hd: 0.5 });
   Object.assign(FUT, { drone, rotors, car, robot: { turret, a1, a2, btn } });
   TH.futDrone = { id: 'futDrone', kind: 'fut', fut: true, act: 'drone', x: -28.5, z: 5.4, label: '드론', verb: '드론 날리기' };
-  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: -34.5, z: 5.5, label: '자율 주행 차', verb: '자율 주행 차 타기' };
+  TH.futCar = { id: 'futCar', kind: 'fut', fut: true, act: 'car', x: -34.5, z: 5.5, label: '자율 주행 차', verb: '자율 주행 차 살펴보기' };   // 열쇠를 받으면 '타기'
+  // 자율 주행 한 바퀴 길: 차 자리 → 미래 마을 길 → 마을 큰길(z 2.2) → 울타리 문 → 회사 마당(공장 앞)에서 크게 돌아 → 같은 길로 → 차 자리.
+  // 건물·가로등·벤치를 피하는 지점만 골라 잇는다(마을 큰길은 가로등 z 0.5와 벤치 z 2.9 사이: 가는 길 z 1.85, 오는 길 z 1.55). play3d가 길 위 여러 점에서 충돌을 잰다
+  const c0 = car.g.position;
+  FUT.route = new THREE.CatmullRomCurve3([[c0.x, c0.z], [-33, 7.3], [-31.6, 6.0], [-30.6, 3.8], [-28.6, 2.5], [-23, 2.3], [-20, 2.0], [-10, 1.85], [6, 1.85], [21, 1.9], [30, 2.4], [35.5, 2.4],
+    [38.3, 1.0], [38.8, -1.2], [36.8, -2.8], [33, -3.0], [30.6, -2.2], [29.8, -0.2], [28.6, 1.6], [25, 1.8], [21, 1.6], [6, 1.55], [-10, 1.55], [-20, 1.7], [-23, 2.0], [-30, 2.0],
+    [-34, 2.2], [-36.8, 3.4], [-37.8, 5.4], [-36.9, 6.9], [-35.7, 7.35], [c0.x, c0.z]].map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
   TH.futRobot = { id: 'futRobot', kind: 'fut', fut: true, act: 'robot', x: -41.7, z: 8.4, label: '로봇', verb: '로봇 버튼 누르기' };
   // 3) 초성 암호 상자(길 끝): 앞면이 마을 쪽(+x)을 보게
   const chest = grp(-44.3, 2.2); chest.rotation.y = Math.PI / 2;
@@ -1066,6 +1073,11 @@ function futAct(t) {
     else openCipher();
     return;
   }
+  if (t.act === 'car') {
+    if (!FUT.key) talk([{ who: 'note', text: '문이 잠겨 있어요. 열쇠가 필요해요.' }]);
+    else startDrive(t);
+    return;
+  }
   // 시간 여행 거리는 1960 → 1980 → 2020 차례로. 앞 건물을 안 읽었으면 대사만
   if (t.act === 'time' && t.i > FUT.read) { talk([{ who: 'note', text: FUT_READ[FUT.read].era + '부터 차례로 읽어요.' }]); return; }
   S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
@@ -1073,7 +1085,7 @@ function futAct(t) {
   S.x = t.x; S.z = t.z; S.face = t.act === 'time' ? Math.PI : t.act === 'robot' ? Math.atan2(-40.5 - t.x, 6.3 - t.z) : 0;   // 로봇 칸은 꼬꼬가 로봇 왼쪽 앞에 비켜 서서 로봇을 본다(카메라와 로봇 사이를 가리지 않게)
   sfx.blip();
   const lines = [FUT_LINE.tech];
-  const R = FUT.robot, D = FUT.drone, C = FUT.car.g, c0 = { x: C.position.x, z: C.position.z, ry: C.rotation.y };
+  const R = FUT.robot, D = FUT.drone;
   const step = {
     time(k) { const s = 1 + 0.12 * Math.sin(Math.PI * k); t.obj.scale.set(s, s, s); if (k > 0.2 && !t.puffed) { t.puffed = true; puff(t.obj.position.x, t.obj.position.z + 1.4, 8); sfx.open(); } },
     drone(k) {
@@ -1082,26 +1094,60 @@ function futAct(t) {
       D.position.set(-28.5 + Math.sin(a) * r, 0.12 + 3.5 * span(k, 0, 0.25) * (1 - span(k, 0.8, 1)), 7.2 - Math.cos(a) * r);
       D.rotation.y = a; FUT.rotors.forEach((m, i) => { m.rotation.y = k * 90 + i; });
     },
-    car(k) {
-      const on = span(k, 0, 0.15), off = span(k, 0.85, 1), a = Math.PI * 2 * span(k, 0.15, 0.85), r = 1.6;
-      C.position.set(c0.x + Math.sin(a) * r, 0, c0.z - r + Math.cos(a) * r); C.rotation.y = c0.ry + a;
-      const m = on * (1 - off);
-      S.x = t.x + (C.position.x - t.x) * m; S.z = t.z + (C.position.z - t.z) * m;
-      FUT.lift = Math.sin(Math.PI * (k < 0.5 ? on : off)) * 0.9; hero.root.visible = m < 0.8;   // 폴짝 뛰어 차 안으로 들어간다(지붕에 앉지 않게 잠깐 숨김)
-      if (m > 0.5) S.face = c0.ry + a;
-    },
     robot(k) {
       R.btn.position.y = 0.84 - (k < 0.15 ? 0.05 : 0); R.btn.material.color.setHex(k < 0.95 ? 0x5ad05a : 0xe8402c);
       R.turret.rotation.y = Math.sin(Math.PI * 2 * k) * 1.3; R.a1.rotation.z = 0.3 + 0.5 * Math.sin(Math.PI * k); R.a2.rotation.z = -1.1 + 0.7 * Math.sin(Math.PI * 2 * k);
     },
   }[t.act];
   t.puffed = false;
-  FUT.anim = { act: t.act, t0: performance.now(), ms: t.act === 'car' ? 2400 : t.act === 'time' ? 1200 : 1800, step, done: () => {
-    FUT.lift = 0; hero.root.visible = true; if (t.act === 'car') { S.x = t.x; S.z = t.z; S.face = 0; }
+  FUT.anim = { act: t.act, t0: performance.now(), ms: t.act === 'time' ? 1200 : 1800, step, done: () => {
+    FUT.lift = 0;
     if (t.act === 'time') { t.obj.scale.set(1, 1, 1); openRead(t.i); return; }   // 시간 여행 칸은 대사 대신 읽기 창
     talk(lines.map((text) => ({ who: 'note', text })));
   } };
 }
+// 자율 주행 한 바퀴(열쇠를 받은 뒤): 꼬꼬가 폴짝 차에 타면 차가 FUT.route를 따라 약 26초 동안 저절로 돈다.
+// 도는 동안 S.mode 'scene'(입력 막음), 카메라는 S.x·S.z(=차)를 따라간다. Esc나 [내리기]로 언제든 차 자리에서 내린다
+const DRIVE = { hop: 0.8, run: 26, ramp: 1.6 };   // 초: 타기 · 달리기 · 출발·도착 때 천천히
+const exitBtn = document.createElement('button'); exitBtn.id = 'fut-exit'; exitBtn.className = 'hide'; exitBtn.type = 'button';
+exitBtn.innerHTML = '내리기 <span class="kbd">Esc</span>'; document.body.appendChild(exitBtn);
+exitBtn.addEventListener('click', () => { exitBtn.blur(); stopDrive(); });
+function startDrive(t) {
+  S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
+  S.x = t.x; S.z = t.z; S.face = 0; sfx.blip();
+  const C = FUT.car.g, c0 = { x: C.position.x, z: C.position.z, ry: C.rotation.y }, curve = FUT.route, L = curve.getLength();
+  const { hop, run, ramp } = DRIVE, vmax = L / (run - ramp);
+  // 지나간 길이(0~L): 처음·끝 ramp초는 고르게 빨라지고 느려진다
+  const dist = (s) => s < ramp ? vmax * s * s / (2 * ramp) : s > run - ramp ? L - vmax * (run - s) * (run - s) / (2 * ramp) : vmax * (s - ramp / 2);
+  FUT.drive = true; exitBtn.classList.remove('hide');
+  FUT.anim = { act: 'drive', t0: performance.now(), ms: (hop + run) * 1000, c0, inCar: false, step(k) {
+    const s = k * (hop + run);
+    if (s < hop) {   // 폴짝 뛰어 차 안으로(지붕에 앉지 않게 끝에는 숨김)
+      const m = span(s, 0, hop);
+      S.x = t.x + (c0.x - t.x) * m; S.z = t.z + (c0.z - t.z) * m;
+      FUT.lift = Math.sin(Math.PI * m) * 0.9; hero.root.visible = m < 0.8;
+      if (m > 0.8 && !this.inCar) { this.inCar = true; sfx.open(); }
+      return;
+    }
+    hero.root.visible = false; FUT.lift = 0;
+    const u = Math.min(1, Math.max(0, dist(s - hop) / L)), p = curve.getPointAt(u), tg = curve.getTangentAt(u);
+    C.position.set(p.x, 0, p.z); C.rotation.y = u >= 1 ? c0.ry : Math.atan2(tg.x, tg.z);
+    S.x = p.x; S.z = p.z; S.face = C.rotation.y;
+  }, done: () => endDrive(false) };
+}
+// 내리기: 차는 제자리, 꼬꼬는 차 옆(살펴보기 자리)에 서서 다시 걷기. early(Esc·[내리기])면 잠깐 어두워졌다가 옮긴다
+function endDrive(early) {
+  const t = TH.futCar, A = FUT.anim, c0 = A && A.c0;
+  FUT.anim = null; FUT.drive = false; FUT.lift = 0; exitBtn.classList.add('hide');
+  const park = () => {
+    if (c0) { FUT.car.g.position.set(c0.x, 0, c0.z); FUT.car.g.rotation.y = c0.ry; }
+    hero.root.visible = true; teleport(t.x, t.z, 0); puff(t.x, t.z, 6);
+  };
+  if (!early) { park(); S.mode = 'walk'; return; }
+  S.mode = 'fade'; sfx.blip();
+  fadeOut(() => { park(); setTimeout(() => { fadeIn(); S.mode = 'walk'; }, 150); });
+}
+function stopDrive() { if (FUT.drive && FUT.anim && FUT.anim.act === 'drive') endDrive(true); }
 function updateFuture(dt) {
   if (!FUT.open) return;
   if (FUT.anim) { const A = FUT.anim, k = Math.min(1, (performance.now() - A.t0) / A.ms); A.step(k); if (k >= 1) { FUT.anim = null; A.done(); } }
@@ -1253,7 +1299,8 @@ function futTransform() {
   }, done: () => {
     scene.remove(beam); beamGeo.dispose(); beamMat.dispose(); FUT.beam = null;
     FUT.lift = 0; FUT.spin = 0; S.cam = null; S.mode = 'walk';
-    talk([{ who: 'note', text: '딸깍! 상자가 열렸어요. 미래 꼬꼬가 되었어요!' }]);
+    FUT.key = true; TH.futCar.verb = '자율 주행 차 타기';
+    talk([{ who: 'note', text: '딸깍! 상자가 열렸어요. 미래 꼬꼬가 되었어요!' }, { who: 'note', text: '자동차 열쇠도 받았어요!' }]);
   } };
 }
 function openChapter(c) {
@@ -1721,6 +1768,7 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   audioUnlock();
   if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
+  if (S.mode === 'scene' && FUT.drive && e.code === 'Escape' && !e.repeat) { stopDrive(); return; }   // 자율 주행 중 Esc = 내리기(수첩은 안 열림)
   if (S.mode !== 'walk') return;
   if (e.code === 'Escape') { openNotebook(); return; }
   if (e.code === 'Space' && !e.repeat) { const t = nearestThing(); if (t && !(S.roam && J.on && J.z > 2.3)) interact(t); else jump(); return; }   // 높이 나는 중에는 말 걸기 대신 날갯짓
@@ -1808,7 +1856,7 @@ function loop() {
   for (const l of lamps) l.material.emissiveIntensity = Math.sin(navT * 6) > 0 ? 1.4 : 0.2;
   // 구역 배너
   const zk = S.room || (S.x < -23.4 ? 'future' : S.x < GATE_X ? 'village' : 'company');
-  if (zk !== zoneShown && (S.mode === 'walk' || S.mode === 'talk')) { zoneShown = zk; zoneBanner(zk); }
+  if (zk !== zoneShown && (S.mode === 'walk' || S.mode === 'talk' || FUT.drive)) { zoneShown = zk; zoneBanner(zk); }   // 자율 주행 중에도 지나는 마을 이름을 띄운다
   // 해·카메라
   sun.position.set(camLook.x + 9, 16, camLook.z + 7); sun.target.position.set(camLook.x, 0, camLook.z);
   if (S.cam) { camLook.lerp(S.cam.l, Math.min(1, dt * 4)); camPos.lerp(S.cam.p, Math.min(1, dt * 3)); }
