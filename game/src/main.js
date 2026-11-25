@@ -969,12 +969,21 @@ function lookAt(t) {
 
 /* ── 미래 마을: 제출한 학생만(S.roam) 마을 왼쪽 끝 새 길로 들어가는 작은 구역 (6-2 사회 「경제성장과 우리 생활」 78~92쪽) ──
    제출 전에는 묶음(FUT.g)이 안 보이고 길목(FUT.col)이 막혀 있다. 평가 답과 무관 — 서버로 아무것도 보내지 않는다. */
-const FUT = { open: false, g: null, col: null, anim: null, lift: 0, qi: 0, done: false, bits: [], lastEnter: 0 };
+// read: 차례로 다 읽은(따라 쓴) 건물 수 0~3 · rd: 지금 열린 읽기 창 { i: 건물, w: 따라 쓸 낱말 차례 } · suit: 미래 꼬꼬 옷(헬멧·제트팩) · spin: 변신 회전
+const FUT = { open: false, g: null, col: null, anim: null, lift: 0, spin: 0, qi: 0, done: false, bits: [], lastEnter: 0, read: 0, rd: null, suit: null };
 const FUT_LINE = {
-  time: ['1960년 우리나라 1인당 GNI(국민 한 사람 몫)는 약 120달러였어요. (세계 은행 자료)', '1980년에는 약 1,870달러가 되었어요. (세계 은행 자료)', '2023년에는 약 35,490달러가 되었어요. (세계 은행 자료)'],
-  grow: '나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 경제성장이라고 해요.',
   tech: '경제성장에 따라 첨단 기술이 빠르게 발전하면서 물건을 만드는 속도가 빨라지고 생산량이 늘어났어요.',
 };
+// 시간 여행 거리: 건물마다 읽고, **굵은 낱말**을 따라 쓴다(교과서 6-2 사회 「경제성장과 우리 생활」 표현). 상자 암호 답과 같은 낱말
+const FUT_READ = [
+  { era: '1960년대', text: ['1960년 우리나라 1인당 GNI(국민 한 사람 몫)는 약 120달러였어요. (세계 은행 자료)',
+    '나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 **경제성장**이라고 해요.'], words: ['경제성장'] },
+  { era: '1980년대', text: ['1980년에는 약 1,870달러가 되었어요. (세계 은행 자료)',
+    '전쟁 뒤 빠르게 이룬 우리나라 경제성장을 세계는 \'**한강의 기적**\'이라고 불렀어요.'], words: ['한강의 기적'] },
+  { era: '2020년대', text: ['2023년에는 약 35,490달러가 되었어요. (세계 은행 자료)',
+    '교육과 의료가 좋아져 사람들의 **삶의 질**이 높아졌어요.',
+    '하지만 잘사는 사람과 어렵게 사는 사람의 차이가 커지는 **빈부 격차**가 나타나기도 해요.'], words: ['삶의 질', '빈부 격차'] },
+];
 const CIPHER = [
   ['나라 전체의 생산 수준이 높아져 경제 규모가 커지는 것을 ㄱㅈㅅㅈ(이)라고 해요.', '경제성장'],
   ['전쟁 뒤 빠르게 이룬 우리나라 경제성장을 세계는 \'ㅎㄱㅇ ㄱㅈ\'이라고 불렀어요.', '한강의기적'],
@@ -1051,12 +1060,19 @@ function openFuture() {
   setTimeout(() => sfx.gate(), 300);
 }
 function futAct(t) {
-  if (t.act === 'box') { if (FUT.done) talk([{ who: 'note', text: '상자는 이미 열려 있어요. 암호 넷을 모두 풀었어요!' }]); else openCipher(); return; }
+  if (t.act === 'box') {
+    if (FUT.done) talk([{ who: 'note', text: '상자는 이미 열려 있어요. 암호 넷을 모두 풀었어요!' }]);
+    else if (FUT.read < FUT_READ.length) talk([{ who: 'note', text: '아직 읽지 않은 곳이 있어요: ' + FUT_READ[FUT.read].era }]);
+    else openCipher();
+    return;
+  }
+  // 시간 여행 거리는 1960 → 1980 → 2020 차례로. 앞 건물을 안 읽었으면 대사만
+  if (t.act === 'time' && t.i > FUT.read) { talk([{ who: 'note', text: FUT_READ[FUT.read].era + '부터 차례로 읽어요.' }]); return; }
   S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
   FUT.timeTalk = t.act === 'time';   // 시간 여행 칸 대사 동안 꼬꼬 이름표가 뒤 간판 글자를 덮지 않게 숨긴다
   S.x = t.x; S.z = t.z; S.face = t.act === 'time' ? Math.PI : t.act === 'robot' ? Math.atan2(-40.5 - t.x, 6.3 - t.z) : 0;   // 로봇 칸은 꼬꼬가 로봇 왼쪽 앞에 비켜 서서 로봇을 본다(카메라와 로봇 사이를 가리지 않게)
   sfx.blip();
-  const lines = t.act === 'time' ? [FUT_LINE.time[t.i]].concat(t.i === 2 ? [FUT_LINE.grow] : []) : [FUT_LINE.tech];
+  const lines = [FUT_LINE.tech];
   const R = FUT.robot, D = FUT.drone, C = FUT.car.g, c0 = { x: C.position.x, z: C.position.z, ry: C.rotation.y };
   const step = {
     time(k) { const s = 1 + 0.12 * Math.sin(Math.PI * k); t.obj.scale.set(s, s, s); if (k > 0.2 && !t.puffed) { t.puffed = true; puff(t.obj.position.x, t.obj.position.z + 1.4, 8); sfx.open(); } },
@@ -1082,6 +1098,7 @@ function futAct(t) {
   t.puffed = false;
   FUT.anim = { act: t.act, t0: performance.now(), ms: t.act === 'car' ? 2400 : t.act === 'time' ? 1200 : 1800, step, done: () => {
     FUT.lift = 0; hero.root.visible = true; if (t.act === 'car') { S.x = t.x; S.z = t.z; S.face = 0; }
+    if (t.act === 'time') { t.obj.scale.set(1, 1, 1); openRead(t.i); return; }   // 시간 여행 칸은 대사 대신 읽기 창
     talk(lines.map((text) => ({ who: 'note', text })));
   } };
 }
@@ -1098,7 +1115,7 @@ function updateFuture(dt) {
 // 초성 암호 창: 한 문제씩, 띄어쓰기 무시 비교, 틀리면 칸 흔들림, Esc 닫기. 열린 동안 꼬꼬는 멈춘다(S.mode 'cipher')
 const cipherEl = document.createElement('div'); cipherEl.id = 'cipher'; cipherEl.className = 'hide';
 cipherEl.setAttribute('role', 'dialog'); cipherEl.setAttribute('aria-modal', 'true'); cipherEl.setAttribute('aria-label', '초성 암호 상자');
-cipherEl.innerHTML = '<div class="cp-box"><div class="cp-top"><b>초성 암호 상자</b><span id="cipher-n"></span></div><p id="cipher-q"></p>'
+cipherEl.innerHTML = '<div class="cp-box"><div class="cp-top"><b>초성 암호 상자</b><span id="cipher-n"></span></div><p class="cp-rule">친구에게 묻지 말고 거리에서 읽은 낱말로 풀어요.</p><p id="cipher-q"></p>'
   + '<input id="cipher-in" autocomplete="off" spellcheck="false" aria-label="암호 답 입력"><div class="cp-key"><span class="kbd">Enter</span> 확인 · <span class="kbd">Esc</span> 닫기</div></div>';
 document.body.appendChild(cipherEl);
 function renderCipher() { $('cipher-n').textContent = (FUT.qi + 1) + ' / ' + CIPHER.length; $('cipher-q').textContent = CIPHER[FUT.qi][0]; $('cipher-in').value = ''; }
@@ -1111,7 +1128,7 @@ function checkCipher() {
   const inp = $('cipher-in'), v = inp.value.replace(/\s/g, '');
   if (!v || performance.now() - FUT.lastEnter < 200) return;   // 빈 칸·겹쳐 들어온 Enter는 무시
   FUT.lastEnter = performance.now();
-  if (v !== CIPHER[FUT.qi][1]) { sfx.nope(); inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad'); return; }
+  if (v !== CIPHER[FUT.qi][1]) { cipherMiss(); return; }
   sfx.ding(); FUT.qi++;
   if (FUT.qi < CIPHER.length) { renderCipher(); return; }
   closeCipher(); FUT.done = true; TH.futBox.verb = '살펴보기'; sfx.gate();
@@ -1121,7 +1138,16 @@ function checkCipher() {
     const a = Math.random() * Math.PI * 2; b.position.set(-44.3, 0.8, 2.2);
     b.userData = { life: 1.6, vx: Math.cos(a) * 1.6, vz: Math.sin(a) * 1.6, vy: 4 + Math.random() * 2.5 }; scene.add(b); FUT.bits.push(b);
   }
-  S.mode = 'scene'; setTimeout(() => talk([{ who: 'note', text: '딸깍! 상자가 열렸어요. 암호 넷을 모두 맞혔어요!' }]), 900);
+  futTransform();
+}
+// 상자 암호를 틀리면: 창을 닫고 읽은 기록을 지운 뒤 꼬꼬를 1960년대 건물 앞(간판 쪽을 보게)으로 돌려보낸다
+function cipherMiss() {
+  closeCipher(); sfx.nope();
+  FUT.read = 0; FUT.qi = 0; S.mode = 'fade';
+  fadeOut(() => {
+    const t0 = TH.futT0; teleport(t0.x, t0.z, Math.PI);
+    setTimeout(() => { fadeIn(); S.mode = 'walk'; talk([{ who: 'note', text: '틀렸어요. 1960년대부터 다시 읽고 오세요.' }]); }, 150);
+  });
 }
 $('cipher-in').addEventListener('keydown', (e) => {
   e.stopPropagation();   // 게임 쪽(main.js 창 키 처리: Esc=수첩, Space=점프)으로 안 넘긴다
@@ -1130,6 +1156,106 @@ $('cipher-in').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); if (!e.repeat) checkCipher(); }
 });
 $('cipher-in').addEventListener('animationend', (e) => e.target.classList.remove('bad'));
+
+// 시간 여행 읽기 창: 시대 제목 + 글(따라 쓸 낱말 굵게) + 따라 쓰기 칸. 암호 창과 같은 모양(CSS 공유), 열린 동안 S.mode 'read'
+// 붙여넣기·끌어 놓기는 막는다(직접 써 보게). 다 쓰면 FUT.read가 늘고, Esc로 중간에 닫으면 그 건물은 안 끝난 걸로 둔다
+const readEl = document.createElement('div'); readEl.id = 'futread'; readEl.className = 'hide';
+readEl.setAttribute('role', 'dialog'); readEl.setAttribute('aria-modal', 'true'); readEl.setAttribute('aria-label', '시간 여행 거리 읽기');
+readEl.innerHTML = '<div class="cp-box"><div class="cp-top"><b id="futread-era"></b><span id="futread-n"></span></div><div id="futread-text"></div>'
+  + '<p id="futread-ask"></p><input id="futread-in" autocomplete="off" spellcheck="false" aria-label="따라 쓰기 입력">'
+  + '<button id="futread-done" class="hide" type="button">다 읽었어요</button><p id="futread-warn"></p>'
+  + '<div class="cp-key"><span class="kbd">Enter</span> 확인 · <span class="kbd">Esc</span> 닫기</div></div>';
+document.body.appendChild(readEl);
+function renderRead() {
+  const R = FUT_READ[FUT.rd.i], w = FUT.rd.w, all = w >= R.words.length;
+  $('futread-era').textContent = R.era;
+  $('futread-n').textContent = all ? '다 읽었어요' : '따라 쓰기 ' + (w + 1) + ' / ' + R.words.length;
+  const box = $('futread-text'); box.textContent = '';
+  R.text.forEach((line) => {
+    const p = document.createElement('p');
+    line.split('**').forEach((part, k) => { if (!part) return; const n = k % 2 ? document.createElement('b') : document.createTextNode(part); if (k % 2) n.textContent = part; p.appendChild(n); });
+    box.appendChild(p);
+  });
+  $('futread-ask').textContent = all ? '' : '따라 써 보세요: ' + R.words[w];
+  $('futread-in').classList.toggle('hide', all); $('futread-ask').classList.toggle('hide', all);
+  $('futread-done').classList.toggle('hide', !all); $('futread-in').value = ''; $('futread-warn').textContent = '';
+  setTimeout(() => (all ? $('futread-done') : $('futread-in')).focus(), 0);
+}
+function openRead(i) {
+  S.mode = 'read'; for (const k in keys) keys[k] = false; landNow();
+  FUT.rd = { i, w: i < FUT.read ? FUT_READ[i].words.length : 0 };   // 이미 끝낸 건물은 다시 읽기만(따라 쓰기 없이)
+  renderRead(); readEl.classList.remove('hide');
+}
+function closeRead() { readEl.classList.add('hide'); $('futread-in').blur(); $('futread-done').blur(); FUT.rd = null; for (const k in keys) keys[k] = false; S.mode = 'walk'; }
+function checkRead() {
+  const inp = $('futread-in'), v = inp.value.replace(/\s/g, ''), R = FUT_READ[FUT.rd.i];
+  if (!v || performance.now() - FUT.lastEnter < 200) return;
+  FUT.lastEnter = performance.now();
+  if (v !== R.words[FUT.rd.w].replace(/\s/g, '')) { sfx.nope(); inp.classList.remove('bad'); void inp.offsetWidth; inp.classList.add('bad'); return; }
+  sfx.ding(); FUT.rd.w++;
+  if (FUT.rd.w >= R.words.length && FUT.read === FUT.rd.i) FUT.read = FUT.rd.i + 1;
+  renderRead();
+}
+readEl.addEventListener('keydown', (e) => {
+  e.stopPropagation();   // 게임 쪽(Esc=수첩, Space=점프)으로 안 넘긴다
+  if (e.isComposing || e.keyCode === 229) return;   // 한글 조합 중 Enter는 판정하지 않는다
+  if (e.key === 'Escape') { e.preventDefault(); closeRead(); return; }
+  if (e.key === 'Enter') { e.preventDefault(); if (e.repeat) return; if (e.target.id === 'futread-in') checkRead(); else if (FUT.rd && FUT.rd.w >= FUT_READ[FUT.rd.i].words.length) closeRead(); }
+});
+$('futread-done').addEventListener('click', () => closeRead());
+$('futread-in').addEventListener('animationend', (e) => e.target.classList.remove('bad'));
+const noPaste = (e) => { e.preventDefault(); $('futread-warn').textContent = '붙여넣기는 안 돼요. 한 글자씩 직접 써 보세요.'; };
+$('futread-in').addEventListener('paste', noPaste);
+$('futread-in').addEventListener('drop', noPaste);
+$('futread-in').addEventListener('dragover', (e) => e.preventDefault());
+$('futread-in').addEventListener('beforeinput', (e) => { if (e.inputType === 'insertFromPaste' || e.inputType === 'insertFromDrop') noPaste(e); });
+
+// 미래 꼬꼬 변신: 꽃가루 → 상자에서 빛 기둥 → 꼬꼬가 떠올라 한 바퀴 돌며 번쩍 → 헬멧·제트팩을 달고 내려온다
+function buildSuit() {
+  const head = hero.parts.head, rig = hero.rig;
+  const glow = new THREE.MeshBasicMaterial({ color: 0x8fdcff, transparent: true, opacity: 0.38, depthWrite: false });
+  const helmet = new THREE.Group(); head.add(helmet);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), glow); dome.position.y = 0.16; dome.scale.set(1.08, 1.12, 1.08); helmet.add(dome);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.54, 0.035, 8, 32), new THREE.MeshBasicMaterial({ color: 0x4aa8ff })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.16; helmet.add(ring);
+  const ant = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), new THREE.MeshBasicMaterial({ color: 0x9ff0ff })); ant.position.y = 0.76; helmet.add(ant);
+  const pack = new THREE.Group(); pack.position.set(0, 0.44, -0.33); rig.add(pack);
+  const metal = toon(0xb8c4d4), red = toon(0xe8402c), flames = [];
+  box(0.36, 0.3, 0.1, 0, 0, 0.04, metal, 0.012, pack);
+  [-1, 1].forEach((s) => {
+    const tank = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.4, 12), metal); tank.position.set(s * 0.12, 0, -0.06); addOutline(tank, 0.012); pack.add(tank);
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.12, 12), red); cap.position.set(s * 0.12, 0.26, -0.06); pack.add(cap);
+    const noz = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.08, 10), toon(0x555c66)); noz.position.set(s * 0.12, -0.24, -0.06); pack.add(noz);
+    const f = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.3, 10), new THREE.MeshBasicMaterial({ color: 0xffa83a, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    f.rotation.x = Math.PI; f.position.set(s * 0.12, -0.43, -0.06); f.visible = false; pack.add(f); flames.push(f);
+  });
+  return { helmet, pack, flames };
+}
+function futTransform() {
+  S.mode = 'scene'; for (const k in keys) keys[k] = false; landNow();
+  S.x = -42.6; S.z = 2.6; S.face = 0;   // 상자 바로 앞, 카메라 쪽을 보게
+  S.cam = { p: new THREE.Vector3(-38.6, 3.0, 4.6), l: new THREE.Vector3(-43.3, 1.4, 2.4) };   // 떠오른 꼬꼬·빛 기둥이 한 화면에 들어오게 조금 멀리, 로봇(z 6.3)이 앞을 가리지 않게 동쪽에서
+  const beamMat = new THREE.MeshBasicMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const beamGeo = new THREE.CylinderGeometry(0.55, 0.55, 1, 20, 1, true); beamGeo.translate(0, 0.5, 0);
+  const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.set(-44.3, 0.3, 2.2); beam.scale.y = 0.01; scene.add(beam); FUT.beam = beam;
+  const flash = $('fut-flash'), T = 4.0;   // 초 단위 시간표: 빛 기둥 0.9~2.4 · 떠오름 2.2~2.7 · 회전 2.6~3.3(2.9 번쩍) · 내려옴 3.3~3.8
+  let flashed = false;
+  FUT.anim = { act: 'suit', t0: performance.now(), ms: T * 1000, step(k) {
+    const s = k * T;
+    const up = span(s, 0.9, 1.6), fade = span(s, 1.8, 2.4);
+    beam.scale.y = 0.01 + 7 * up; beamMat.opacity = 0.55 * Math.min(1, up * 3) * (1 - fade); beam.rotation.y = s * 2;
+    FUT.lift = 1.1 * Math.sin(Math.PI / 2 * span(s, 2.2, 2.7)) * (1 - span(s, 3.3, 3.8));
+    FUT.spin = Math.PI * 2 * span(s, 2.6, 3.3);
+    if (s >= 2.9 && !flashed) {
+      flashed = true; if (!FUT.suit) FUT.suit = buildSuit();
+      sfx.whoosh(); puff(S.x, S.z, 10, 1.1);
+      flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+    }
+  }, done: () => {
+    scene.remove(beam); beamGeo.dispose(); beamMat.dispose(); FUT.beam = null;
+    FUT.lift = 0; FUT.spin = 0; S.cam = null; S.mode = 'walk';
+    talk([{ who: 'note', text: '딸깍! 상자가 열렸어요. 미래 꼬꼬가 되었어요!' }]);
+  } };
+}
 function openChapter(c) {
   if (S.roam) return;
   S.mode = 'panel';
@@ -1573,7 +1699,7 @@ function updateOccluders(dt) {
 /* ── 입력 ──────────────────────────────────── */
 const keys = {};
 const J = { on: false, pre: 0, z: 0, vz: 0, dbl: false, spin: 0, land: 0, base: 0, fly: 0, flapT: 0 };   // z: 발 높이(땅 0, 소품 위면 그 윗면), base: 마지막으로 딛은 높이, fly: 이번 점프의 날갯짓 횟수(제출 뒤만)
-const GRAV = 26, V0 = 8.2, V2 = 6.4;
+const GRAV = 26, V0 = 8.2, V2 = 6.4, V0_SUIT = 9.6;   // V0_SUIT: 미래 꼬꼬(제트팩)가 된 뒤 첫 점프는 조금 더 높이(정점 ≈ 1.77)
 // 제출 뒤(S.roam) 날기: 공중에서 Space마다 날갯짓(횟수 제한 없음). 바깥은 땅 위 FLY_TOP까지,
 // 실내 방(지붕 없음, 벽 높이 ROOM_H)은 꼬꼬 머리가 벽 위로 안 나오게 낮춘다. 날갯짓한 뒤에는 천천히 내려온다(FLY_FALL)
 const FLY_TOP = 25, HERO_H = 1.1, FLY_FALL = 7;
@@ -1591,7 +1717,7 @@ function flap() {
 }
 addEventListener('keydown', (e) => {
   if (e.isComposing || e.keyCode === 229) return;
-  if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge' || S.mode === 'cipher') return;   // 시험 화면·판깔기·암호 창은 따로 처리
+  if (S.mode === 'panel' || S.mode === 'end' || S.mode === 'start' || S.mode === 'pledge' || S.mode === 'cipher' || S.mode === 'read') return;   // 시험 화면·판깔기·암호 창·읽기 창은 따로 처리
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   audioUnlock();
   if (S.mode === 'talk') { if ((e.code === 'Space' || e.code === 'Enter') && !e.repeat) advance(); return; }
@@ -1637,7 +1763,7 @@ function loop() {
   // 소품 끝에서 걸어 나가면 떨어진다
   if (!J.on && J.z > 0 && groundAt(S.x, S.z, J.z) < J.z - 0.01) Object.assign(J, { on: true, pre: 0, vz: 0, dbl: true, spin: 0, base: J.z });
   if (J.on) {
-    if (J.pre > 0) { J.pre -= dt; sy = 0.8; sx = 1.15; if (J.pre <= 0) { J.vz = V0; sfx.jump(); } }
+    if (J.pre > 0) { J.pre -= dt; sy = 0.8; sx = 1.15; if (J.pre <= 0) { J.vz = FUT.suit ? V0_SUIT : V0; sfx.jump(); } }
     else {
       const prevZ = J.z;
       if (J.fly && J.vz <= -FLY_FALL) { J.z -= FLY_FALL * dt; J.vz = -FLY_FALL; }   // 날갯짓한 뒤에는 활공하듯 천천히
@@ -1654,8 +1780,10 @@ function loop() {
   let dy = S.face - hero.root.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
   hero.root.rotation.y += dy * Math.min(1, dt * 12);
   const pose = updateVerb() || {};
-  hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy: sy * (pose.sy || 1), lift: J.z + (S.sit ? 0.42 : 0) + FUT.lift, spin: J.spin * Math.PI * 2,
+  hero.update(dt, { moving, jumping: J.on && J.pre <= 0, sx, sy: sy * (pose.sy || 1), lift: J.z + (S.sit ? 0.42 : 0) + FUT.lift, spin: J.spin * Math.PI * 2 + FUT.spin,
     headX: pose.headX, lean: pose.lean, wing: pose.wing });
+  // 미래 꼬꼬 제트팩 불꽃: 점프·날기 중에만, 살짝 일렁인다
+  if (FUT.suit) { const on = J.on && J.pre <= 0; FUT.suit.flames.forEach((f, i) => { f.visible = on; if (on) f.scale.set(1, 0.75 + Math.sin(navT * 40 + i * 2) * 0.25 + (J.vz > 0 ? 0.3 : 0), 1); }); }
   // 날기: 날갯짓 직후엔 크게 퍼덕이고, 내려올 때는 날개를 펴고 살랑
   if (J.fly && J.on) {
     J.flapT -= dt;
