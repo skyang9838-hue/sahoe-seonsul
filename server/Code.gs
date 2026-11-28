@@ -19,8 +19,8 @@
  *   - 교사 비밀번호: 'teacher' 고정 (login_)
  *   - 인정 단어: 숨김 탭 '인정단어' (없으면 스크립트 속성 KEYWORDS_JSON)
  *
- * 동시 접속: 시트에 쓰는 요청(register·save·submit·grade·gradeBulk·close)은 모두 스크립트 락 안에서 쓴다.
- * 학생은 5초마다·바뀐 것이 있을 때만 저장하므로 한 반 23명이 같이 써도 락 대기는 짧다.
+ * 동시 접속: 새 줄을 붙이거나 줄을 옮기는 요청(register 새 학생·grade·gradeBulk·close·sortSheets)은 스크립트 락 안에서 쓴다.
+ * 학생 save·submit은 자기 줄 C~O열만 고치므로 락 없이 쓴다 (11/28: 3반 수업에서 락 대기가 쌓여 제출이 실패함 → write_ 주석).
  */
 
 var TZ = 'Asia/Seoul';
@@ -49,6 +49,7 @@ var ST_WORK = '작성중', ST_DONE = '제출완료';
 var TOKEN_HOURS = 6;
 var MAX_TEXT = 3000;        // 칸 하나 최대 글자 수
 var KW_CHUNK = 40000;       // 시트 칸 하나에 5만 자까지 들어가므로 4만 자씩 나눈다
+var SORT_QUIET = 180;       // sortSheets: 최근 이 초 안에 학생 저장·접속이 있으면 답안 탭 줄을 옮기지 않는다
 
 /* ── 웹앱 진입점 ─────────────────────────── */
 
@@ -176,13 +177,30 @@ function sortByBanNum_(sh, ncol) {
   rng.setValues(idx.map(function (i) { return vals[i].map(function (v) { return safe_(txt_(v)); }); }));
   return true;
 }
-/** 교사 화면·운영용: 답안·채점 두 탭을 반·번호 순으로. */
+/** 'yyyy-MM-dd HH:mm:ss'(서울) 글자 → 밀리초. 못 읽으면 0. */
+function atMs_(v) {
+  if (v instanceof Date) return v.getTime();
+  var m = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})/.exec(String(v == null ? '' : v));
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4] - 9, +m[5], +m[6]) : 0;
+}
+/** 최근 SORT_QUIET초 안에 저장(N)이나 첫 접속(P)이 있는 학생 줄이 있나 — 있으면 수업 중이라 줄을 옮기지 않는다. */
+function recentWork_(sh) {
+  var last = sh.getLastRow();
+  if (last < 2) return false;
+  var lim = Date.now() - SORT_QUIET * 1000;
+  return sh.getRange(2, A_SAVED, last - 1, A_FIRST - A_SAVED + 1).getValues().some(function (r) {
+    return atMs_(r[0]) > lim || atMs_(r[A_FIRST - A_SAVED]) > lim;
+  });
+}
+/** 교사·운영용: 답안·채점 두 탭을 반·번호 순으로. 학생 저장은 락 없이 줄 번호로 쓰므로, 수업 중(최근 저장이 있으면)에는 답안 탭을 옮기지 않는다. */
 function sortSheets_() {
   var lock = lock_(30000);
   if (!lock) return { ok: false, msg: '잠시 뒤 다시 눌러 주세요.' };
   try {
-    var a = sortByBanNum_(ansSheet_(), A_LAST), g = sortByBanNum_(gradeSheet_(), G_LAST);
-    return { ok: true, answers: a, grades: g };
+    var shA = ansSheet_(), busy = recentWork_(shA);
+    var a = busy ? false : sortByBanNum_(shA, A_LAST), g = sortByBanNum_(gradeSheet_(), G_LAST);
+    return busy ? { ok: true, answers: false, grades: g, answersBusy: true, msg: '학생이 아직 쓰는 중이라 답안 탭은 수업이 끝난 뒤 정렬해요.' }
+                : { ok: true, answers: a, grades: g };
   } finally { lock.releaseLock(); }
 }
 
@@ -219,28 +237,33 @@ function register_(ban, num) {
   ban = digits_(ban); num = digits_(num);
   if (!ban || !num) return { ok: false, msg: '반과 번호는 숫자로만 적어 주세요.' };
 
+  var closed = isClosed_(ban);
+  var found = function (sh) {
+    var rows = rows_(sh, A_LAST), row = findRow_(rows, ban, num);
+    if (!row) return null;
+    var r = rows[row - 2];
+    return {
+      ok: true, row: row,
+      answers: r.slice(A_ANS - 1, A_ANS - 1 + N_ANS).map(function (v) { return txt_(v); }),
+      submitted: norm_(r[A_STATUS - 1]) === ST_DONE,
+      submittedAt: short_(r[A_SUBMIT - 1]),
+      progress: Number(r[A_PROG - 1]) || 0,
+      closed: closed
+    };
+  };
+  // 이미 있는 학생(새로고침·이어하기)은 읽기만 하므로 락 없이
+  if (ss_().getSheetByName(SH_ANS)) { var again = found(ansSheet_()); if (again) return again; }
+
   var lock = lock_(30000);
   if (!lock) return { ok: false, msg: '지금 접속이 몰려 있어요. 잠시 뒤 다시 눌러 주세요.' };
   try {
     var sh = ansSheet_();
-    var rows = rows_(sh, A_LAST);
-    var closed = isClosed_(ban);
-    var row = findRow_(rows, ban, num);
-    if (row) {
-      var r = rows[row - 2];
-      return {
-        ok: true, row: row,
-        answers: r.slice(A_ANS - 1, A_ANS - 1 + N_ANS).map(function (v) { return txt_(v); }),
-        submitted: norm_(r[A_STATUS - 1]) === ST_DONE,
-        submittedAt: short_(r[A_SUBMIT - 1]),
-        progress: Number(r[A_PROG - 1]) || 0,
-        closed: closed
-      };
-    }
-    row = rows.length + 2;
+    var had = found(sh);   // 락을 기다리는 사이 같은 번호가 먼저 들어왔으면 그 줄
+    if (had) return had;
+    var row = sh.getLastRow() + 1;
     var line = [ban, num].concat(blank_()).concat([ST_WORK, 0, '', '', now_()]);
+    // 새 줄은 맨 끝에 붙인다. 학생 저장이 락 없이 줄 번호로 쓰므로 수업 중에는 줄을 옮기지 않는다(정렬은 sortSheets, 11/28)
     sh.getRange(row, 1, 1, A_LAST).setValues([line]);
-    sortByBanNum_(sh, A_LAST);   // 새 학생 줄을 반·번호 자리로 (row는 게임에서 '등록됨' 표시로만 씀)
     return { ok: true, row: row, answers: blank_(), submitted: false, submittedAt: '', progress: 0, closed: closed };
   } finally {
     lock.releaseLock();
@@ -255,27 +278,26 @@ function write_(b, final) {
   if (!ban || !num) return { ok: false, msg: '반·번호 정보가 없어요. 새로고침한 뒤 다시 들어와 주세요.' };
   if (!Array.isArray(answers) || answers.length !== N_ANS) return { ok: false, msg: '새로고침한 뒤 다시 들어와 주세요.' };
 
-  var lock = lock_(10000);
-  if (!lock) return { ok: false, msg: '저장이 몰려 있어요. 잠시 뒤 다시 저장해 주세요.' };
-  try {
-    if (isClosed_(ban)) return { ok: false, closed: true, msg: '선생님이 마감했어요. 이제 답을 고칠 수 없어요.' };
-    var sh = ansSheet_();
-    var rows = rows_(sh, A_LAST);
-    var row = findRow_(rows, ban, num);
-    if (!row) return { ok: false, msg: '등록되지 않은 번호예요. 새로고침한 뒤 다시 들어와 주세요.' };
-    var cur = rows[row - 2];
+  // 락 없이 쓴다 (11/28 3반 수업 뒤 고침): 예전엔 저장마다 스크립트 락(대기 10초)을 잡아 한 반이 5초마다 저장하면 줄이 밀려
+  // '저장이 몰려 있어요'로 거부됐고, 게임은 거부를 다시 보내지 않아 제출이 실패했다. 이 요청은 자기 줄 C~O열만 고치고,
+  // 줄은 등록 때 맨 끝에 붙기만 하며(락 안) 수업 중에는 옮기지 않으므로(sortSheets가 최근 저장을 보면 건너뜀) 락이 필요 없다.
+  // 읽기도 반·번호 두 열 + 자기 줄 네 칸만 해서 실행 시간을 줄였다.
+  if (isClosed_(ban)) return { ok: false, closed: true, msg: '선생님이 마감했어요. 이제 답을 고칠 수 없어요.' };
+  var notReg = { ok: false, msg: '등록되지 않은 번호예요. 새로고침한 뒤 다시 들어와 주세요.' };
+  if (!ss_().getSheetByName(SH_ANS)) return notReg;
+  var sh = ansSheet_();   // 머리줄 확인
+  var last = sh.getLastRow();
+  var row = last >= 2 ? findRow_(sh.getRange(2, 1, last - 1, 2).getValues(), ban, num) : 0;
+  if (!row) return notReg;
+  var cur = sh.getRange(row, A_STATUS, 1, A_SUBMIT - A_STATUS + 1).getValues()[0];   // L 상태 · M 진행 · N 마지막 저장 · O 제출 시각
 
-    var at = now_();
-    var wasDone = norm_(cur[A_STATUS - 1]) === ST_DONE;
-    var done = wasDone || final;
-    var submittedAt = final ? at : txt_(cur[A_SUBMIT - 1]);
-    var prog = Math.max(Number(cur[A_PROG - 1]) || 0, Math.min(99, Number(b.progress) || 0));
-    var vals = answers.map(safe_).concat([done ? ST_DONE : ST_WORK, prog, at, submittedAt]);
-    sh.getRange(row, A_ANS, 1, N_ANS + 4).setValues([vals]);
-    return { ok: true, at: short_(at), submitted: done, submittedAt: short_(submittedAt), closed: false };
-  } finally {
-    lock.releaseLock();
-  }
+  var at = now_();
+  var done = norm_(cur[0]) === ST_DONE || final;
+  var submittedAt = final ? at : txt_(cur[A_SUBMIT - A_STATUS]);
+  var prog = Math.max(Number(cur[A_PROG - A_STATUS]) || 0, Math.min(99, Number(b.progress) || 0));
+  var vals = answers.map(safe_).concat([done ? ST_DONE : ST_WORK, prog, at, submittedAt]);
+  sh.getRange(row, A_ANS, 1, N_ANS + 4).setValues([vals]);
+  return { ok: true, at: short_(at), submitted: done, submittedAt: short_(submittedAt), closed: false };
 }
 
 /* ── 교사: 로그인·토큰 ───────────────────── */

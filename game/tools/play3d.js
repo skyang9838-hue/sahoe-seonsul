@@ -172,7 +172,7 @@ const fails = []; const check = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ '
   check(s0 >= 1 && s0 < 4, '판깔기 줄은 한 줄씩 나타남 (1.5초 뒤 ' + s0 + '/4줄)');
   for (let i = 0; i < 80 && !(await p.evaluate(() => !!document.getElementById('pledge').dataset.ready)); i++) await p.waitForTimeout(100);
   s0 = await p.evaluate(() => ({ on: [...document.querySelectorAll('#pledge .pl-lines p')].filter((l) => l.classList.contains('on') && +getComputedStyle(l).opacity > 0.5).length, ask: getComputedStyle(document.querySelector('#pledge .pl-ask')).visibility, bg: getComputedStyle(document.getElementById('pledge')).backgroundColor, focus: document.activeElement && document.activeElement.id }));
-  check(s0.on === 4 && s0.ask === 'visible', '네 줄이 다 나온 뒤 입력 칸·안내가 보임 (' + s0.on + '줄, ' + s0.ask + ')');
+  check(s0.on === 5 && s0.ask === 'visible', '다섯 줄이 다 나온 뒤 입력 칸·안내가 보임 (' + s0.on + '줄, ' + s0.ask + ')');
   check(s0.bg === 'rgb(0, 0, 0)', '판깔기 배경은 검은색 (' + s0.bg + ')');
   check(s0.focus === 'pledge-in', '판깔기 입력 칸에 자동 포커스 (' + s0.focus + ')');
   await p.waitForTimeout(700); await snap('pledge'); await bandCheck('판깔기 화면(덮임)', false);

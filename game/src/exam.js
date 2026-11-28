@@ -110,6 +110,8 @@ function save(final, done) {
   const attempt = () => {
     tries++;
     SRV[final ? "submit" : "save"]({ ban: S.ban, num: S.num, answers: snap, progress: S.progress }, (res) => {
+      // 제출은 서버가 거절해도(마감 말고) 몇 번 더 보낸다 (11/28: 접속이 몰리면 제출이 한 번에 안 들어가던 것)
+      if (final && !(res && (res.ok || res.closed)) && tries < 5) { setTimeout(attempt, 1000 * tries); return; }
       S.saving = false;
       if (res && res.closed) { saveQueue.length = 0; setClosed(); done && done(false); return; }
       if (res && res.ok) {
@@ -119,7 +121,7 @@ function save(final, done) {
       } else { S.failed = true; showBanner(res && res.msg); }
       renderSaveState(); done && done(!!(res && res.ok)); drain();
     }, () => {
-      if (tries < 3) { setTimeout(attempt, 700 * tries); return; }
+      if (tries < (final ? 5 : 3)) { setTimeout(attempt, (final ? 1000 : 700) * tries); return; }
       S.saving = false; S.failed = true; renderSaveState(); showBanner(null); done && done(false); drain();
     });
   };
@@ -140,8 +142,8 @@ function renderSaveState() {
   el.className = S.saving ? "saving" : S.failed ? "fail" : "";
   el.textContent = S.closed ? "마감됨" : S.saving ? "저장 중…" : S.failed ? "저장 실패" : S.dirty ? "저장 대기" : (S.lastSavedAt ? "저장됨 " + S.lastSavedAt : "저장됨");
 }
-// 바뀐 것이 있을 때만 5초마다 저장(칸을 떠날 때도 저장)
-setInterval(() => { if (S.row && S.dirty && !S.saving && canEdit()) save(false); }, 5000);
+// 바뀐 것이 있을 때만 10초마다 저장(칸을 떠날 때·창을 닫을 때도 저장). 11/28: 5초 → 10초로 서버 요청을 반으로
+setInterval(() => { if (S.row && S.dirty && !S.saving && canEdit()) save(false); }, 10000);
 addEventListener("beforeunload", (e) => { if (S.row && !S.closed && (S.dirty || S.saving)) { e.preventDefault(); e.returnValue = ""; } });
 
 /* ─────────────────────────────────────────────
@@ -162,7 +164,7 @@ function symRowHTML(i, lab, prefix) {
 function textField(i, prefix) {
   const tag = FIELD_TAG[i];
   return '<div class="field">' + (tag ? '<div class="field-tag">' + esc(tag) + '</div>' : '') +
-    '<textarea id="' + prefix + 'a' + i + '" data-i="' + i + '" maxlength="800" rows="2" autocomplete="off" spellcheck="false" aria-label="' + esc(ANSWER_LABELS[i]) + '"></textarea></div>';
+    '<textarea id="' + prefix + 'a' + i + '" data-i="' + i + '" maxlength="800" rows="2" autocomplete="off" spellcheck="false" placeholder="조건을 그대로 옮겨 쓰지 말고, 내 생각을 내 말로 써요." aria-label="' + esc(ANSWER_LABELS[i]) + '"></textarea></div>';
 }
 function qHTML(c, prefix) {
   let h = "";

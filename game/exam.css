@@ -214,6 +214,7 @@
 .sym-val{margin-left:6px;font-size:14px;color:#7a6555;min-width:60px}
 #ex-panel[data-c="0"] .fill-line{line-height:1.95}
 .field{margin-top:4px}
+.q .field textarea::placeholder{color:#a8998a;opacity:1}
 .field-tag{font-size:13px;color:#7a6555;margin:0 0 1px 2px;font-family:"Gowun Dodum",sans-serif;font-weight:700}
 .q .field textarea{min-height:58px;padding:5px 9px;font-size:15.5px;line-height:1.55}
 #ex-panel[data-c="1"] .cond,#ex-panel[data-c="2"] .cond,#ex-notebook .cond{font-size:15px;line-height:1.5;padding:4px 10px}

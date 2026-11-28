@@ -36,7 +36,9 @@ function makeGas() {
     getValue() { return this.sh.get(this.r, this.c); }
     setValues(v) {
       if (v.length !== this.nr || v.some((row) => row.length !== this.nc)) throw new Error('setValues 크기가 범위와 다름 ' + this.nr + 'x' + this.nc);
-      if (this.sh.watch && !lock.held) violations.push(this.sh.name + ' ' + this.r + '행을 락 없이 씀');
+      // 학생 save·submit은 자기 줄 C~O열(한 줄 13칸)만 락 없이 쓴다 (11/28). 그 밖의 쓰기는 모두 락 안에서
+      const ownRow = this.sh.name === '답안' && this.nr === 1 && this.c === 3 && this.nc === 13;
+      if (this.sh.watch && !lock.held && !ownRow) violations.push(this.sh.name + ' ' + this.r + '행을 락 없이 씀');
       v.forEach((row, i) => row.forEach((x, j) => this.sh.set(this.r + i, this.c + j, x)));
       return this;
     }
@@ -352,13 +354,18 @@ section('잠금');
   const before = g.ss.getSheetByName('답안').writes;
   g.lock.busy = true;   // 다른 요청이 락을 쥐고 안 놓는 상황
   check(/몰려/.test(g.post({ action: 'register', ban: '3', num: '2' }).msg), '락을 못 잡으면 등록은 잠시 뒤 다시');
-  check(/몰려/.test(g.post({ action: 'save', ban: '3', num: '1', answers: A9('x'), progress: 1 }).msg), '락을 못 잡으면 저장 거부(게임이 다시 보냄)');
-  check(g.post({ action: 'submit', ban: '3', num: '1', answers: A9('x'), progress: 3 }).ok === false, '락을 못 잡으면 제출 거부');
+  check(g.post({ action: 'register', ban: '3', num: '1' }).ok === true, '이미 있는 학생 다시 들어오기는 락 없이 됨');
   check(g.post({ action: 'grade', token: tok, ban: '3', num: '1', item: '1', value: '◎' }).ok === false, '락을 못 잡으면 판정 거부');
   check(g.post({ action: 'gradeBulk', token: tok, ban: '3', list: [{ num: '1', final: { 1: '◎' } }] }).ok === false, '락을 못 잡으면 일괄 거부');
   check(g.post({ action: 'close', token: tok, ban: '3', on: true }).ok === false, '락을 못 잡으면 마감 거부');
   check(g.post({ action: 'list', token: tok, ban: '3' }).ok === true, '읽기(list)는 락 없이 됨');
   check(g.ss.getSheetByName('답안').writes === before && !g.ss.getSheetByName('채점') && !g.ss.getSheetByName('설정'), '락을 못 잡은 요청은 아무것도 안 씀');
+  // 학생 저장·제출은 락 없이 자기 줄만 (11/28: 락 대기로 제출이 실패하던 것)
+  check(g.post({ action: 'save', ban: '3', num: '1', answers: A9('x'), progress: 1 }).ok === true, '락이 막혀 있어도 저장됨');
+  const sub = g.post({ action: 'submit', ban: '3', num: '1', answers: A9('y'), progress: 3 });
+  check(sub.ok === true && sub.submitted === true, '락이 막혀 있어도 제출됨');
+  check(g.post({ action: 'register', ban: '3', num: '1' }).answers[0] === 'y', '제출한 답이 그 줄에 들어감');
+  check(g.post({ action: 'save', ban: '3', num: '9', answers: A9('x'), progress: 1 }).ok === false, '등록 안 된 번호 저장은 거부');
   g.lock.busy = false;
   check(g.lock.held === false, '모든 요청 뒤 락이 풀려 있음');
   // 오류가 나도 락을 놓는지: 머리줄을 망가뜨린 뒤 저장
@@ -396,7 +403,7 @@ section('23명 몰려 저장');
     if (!expect[n] || JSON.stringify(reg.answers) === JSON.stringify(expect[n])) same++;
   }
   check(same === 23, '23명 모두 마지막으로 보낸 답과 같음');
-  check(g.lock.waits >= calls, '저장마다 락을 잡음');
+  check(g.lock.waits === 23, '락은 새 학생 등록 23번만 (저장·제출·다시 들어오기는 락 없이) [' + g.lock.waits + ']');
   check(g.violations.length === 0, '락 없이 쓴 곳 없음');
 }
 
@@ -480,8 +487,15 @@ section('반·번호 정렬');
   check(g.post({ action: 'save', ban: '3', num: '5', answers: A9((i) => (i === 0 ? '=1+1' : i === 1 ? '-빼기' : '줄\n바꿈')), progress: 2 }).ok, '3반 5번 저장');
   check(g.post({ action: 'register', ban: '2', num: '1' }).ok, '나중에 2반 1번 등록');
   const sh = g.ss.getSheetByName('답안');
-  const seq = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().map((r) => r[0] + '-' + r[1]).join(' ');
-  check(seq === '1-1 1-2 1-10 2-1 2-3 3-1 3-5', '답안 탭 반→번호(숫자) 순 [' + seq + ']');
+  const seqOf = () => sh.getRange(2, 1, sh.getLastRow() - 1, 2).getValues().map((r) => r[0] + '-' + r[1]).join(' ');
+  check(seqOf() === '3-5 1-10 2-3 1-2 3-1 1-1 2-1', '등록은 줄을 옮기지 않고 맨 끝에 붙임 [' + seqOf() + ']');
+  const tok0 = g.post({ action: 'login', pw: 'teacher' }).token;
+  const busy = g.post({ action: 'sortSheets', token: tok0 });
+  check(busy.ok && busy.answersBusy === true && seqOf() === '3-5 1-10 2-3 1-2 3-1 1-1 2-1', '수업 중(최근 저장·접속)에는 답안 탭을 옮기지 않음');
+  g.tick(200);
+  const done = g.post({ action: 'sortSheets', token: tok0 });
+  const seq = seqOf();
+  check(done.ok && done.answers === true && seq === '1-1 1-2 1-10 2-1 2-3 3-1 3-5', '조용해진 뒤 sortSheets = 반→번호(숫자) 순 [' + seq + ']');
   const r35 = sh.getRange(8, 3, 1, 3).getValues()[0];
   check(r35[0] === '=1+1' && r35[1] === '-빼기' && r35[2] === '줄\n바꿈', '정렬 뒤에도 =·- 글이 수식이 안 됨 [' + JSON.stringify(r35) + ']');
   check(g.post({ action: 'submit', ban: '1', num: '2', answers: A9('답'), progress: 3 }).ok, '정렬 뒤 1반 2번 제출 (줄을 다시 찾음)');
