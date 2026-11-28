@@ -43,7 +43,13 @@ const stamp = (d) => d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d
 const digits = (v) => { v = String(v == null ? '' : v).trim(); return /^\d{1,2}$/.test(v) ? String(parseInt(v, 10)) : ''; };
 const readLS = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
 const writeLS = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
-const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).then((r) => r.json());
+// 20초 넘게 답이 없으면 끊는다 → 학생 화면은 다시 보냄 (11/28 부하 시험: GAS 요청 하나가 5분 동안 안 돌아와 그동안 제출이 막힘)
+const post = (url, body, ms = 20000) => {
+  const ac = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const t = ac ? setTimeout(() => ac.abort(), ms) : 0;
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body), signal: ac ? ac.signal : undefined })
+    .then((r) => r.json()).finally(() => clearTimeout(t));
+};
 
 /* ─────────────────────────────────────────────
    학생 API (콜백 방식: ok(res), fail(err) — exam.js가 쓰는 모양 그대로)

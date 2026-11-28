@@ -44,7 +44,7 @@ const Q3 = { prompt: "3. <자료 3>을 읽고 불꽃식품의 경제활동에 �
 /* ─────────────────────────────────────────────
    2. 화면·상태
    ───────────────────────────────────────────── */
-import { API_URL, SCENES } from './config.js?v=12';
+import { API_URL, SCENES } from './config.js?v=13';
 const N_ANS = 9;
 // 답 칸: a0·a1 = 1번 (1) 기호(저장값 예 "ㄱㄷ"), a2·a3 = 1번 (2) 빈칸, a4·a5 = 2번 가)·나), a6·a7·a8 = 3번 가)·나) 문제점·나) 개선
 const ANSWER_LABELS = ["1번 (1) 가계", "1번 (1) 기업", "1번 (2) ①", "1번 (2) ②", "2번 가)", "2번 나)", "3번 가)", "3번 나) 앞", "3번 나) 뒤"];
@@ -53,7 +53,7 @@ const CH_FIELDS = [[0, 1, 2, 3], [4, 5], [6, 7, 8]];         // 장(패널) → 
 const FIELD_TAG = { 4: "가)", 5: "나)", 6: "가)", 7: "나) 다하지 못한 점", 8: "나) 개선할 방법" };
 const SYM = ["ㄱ", "ㄴ", "ㄷ", "ㄹ"], SYM_SHOW = ["㉠", "㉡", "㉢", "㉣"];
 // 저장 키 v3: 옛 4문항(6칸) 데이터와 섞이지 않게
-import { studentSrv, KEY_SRV, KEY_CLOSED, KEY_LOCAL } from './srv.js?v=1';
+import { studentSrv, KEY_SRV, KEY_CLOSED, KEY_LOCAL } from './srv.js?v=4';
 const S = { ban: "", num: "", row: 0, answers: blank(), submitted: false, submittedAt: "", progress: 0, flags: {},
   closed: false, editing: false, dirty: false, saving: false, failed: false, lastSavedAt: "", finalizing: false, base: "" };
 let H = {}, sfx = {}, mode = "start", roaming = false;   // roaming: 제출 뒤 마을 돌아다니기

@@ -22,6 +22,7 @@ function makeGas() {
   class FakeDate extends Date { constructor(...a) { if (a.length) super(...a); else super(clock.t); } static now() { return clock.t; } }
   const lock = { held: false, busy: false, waits: 0 };
   const violations = [];
+  const flushes = { n: 0 };
   const logs = [];
   const props = {};
   const cache = {};
@@ -69,7 +70,7 @@ function makeGas() {
 
   const ctx = {
     Date: FakeDate, JSON, Math, Number, String, Array, Object, Error, isFinite, parseInt,
-    SpreadsheetApp: { getActive: () => ss },
+    SpreadsheetApp: { getActive: () => ss, flush: () => { flushes.n++; }, openById: () => ss },
     LockService: { getScriptLock: () => ({
       waitLock() { lock.waits++; if (lock.busy || lock.held) throw new Error('잠금 대기 시간 초과'); lock.held = true; },
       releaseLock() { lock.held = false; },
@@ -90,6 +91,8 @@ function makeGas() {
       },
     },
     Logger: { log: (m) => logs.push(String(m)) },
+    ScriptApp: { getService: () => ({ getUrl: () => 'https://script.google.com/macros/s/AKfycbTESTdeploymentID_0123456789/exec' }) },
+    HtmlService: { createHtmlOutput: (h) => ({ h, title: '', setTitle(t) { this.title = t; return this; }, addMetaTag() { return this; }, getContent() { return this.h; } }) },
   };
   vm.createContext(ctx);
   vm.runInContext(CODE, ctx, { filename: 'Code.gs' });
@@ -108,8 +111,10 @@ const A9 = (fill) => Array.from({ length: 9 }, (_, i) => (typeof fill === 'funct
 section('라우팅');
 {
   const g = makeGas();
-  const get = JSON.parse(g.ctx.doGet().getContent());
-  check(get.ok === true, 'doGet은 켜져 있다는 JSON');
+  const get = JSON.parse(g.ctx.doGet({ parameter: { ping: '' } }).getContent());
+  check(get.ok === true, 'doGet ?ping은 켜져 있다는 JSON');
+  const page = g.ctx.doGet({ parameter: {} }).getContent();
+  check(page.includes('sahoe-seonsul/?s=AKfycbTESTdeploymentID_0123456789') && page.includes('teacher.html?s=AKfycbTESTdeploymentID_0123456789'), '서버 주소를 열면 이 배포 ID가 든 학생용·교사용 주소 안내');
   check(g.post('{깨진').ok === false, '깨진 JSON은 ok:false');
   check(/알 수 없는/.test(g.post({ action: 'hack' }).msg), '모르는 action은 거부');
   check(g.post({}).ok === false, 'action 없음은 거부');
@@ -240,6 +245,17 @@ section('인정 단어');
   const tok = g.post({ action: 'login', pw: 'teacher' }).token;
   const none = g.post({ action: 'keywords', token: tok });
   check(none.ok === false && /setupKeywords/.test(none.msg), '인정 단어가 없으면 안내');
+  // 사본 시트 설치용 Keywords.js: 숨김 탭이 비면 기본 인정 단어 (11/28)
+  {
+    const g2 = makeGas();
+    const KJ = readFileSync(join(ROOT, 'server', 'Keywords.js'), 'utf8');
+    vm.runInContext(KJ, g2.ctx);
+    const pub = JSON.parse(readFileSync(join(ROOT, 'game', 'src', 'keywords.json'), 'utf8'));
+    check(JSON.stringify(g2.ctx.KEYWORDS_DEFAULT) === JSON.stringify(pub), 'server/Keywords.js = game/src/keywords.json (다르면 node tools/build_keywords_js.mjs)');
+    const t2 = g2.post({ action: 'login', pw: 'teacher' }).token;
+    const k2 = g2.post({ action: 'keywords', token: t2 });
+    check(k2.ok && JSON.stringify(k2.keywords.fields) === JSON.stringify(pub.fields), '숨김 탭 없으면 Keywords.js 기본 인정 단어');
+  }
   let threw = ''; try { g.ctx.setupKeywords(); } catch (e) { threw = String(e.message); }
   check(/KEYWORDS_PASTE/.test(threw), '붙여넣기 없이 setupKeywords 실행하면 안내 오류');
   threw = ''; try { g.ctx.setupKeywords_({ version: 1 }); } catch (e) { threw = String(e.message); }

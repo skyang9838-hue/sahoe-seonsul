@@ -1,7 +1,7 @@
 // 교사 화면: 로그인 → 반 고르기 → 반 표 / 1·2·3번 문항 탭에서 판정 확정 → 반 마감 · 답안집
 // 채점은 scorer.js(teacher-core.js를 거쳐) 그대로. 인정 단어는 로그인 뒤 서버 keywords()로만 받는다.
 import { T, ITEMS, esc, judge, needsCheck, loadKeywords, loadClass, syncAuto, prepItems, prepTotal,
-  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox } from './teacher-core.js?v=6';
+  paint, itemFields, itemHasYellow, itemGreenOnly, loginBox, KEEP_Q } from './teacher-core.js?v=8';
 import { Q1, Q2, Q3, FIELD_NAME, symShow } from './items.js?v=2';
 
 const $ = (id) => document.getElementById(id);
@@ -229,7 +229,7 @@ function setMark(num, item, v) {
 $('ban').addEventListener('change', (e) => openBan(e.target.value));
 $('btn-reload').addEventListener('click', () => { if (V.ban) openBan(V.ban); else start(); });
 $('btn-out').addEventListener('click', () => { T.logout(); showLogin(''); });
-$('btn-print').addEventListener('click', () => { if (V.ban) window.open('print.html?ban=' + encodeURIComponent(V.ban) + (new URLSearchParams(location.search).has('stub') ? '&stub' : ''), '_blank'); });
+$('btn-print').addEventListener('click', () => { if (V.ban) window.open('print.html?ban=' + encodeURIComponent(V.ban) + (KEEP_Q ? '&' + KEEP_Q : ''), '_blank'); });
 $('btn-close').addEventListener('click', async () => {
   if (!V.ban) return;
   const on = !V.closed;

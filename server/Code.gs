@@ -53,8 +53,34 @@ var SORT_QUIET = 180;       // sortSheets: 최근 이 초 안에 학생 저장·
 
 /* ── 웹앱 진입점 ─────────────────────────── */
 
-function doGet() {
-  return json_({ ok: true, msg: '꼬꼬의 첫 출근 서버가 켜져 있어요. 게임에서 POST로 부릅니다.' });
+var GAME_BASE = 'https://skyang9838-hue.github.io/sahoe-seonsul/';
+
+/**
+ * 서버 주소(/exec)를 브라우저로 열면 = 우리 학교 전용 주소 안내 (11/28 우리 학교용 설치).
+ * 다른 학교 선생님은 사본 시트 → 웹 앱 배포 → 나온 주소를 열기만 하면 학생용·교사용 주소를 받는다(어디에 붙여 넣을 필요 없음).
+ * 게임은 POST만 쓰므로 GET은 이 안내 화면 전용. ?ping 이면 예전처럼 JSON.
+ */
+function doGet(e) {
+  if (e && e.parameter && 'ping' in e.parameter) return json_({ ok: true, msg: '꼬꼬의 첫 출근 서버가 켜져 있어요. 게임에서 POST로 부릅니다.' });
+  var url = String(ScriptApp.getService().getUrl() || '');
+  var m = /\/s\/([A-Za-z0-9_-]+)\/(exec|dev)/.exec(url);
+  var id = m ? m[1] : '';
+  var game = GAME_BASE + '?s=' + id, teacher = GAME_BASE + 'teacher.html?s=' + id;
+  var row = function (label, sub, link) {
+    return '<div class="box"><div class="lab">' + label + '</div><div class="sub">' + sub + '</div>' +
+      '<div class="url"><input readonly value="' + link + '" onclick="this.select()"><button onclick="navigator.clipboard.writeText(this.previousSibling.value);this.textContent=\'복사됨\'">복사</button>' +
+      '<a href="' + link + '" target="_blank">열기</a></div></div>';
+  };
+  var html = '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<style>body{margin:0;background:#fdf6ea;font-family:"Malgun Gothic",sans-serif;color:#3b2a1e}main{max-width:720px;margin:0 auto;padding:40px 20px}' +
+    'h1{font-size:26px;margin:0 0 6px}p{line-height:1.6;margin:0 0 18px;color:#6b5b4c}.box{background:#fff;border:2px solid #ead9bf;border-radius:16px;padding:18px 20px;margin:0 0 14px}' +
+    '.lab{font-weight:700;font-size:19px}.sub{color:#8a7a69;font-size:14px;margin:2px 0 10px}.url{display:flex;gap:8px}input{flex:1;min-width:0;font-size:14px;padding:9px 10px;border:1px solid #d9c7ab;border-radius:10px;background:#fffdf8}' +
+    'button,a{font-size:14px;padding:9px 14px;border-radius:10px;border:0;background:#f08a24;color:#fff;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap}a{background:#3b2a1e}.ok{color:#2f7d32;font-weight:700}</style></head><body><main>' +
+    '<h1>🐥 꼬꼬의 첫 출근 · 우리 학교 주소</h1><p class="ok">설치가 끝났어요. 학생 답은 이 시트(선생님 구글 드라이브)에만 저장됩니다.</p>' +
+    (id ? row('학생용 게임 주소', '학생에게 이 주소를 나눠 주세요.', game) + row('교사 화면 주소', '판정 확인·확정·마감·답안집. 처음 비밀번호는 teacher', teacher)
+        : '<div class="box">주소를 읽지 못했어요. Apps Script의 배포 → 배포 관리에서 웹 앱 URL을 다시 열어 주세요.</div>') +
+    '<p>이 화면은 서버 주소를 열 때마다 다시 볼 수 있어요. 수업 전에 학생용 주소로 없는 반(예: 9반)으로 한 번 해 보세요.</p></main></body></html>';
+  return HtmlService.createHtmlOutput(html).setTitle('꼬꼬의 첫 출근 · 우리 학교 주소').addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
 
 function doPost(e) {
@@ -118,6 +144,10 @@ function lock_(ms) {
   var lock = LockService.getScriptLock();
   try { lock.waitLock(ms); return lock; } catch (e) { return null; }
 }
+/** 락을 놓기 전에 시트 쓰기를 확정한다 (11/28 부하 시험: flush 없이 놓으면 다음 요청이 옛 getLastRow를 보고 같은 줄에 새 학생을 덮어씀 — 30명 중 3명 사라짐) */
+function unlock_(lock) {
+  try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
+}
 
 /* ── 시트 준비 ───────────────────────────── */
 
@@ -128,7 +158,13 @@ function sheet_(name, head, setupFn) {
   var ss = ss_();
   var sh = ss.getSheetByName(name);
   if (!sh) {
-    sh = ss.insertSheet(name);
+    try { sh = ss.insertSheet(name); }
+    catch (e) {   // 다른 요청이 방금 만든 탭 (새 시트에 첫 학생들이 한꺼번에 들어올 때, 11/28 부하 시험)
+      SpreadsheetApp.flush();
+      sh = SpreadsheetApp.openById(ss.getId()).getSheetByName(name);
+      if (!sh) throw e;
+      return sh;
+    }
     if (sh.getMaxColumns() < head.length) sh.insertColumnsAfter(sh.getMaxColumns(), head.length - sh.getMaxColumns());
     sh.getRange(1, 1, 1, head.length).setValues([head]).setFontWeight('bold').setBackground('#fdf3e1');
     sh.setFrozenRows(1);
@@ -201,7 +237,7 @@ function sortSheets_() {
     var a = busy ? false : sortByBanNum_(shA, A_LAST), g = sortByBanNum_(gradeSheet_(), G_LAST);
     return busy ? { ok: true, answers: false, grades: g, answersBusy: true, msg: '학생이 아직 쓰는 중이라 답안 탭은 수업이 끝난 뒤 정렬해요.' }
                 : { ok: true, answers: a, grades: g };
-  } finally { lock.releaseLock(); }
+  } finally { unlock_(lock); }
 }
 
 /** 반·번호가 같은 행 번호(시트 기준). 없으면 0. */
@@ -227,7 +263,7 @@ function setup() {
     ansSheet_(); gradeSheet_(); setSheet_(); rosterSheet_();
     kwSheet_();
     Logger.log('탭 준비 끝: 답안·채점·설정·명단·인정단어(숨김)');
-  } finally { lock.releaseLock(); }
+  } finally { unlock_(lock); }
 }
 
 /* ── 학생: 등록 / 이어하기 ───────────────── */
@@ -266,7 +302,7 @@ function register_(ban, num) {
     sh.getRange(row, 1, 1, A_LAST).setValues([line]);
     return { ok: true, row: row, answers: blank_(), submitted: false, submittedAt: '', progress: 0, closed: closed };
   } finally {
-    lock.releaseLock();
+    unlock_(lock);
   }
 }
 
@@ -388,6 +424,8 @@ function readKeywords_() {
     text = sh.getRange(1, 1, sh.getLastRow(), 1).getValues().map(function (r) { return txt_(r[0]); }).join('');
   }
   if (!norm_(text)) text = PropertiesService.getScriptProperties().getProperty('KEYWORDS_JSON') || '';
+  // 숨김 탭·속성이 비어 있으면 함께 든 Keywords.js의 공개 인정 단어 (11/28: 사본 시트 설치는 setupKeywords 없이 바로 쓰게)
+  if (!norm_(text) && typeof KEYWORDS_DEFAULT !== 'undefined') return KEYWORDS_DEFAULT;
   if (!norm_(text)) return null;
   return JSON.parse(text);
 }
@@ -414,7 +452,7 @@ function setupKeywords_(src) {
     var sh = kwSheet_();
     if (sh.getLastRow() >= 1) sh.getRange(1, 1, sh.getLastRow(), 1).clearContent();
     sh.getRange(1, 1, chunks.length, 1).setValues(chunks);
-  } finally { lock.releaseLock(); }
+  } finally { unlock_(lock); }
   var sum = need.map(function (k) {
     var f = obj.fields[k], n = 0;
     (f.groups || []).forEach(function (g) { n += (g.words || []).length; });
@@ -468,7 +506,7 @@ function grade_(ban, num, item, value) {
     sh.getRange(g.row, 1, 1, G_LAST).setValues([g.line]);
     sortByBanNum_(sh, G_LAST);
     return { ok: true, grade: gradeObj_(g.line) };
-  } finally { lock.releaseLock(); }
+  } finally { unlock_(lock); }
 }
 
 /** list = [{num, auto?:{1,2,3,종합}, check?, final?:{1,2,3,종합}, direct?}] — 일괄 확정·임시 판정 기록. 하나라도 틀리면 아무것도 안 쓴다. */
@@ -512,7 +550,7 @@ function gradeBulk_(ban, list) {
     });
     sortByBanNum_(sh, G_LAST);
     return { ok: true, count: list.length };
-  } finally { lock.releaseLock(); }
+  } finally { unlock_(lock); }
 }
 
 /* ── 교사: 반 마감 ───────────────────────── */
@@ -529,5 +567,5 @@ function close_(ban, on) {
     if (!row) row = rows.length + 2;
     sh.getRange(row, 1, 1, 3).setValues([[ban, on ? 'Y' : '', now_()]]);
     return { ok: true, ban: ban, closed: !!on };
-  } finally { lock.releaseLock(); }
+  } finally { unlock_(lock); }
 }
